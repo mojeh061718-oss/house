@@ -1,0 +1,41 @@
+// Inline SVG line-icon set (24px grid, stroke-based, professional style).
+const svg = (inner, viewBox = '0 0 24 24') =>
+  `<svg viewBox="${viewBox}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+
+export const ICONS = {
+  logo: svg('<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5.5h4v5.5"/>'),
+  select: svg('<path d="M5 3l14 8-6.5 1.5L9 19z"/>'),
+  wall: svg('<path d="M3 9h18v6H3z"/><path d="M8 9v6M13 9v6M18 9v6M5.5 3.5V9M10.5 15v5.5"/>'),
+  room: svg('<rect x="4" y="5" width="16" height="14"/><path d="M4 12h6M14 5v4"/>'),
+  door: svg('<path d="M4 20h16"/><path d="M6 20V4h9"/><path d="M15 4a13 13 0 0 1-9 12.6" stroke-dasharray="2.5 2.5"/><path d="M15 4v16"/>'),
+  window: svg('<rect x="4" y="6" width="16" height="12"/><path d="M12 6v12M4 12h16"/>'),
+  undo: svg('<path d="M8 6 4 10l4 4"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/>'),
+  redo: svg('<path d="m16 6 4 4-4 4"/><path d="M20 10H10a6 6 0 0 0 0 12h3"/>'),
+  d2: svg('<rect x="3.5" y="5" width="17" height="14" rx="1.5"/><text x="12" y="16" text-anchor="middle" font-size="8.5" font-weight="700" stroke="none" fill="currentColor">2D</text>'),
+  d3: svg('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12 4 7.5M12 12l8-4.5M12 12v9"/>'),
+  split: svg('<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M12 5v14"/>'),
+  walk: svg('<circle cx="13" cy="4.5" r="1.8"/><path d="M13 7v5l2.5 3.5v4"/><path d="M13 9.5 9.5 12l-1 4.5"/><path d="m13 12-4.5 8"/><path d="M13 9.5l3.5 1 2 2.5"/>'),
+  ceiling: svg('<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10" opacity="0.45"/>'),
+  fit: svg('<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  minus: svg('<path d="M5 12h14"/>'),
+  trash: svg('<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/><path d="M10 11v5M14 11v5"/>'),
+  copy: svg('<rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15H4V4h11v1"/>'),
+  save: svg('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-7h8v7"/>'),
+  open: svg('<path d="M4 6h6l2 2h8v11H4z"/>'),
+  file: svg('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'),
+  download: svg('<path d="M12 4v11M7 11l5 5 5-5"/><path d="M4 20h16"/>'),
+  camera: svg('<path d="M4 8h4l2-2.5h4L16 8h4v11H4z"/><circle cx="12" cy="13" r="3.2"/>'),
+  menu: svg('<path d="M4 6.5h16M4 12h16M4 17.5h16"/>'),
+  close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
+  chevL: svg('<path d="m14 6-6 6 6 6"/>'),
+  chevR: svg('<path d="m10 6 6 6-6 6"/>'),
+  sliders: svg('<path d="M5 5v14M12 5v14M19 5v14"/><circle cx="5" cy="10" r="2.2" fill="var(--panel,#fff)"/><circle cx="12" cy="15" r="2.2" fill="var(--panel,#fff)"/><circle cx="19" cy="8" r="2.2" fill="var(--panel,#fff)"/>'),
+  rotate: svg('<path d="M20 8a8.5 8.5 0 1 0 1.5 5"/><path d="M20 3v5h-5"/>'),
+  paint: svg('<path d="M4 4h12v5H4z"/><path d="M16 6h4v4h-8v3"/><rect x="10.5" y="13" width="3" height="7.5"/>'),
+  info: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.4" fill="currentColor"/>')
+};
+
+export function icon(name) {
+  return `<span class="icon">${ICONS[name] || ''}</span>`;
+}
