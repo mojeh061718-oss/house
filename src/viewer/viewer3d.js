@@ -182,12 +182,15 @@ export class Viewer3D {
     const rooms = this.store.rooms;
     this.disposeGroup(this.archGroup);
     this.disposeGroup(this.groundGroup);
-    this.archGroup.add(buildWalls(project, rooms));
-    this.archGroup.add(buildFloors(project, rooms));
+    const guard = (fn, what) => {
+      try { fn(); } catch (err) { console.warn(what + ' build failed', err); }
+    };
+    guard(() => this.archGroup.add(buildWalls(project, rooms)), 'walls');
+    guard(() => this.archGroup.add(buildFloors(project, rooms)), 'floors');
     if (this.showCeilings || this.walkMode) {
-      this.archGroup.add(buildCeilings(project, rooms));
+      guard(() => this.archGroup.add(buildCeilings(project, rooms)), 'ceilings');
     }
-    this.groundGroup.add(buildGround(project));
+    guard(() => this.groundGroup.add(buildGround(project)), 'ground');
     this.rebuildItems();
     const c = this.center();
     this.sun.target.position.set(c.x, 0, c.z);
@@ -205,19 +208,24 @@ export class Viewer3D {
     for (const it of this.store.project.items) {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
-      const model = def.build(paletteFor(it, def));
-      model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
-      const outer = new THREE.Group();
-      outer.add(model);
-      outer.userData.itemId = it.id;
-      this.poseItem(outer, it, def, wallH);
-      if (def.light) {
-        const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
-        l.position.set(0, def.mount === 'ceiling' ? wallH + def.light.y : def.light.y, 0);
-        outer.add(l);
+      try {
+        const model = def.build(paletteFor(it, def));
+        model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
+        const outer = new THREE.Group();
+        outer.add(model);
+        outer.userData.itemId = it.id;
+        this.poseItem(outer, it, def, wallH);
+        if (def.light) {
+          const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
+          l.position.set(0, def.mount === 'ceiling' ? wallH + def.light.y : def.light.y, 0);
+          outer.add(l);
+        }
+        this.itemsGroup.add(outer);
+        this.itemGroups.set(it.id, outer);
+      } catch (err) {
+        // never let one bad item wipe the whole furniture pass
+        console.warn('item build failed', it.defId, err);
       }
-      this.itemsGroup.add(outer);
-      this.itemGroups.set(it.id, outer);
     }
     this.updateSelBox();
   }
@@ -428,7 +436,13 @@ export class Viewer3D {
     if (this.pointers.size > 2) return;
 
     if (this.walkMode) {
-      this.gesture = { kind: 'look', id: e.pointerId, x: p.x, y: p.y, yaw: this.walk.yaw, pitch: this.walk.pitch };
+      // touch: left half of the screen is a move joystick, right half looks
+      if (e.pointerType === 'touch' && p.x < this.container.clientWidth * 0.42) {
+        this.gesture = { kind: 'joy', id: e.pointerId, x: p.x, y: p.y };
+        this.walk.joy = { mx: 0, mz: 0 };
+      } else {
+        this.gesture = { kind: 'look', id: e.pointerId, x: p.x, y: p.y, yaw: this.walk.yaw, pitch: this.walk.pitch };
+      }
       return;
     }
 
@@ -482,6 +496,14 @@ export class Viewer3D {
       return;
     }
 
+    if (g?.kind === 'joy' && g.id === e.pointerId) {
+      this.walk.joy = {
+        mx: clamp((p.x - g.x) / 70, -1, 1),
+        mz: clamp((p.y - g.y) / 70, -1, 1)
+      };
+      return;
+    }
+
     if (g?.kind === 'rotate' && g.id === e.pointerId) {
       const dx = p.x - g.x, dy = p.y - g.y;
       if (Math.hypot(dx, dy) > 4) g.moved = true;
@@ -515,6 +537,7 @@ export class Viewer3D {
   onUp(e) {
     this.pointers.delete(e.pointerId);
     const g = this.gesture;
+    if (g?.kind === 'joy' && g.id === e.pointerId) this.walk.joy = null;
     if (g?.kind === 'pinch' && this.pointers.size === 1) {
       // hand back to single-finger rotate anchored at the remaining pointer
       const [id, p] = [...this.pointers.entries()][0];
@@ -556,6 +579,7 @@ export class Viewer3D {
       if (k.has('KeyS') || k.has('ArrowDown')) mz += 1;
       if (k.has('KeyA') || k.has('ArrowLeft')) mx -= 1;
       if (k.has('KeyD') || k.has('ArrowRight')) mx += 1;
+      if (this.walk.joy) { mx += this.walk.joy.mx; mz += this.walk.joy.mz; }
       if (mx || mz) {
         const yaw = this.walk.yaw;
         const fx = -Math.sin(yaw), fz = -Math.cos(yaw);

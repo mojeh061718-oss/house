@@ -130,11 +130,16 @@ export function detectRooms(walls) {
   };
 
   const halfEdges = [];
+  const seen = new Set(); // dedupe overlapping collinear walls (shared room edges)
   for (const w of segments) {
     if (dist(w.ax, w.ay, w.bx, w.by) < EPS * 2) continue;
     const a = getNode(w.ax, w.ay);
     const b = getNode(w.bx, w.by);
     if (a === b) continue;
+    const ka = nodeKey(a.x, a.y), kb = nodeKey(b.x, b.y);
+    const ek = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+    if (seen.has(ek)) continue;
+    seen.add(ek);
     const e1 = { from: a, to: b, wallId: w.id, visited: false, twin: null };
     const e2 = { from: b, to: a, wallId: w.id, visited: false, twin: null };
     e1.twin = e2; e2.twin = e1;

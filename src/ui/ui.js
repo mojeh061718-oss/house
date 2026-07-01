@@ -4,7 +4,7 @@ import { ICONS, icon } from './icons.js';
 import { thumbnail } from './thumbs.js';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview } from '../core/textures.js';
-import { wallLength } from '../core/geometry.js';
+import { wallLength, pointInPolygon } from '../core/geometry.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -25,6 +25,7 @@ export class UI {
     this.onHome = onHome;
     this.activeCat = 'living';
     this.wide = window.matchMedia('(min-width: 1100px)');
+    this.coarse = window.matchMedia('(pointer: coarse)').matches;
     this._hintTimer = null;
 
     this.buildToolbar();
@@ -516,11 +517,16 @@ export class UI {
       const room = store.room(sel.id);
       if (!room) { store.select(null); return; }
       const style = store.roomStyle(sel.id);
+      const rect = this.roomRect(room);
       panel.innerHTML = `${head(style.name || 'Room')}
         <div class="props-body">
           <label class="field"><span>Room name</span>
             <input id="roomName" value="${style.name || ''}" placeholder="e.g. Living room"/>
           </label>
+          ${rect ? `<div class="props-grid2">
+            ${this.numRow('pRW', 'Width', Math.round(rect.maxX - rect.minX), 'cm')}
+            ${this.numRow('pRD', 'Depth', Math.round(rect.maxY - rect.minY), 'cm')}
+          </div>` : ''}
           <div class="props-stat">Area&ensp;<b>${(room.area / 10000).toFixed(2)} m²</b></div>
           <div class="props-section-title">Floor</div>
           <div class="mat-grid" id="matFloor"></div>
@@ -532,6 +538,19 @@ export class UI {
         store.roomStyle(sel.id).name = e.target.value;
         store.commit(false);
       });
+      if (rect) {
+        const resize = (newW, newD) => {
+          store.checkpoint();
+          this.resizeRoom(rect, newW, newD);
+          store.commit(true);
+          // room key may change after resize — reselect by center point
+          const cx = rect.minX + newW / 2, cy = rect.minY + newD / 2;
+          const r2 = store.rooms.find(r => pointInPolygon(cx, cy, r.polygon));
+          if (r2) store.select({ kind: 'room', id: r2.key });
+        };
+        this.bindNum('pRW', v => resize(Math.max(100, Math.min(3000, v)), Math.round(rect.maxY - rect.minY)));
+        this.bindNum('pRD', v => resize(Math.round(rect.maxX - rect.minX), Math.max(100, Math.min(3000, v))));
+      }
       this.matGrid('#matFloor', 'floor', style.floor, id => {
         store.checkpoint(); store.roomStyle(sel.id).floor = id; store.commit(true);
       });
@@ -562,6 +581,35 @@ export class UI {
   setVal(id, v) {
     const inp = document.getElementById(id);
     if (inp && document.activeElement !== inp) inp.value = v;
+  }
+
+  /** Axis-aligned bounding rect of a simple 4-corner rectangular room, else null. */
+  roomRect(room) {
+    const poly = room.polygon;
+    if (poly.length !== 4) return null;
+    for (let i = 0; i < 4; i++) {
+      const a = poly[i], b = poly[(i + 1) % 4];
+      if (Math.abs(a.x - b.x) > 1 && Math.abs(a.y - b.y) > 1) return null;
+    }
+    const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+    return {
+      minX: Math.min(...xs), maxX: Math.max(...xs),
+      minY: Math.min(...ys), maxY: Math.max(...ys)
+    };
+  }
+
+  /** Resize a rectangular room by moving wall endpoints on its far edges. */
+  resizeRoom(rect, newW, newD) {
+    const nx = rect.minX + newW, ny = rect.minY + newD;
+    for (const w of this.store.project.walls) {
+      for (const end of ['a', 'b']) {
+        const x = w[end + 'x'], y = w[end + 'y'];
+        const onMaxX = Math.abs(x - rect.maxX) < 1.5 && y > rect.minY - 1.5 && y < rect.maxY + 1.5;
+        const onMaxY = Math.abs(y - rect.maxY) < 1.5 && x > rect.minX - 1.5 && x < rect.maxX + 1.5;
+        if (onMaxX) w[end + 'x'] = nx;
+        if (onMaxY) w[end + 'y'] = ny;
+      }
+    }
   }
 
   numRow(id, label, value, unit, readonly = false) {
@@ -613,21 +661,25 @@ export class UI {
     const pill = $('#hintPill');
     if (!pill) return;
     const store = this.store;
+    const tap = this.coarse ? 'Tap' : 'Click';
+    const zoom = this.coarse ? 'pinch to zoom' : 'scroll to zoom';
     let text;
     if (store.viewMode === '3d' && this.viewer.walkMode) {
-      text = 'Walk mode — drag to look around · WASD / arrows to move';
+      text = this.coarse
+        ? 'Walk mode — left side: drag to walk · right side: drag to look'
+        : 'Walk mode — WASD / arrows to move · drag to look';
     } else if (store.viewMode === '3d') {
-      text = 'Drag to orbit · pinch to zoom · tap furniture to select & move it';
+      text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select & move it`;
     } else {
       const hints = {
         select: store.project.walls.length
-          ? 'Tap to select · drag to move · pinch to zoom'
+          ? `${tap} to select · drag to move · ${zoom}`
           : 'Start with the Wall or Room tool on the left',
-        wall: 'Tap to place wall points · double-tap or Esc to finish',
+        wall: 'Drag to draw a wall · start at the end of another to connect',
         room: 'Drag to draw a rectangular room',
-        door: 'Tap a wall to place a door',
-        window: 'Tap a wall to place a window',
-        place: `Tap the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
+        door: `${tap} a wall to place a door`,
+        window: `${tap} a wall to place a window`,
+        place: `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
       };
       text = hints[store.tool] || '';
     }

@@ -40,7 +40,7 @@ export class Editor2D {
     canvas.addEventListener('pointerup', e => this.onUp(e));
     canvas.addEventListener('pointercancel', e => this.onUp(e));
     canvas.addEventListener('wheel', e => this.onWheel(e), { passive: false });
-    canvas.addEventListener('dblclick', e => { e.preventDefault(); this.finishWallChain(); });
+    canvas.addEventListener('dblclick', e => e.preventDefault());
     canvas.addEventListener('contextmenu', e => e.preventDefault());
 
     window.addEventListener('keydown', e => this.onKey(e));
@@ -326,31 +326,9 @@ export class Editor2D {
   }
 
   downWall(w) {
-    const store = this.store;
-    if (this.mode.name !== 'wallChain') {
-      const pt = this.snapPoint(w.x, w.y);
-      this.mode = { name: 'wallChain', last: pt, preview: pt };
-    } else {
-      const pt = this.snapPoint(w.x, w.y, { ref: this.mode.last });
-      const { last } = this.mode;
-      if (dist(pt.x, pt.y, last.x, last.y) > GRID) {
-        store.checkpoint();
-        store.addWall(last.x, last.y, pt.x, pt.y);
-        store.commit(true);
-        if (pt.kind === 'endpoint') {
-          // closed into existing geometry → finish chain
-          this.mode = { name: 'idle' };
-          return;
-        }
-        this.mode.last = pt;
-        this.mode.preview = pt;
-      }
-    }
-  }
-
-  finishWallChain() {
-    if (this.mode.name === 'wallChain') this.mode = { name: 'idle' };
-    this.requestRender();
+    // drag-to-draw: press starts the wall, release finishes it
+    const pt = this.snapPoint(w.x, w.y);
+    this.mode = { name: 'wallDraw', start: pt, preview: pt, dragging: true };
   }
 
   downOpening(w, tool) {
@@ -450,8 +428,8 @@ export class Editor2D {
         if (Math.hypot(sx - m.sx, sy - m.sy) > 5) m.clickHit = undefined, m.clickW = undefined;
         break;
       }
-      case 'wallChain': {
-        m.preview = this.snapPoint(w.x, w.y, { ref: m.last });
+      case 'wallDraw': {
+        m.preview = this.snapPoint(w.x, w.y, { ref: m.start });
         break;
       }
       case 'roomRect': {
@@ -554,6 +532,13 @@ export class Editor2D {
       // treated as a click on empty space / room
       store.select(m.clickHit); // null or {kind:'room'}
     }
+    if (m.name === 'wallDraw' && m.preview) {
+      if (dist(m.start.x, m.start.y, m.preview.x, m.preview.y) > GRID * 2) {
+        store.checkpoint();
+        store.addWall(m.start.x, m.start.y, m.preview.x, m.preview.y);
+        store.commit(true);
+      }
+    }
     if (m.name === 'roomRect' && m.start && m.cur) {
       const { start: s, cur: c } = m;
       if (Math.abs(c.x - s.x) > 40 && Math.abs(c.y - s.y) > 40) {
@@ -575,7 +560,7 @@ export class Editor2D {
     if (m.name === 'dragItem' || m.name === 'rotateItem' || m.name === 'resizeItem') {
       store.commit(false);
     }
-    if (m.name !== 'wallChain') this.mode = { name: 'idle' };
+    this.mode = { name: 'idle' };
     this.requestRender();
   }
 
@@ -600,7 +585,7 @@ export class Editor2D {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
     const store = this.store;
     if (e.key === 'Escape') {
-      if (this.mode.name === 'wallChain') this.finishWallChain();
+      if (this.mode.name !== 'idle') this.cancelMode();
       else if (store.tool !== 'select') store.setTool('select');
       else store.select(null);
     } else if ((e.key === 'Delete' || e.key === 'Backspace')) {
@@ -838,19 +823,19 @@ export class Editor2D {
     const store = this.store;
     const m = this.mode;
 
-    if (m.name === 'wallChain' && m.preview) {
-      const { last, preview } = m;
+    if (m.name === 'wallDraw' && m.preview) {
+      const { start, preview } = m;
       ctx.strokeStyle = '#3884ff';
       ctx.lineWidth = DEFAULTS.wallThickness;
       ctx.globalAlpha = 0.5;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(last.x, last.y);
+      ctx.moveTo(start.x, start.y);
       ctx.lineTo(preview.x, preview.y);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineCap = 'butt';
-      this.drawNode(ctx, last.x, last.y, px);
+      this.drawNode(ctx, start.x, start.y, px);
       this.drawNode(ctx, preview.x, preview.y, px);
     }
     if (m.name === 'roomRect' && m.cur) {
@@ -943,15 +928,27 @@ export class Editor2D {
       ctx.restore();
     }
     // live wall-draw length
-    if (this.mode.name === 'wallChain' && this.mode.preview) {
-      const { last, preview } = this.mode;
-      const len = dist(last.x, last.y, preview.x, preview.y);
+    if (this.mode.name === 'wallDraw' && this.mode.preview) {
+      const { start, preview } = this.mode;
+      const len = dist(start.x, start.y, preview.x, preview.y);
       if (len > 5) {
-        const s = this.toScreen((last.x + preview.x) / 2, (last.y + preview.y) / 2);
-        ctx.font = '600 12px system-ui, sans-serif';
+        const s = this.toScreen((start.x + preview.x) / 2, (start.y + preview.y) / 2);
+        ctx.font = '600 13px system-ui, sans-serif';
         ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
-        ctx.fillText(`${(len / 100).toFixed(2)} m`, s.x, s.y - 12);
+        ctx.fillText(`${(len / 100).toFixed(2)} m`, s.x, s.y - 14);
+      }
+    }
+    // live dimensions while dragging out a room
+    if (this.mode.name === 'roomRect' && this.mode.cur) {
+      const { start: rs, cur: rc } = this.mode;
+      const w = Math.abs(rc.x - rs.x), d = Math.abs(rc.y - rs.y);
+      if (w > 20 && d > 20) {
+        const s = this.toScreen((rs.x + rc.x) / 2, (rs.y + rc.y) / 2);
+        ctx.font = '700 14px system-ui, sans-serif';
+        ctx.fillStyle = '#2b6fe0';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${(w / 100).toFixed(2)} × ${(d / 100).toFixed(2)} m`, s.x, s.y);
       }
     }
     // selected item dims

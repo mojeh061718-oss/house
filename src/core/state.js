@@ -76,8 +76,26 @@ export class Store {
   }
 
   refreshRooms() {
+    const old = this.rooms || [];
     this.rooms = detectRooms(this.project.walls);
     for (const r of this.rooms) r.key = roomKey(r);
+    // room keys derive from centroids; when geometry edits move a centroid,
+    // carry the room's name/materials over to its nearest successor
+    const styles = this.project.roomStyles;
+    const liveKeys = new Set(this.rooms.map(r => r.key));
+    for (const r of this.rooms) {
+      if (styles[r.key]) continue;
+      let best = null, bestD = 300; // cm
+      for (const o of old) {
+        if (o.key === r.key || !styles[o.key] || liveKeys.has(o.key)) continue;
+        const d = Math.hypot(o.centroid.x - r.centroid.x, o.centroid.y - r.centroid.y);
+        if (d < bestD) { bestD = d; best = o; }
+      }
+      if (best) {
+        styles[r.key] = styles[best.key];
+        delete styles[best.key];
+      }
+    }
   }
 
   undo() {
