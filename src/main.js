@@ -27,3 +27,10 @@ window.addEventListener('resize', () => {
 
 // expose for debugging in the console
 window.havenplan = { store, editor, viewer, ui };
+
+// PWA: register the service worker in production builds
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* offline support unavailable */ });
+  });
+}
