@@ -1,5 +1,6 @@
 // Central application state: project data, selection, tools, undo/redo, persistence.
 import { detectRooms, roomKey, uid } from './geometry.js';
+import { saveProject } from './projects.js';
 
 export const DEFAULTS = {
   wallHeight: 260,      // cm
@@ -30,11 +31,10 @@ export function emptyProject(name = 'Untitled project') {
   };
 }
 
-const AUTOSAVE_KEY = 'havenplan.autosave.v1';
-
 export class Store {
   constructor() {
     this.project = emptyProject();
+    this.currentProjectId = null;
     this.rooms = [];
     this.selection = null;     // {kind:'item'|'wall'|'opening'|'room', id}
     this.tool = 'select';      // select | wall | room | door | window | place | paint
@@ -197,28 +197,18 @@ export class Store {
 
   scheduleAutosave() {
     clearTimeout(this._dirtyTimer);
-    this._dirtyTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(this.project));
-      } catch { /* storage full or unavailable */ }
-    }, 800);
+    this._dirtyTimer = setTimeout(() => this.saveNow(), 800);
   }
 
-  loadAutosave() {
-    try {
-      const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (!raw) return false;
-      const data = JSON.parse(raw);
-      if (!data || !Array.isArray(data.walls)) return false;
-      this.project = { ...emptyProject(), ...data };
-      this.refreshRooms();
-      return true;
-    } catch {
-      return false;
+  saveNow() {
+    clearTimeout(this._dirtyTimer);
+    if (this.currentProjectId) {
+      saveProject(this.currentProjectId, this.project);
     }
   }
 
-  loadProject(data) {
+  loadProject(data, projectId = null) {
+    this.currentProjectId = projectId;
     this.project = { ...emptyProject(), ...data };
     this.undoStack.length = 0;
     this.redoStack.length = 0;

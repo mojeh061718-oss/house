@@ -1,7 +1,7 @@
-// HavenPlan service worker: app-shell caching for offline use.
+// Honeycutt Home Studio service worker: app-shell caching for offline use.
 // Hashed build assets are cached first-hit (immutable), the HTML shell is
 // network-first so new deployments show up on the next online visit.
-const VERSION = 'havenplan-v1';
+const VERSION = 'honeycutt-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

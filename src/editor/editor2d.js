@@ -8,9 +8,10 @@ import { getTextureCanvases, MATERIAL_MAP } from '../core/textures.js';
 import { ITEM_MAP } from '../catalog/items.js';
 import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
+import { localPos } from '../core/orientation.js';
+import { snapPose } from '../core/placement.js';
 
 const GRID = 10;            // snap grid (cm)
-const HANDLE_PX = 11;       // screen-px radius of manipulation handles
 
 export class Editor2D {
   constructor(canvas, store) {
@@ -24,6 +25,10 @@ export class Editor2D {
     this.pinch = null;
     this.dirty = true;
     this.patternCache = new Map();
+    // touch ergonomics: big handles + generous hit radius on coarse pointers
+    this.coarse = window.matchMedia('(pointer: coarse)').matches;
+    this.handleR = this.coarse ? 14 : 9;      // drawn radius (px)
+    this.handleHit = this.handleR + 16;       // hit-test radius (px)
 
     store.on('change', () => this.requestRender());
     store.on('selection', () => this.requestRender());
@@ -55,10 +60,10 @@ export class Editor2D {
 
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = this.canvas.getBoundingClientRect();
-    if (rect.width === 0) return;
-    this.canvas.width = Math.round(rect.width * dpr);
-    this.canvas.height = Math.round(rect.height * dpr);
+    const w = this.canvas.offsetWidth, h = this.canvas.offsetHeight;
+    if (!w) return;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
     this.dpr = dpr;
     this.requestRender();
   }
@@ -68,8 +73,8 @@ export class Editor2D {
     const pts = [];
     for (const w of p.walls) pts.push([w.ax, w.ay], [w.bx, w.by]);
     for (const it of p.items) pts.push([it.x, it.y]);
-    const rect = this.canvas.getBoundingClientRect();
-    if (!pts.length || !rect.width) {
+    const cw = this.canvas.offsetWidth, ch = this.canvas.offsetHeight;
+    if (!pts.length || !cw) {
       this.view = { x: 0, y: 0, scale: 0.55 };
       this.requestRender();
       return;
@@ -82,25 +87,23 @@ export class Editor2D {
     this.view.x = (minX + maxX) / 2;
     this.view.y = (minY + maxY) / 2;
     const spanX = Math.max(maxX - minX, 200), spanY = Math.max(maxY - minY, 200);
-    this.view.scale = clamp(Math.min(rect.width / (spanX + 220), rect.height / (spanY + 220)), 0.05, 4);
+    this.view.scale = clamp(Math.min(cw / (spanX + 220), ch / (spanY + 220)), 0.05, 4);
     this.requestRender();
   }
 
   // ---- coordinate transforms ----------------------------------------------
 
   toWorld(sx, sy) {
-    const rect = this.canvas.getBoundingClientRect();
     return {
-      x: (sx - rect.width / 2) / this.view.scale + this.view.x,
-      y: (sy - rect.height / 2) / this.view.scale + this.view.y
+      x: (sx - this.canvas.offsetWidth / 2) / this.view.scale + this.view.x,
+      y: (sy - this.canvas.offsetHeight / 2) / this.view.scale + this.view.y
     };
   }
 
   toScreen(wx, wy) {
-    const rect = this.canvas.getBoundingClientRect();
     return {
-      x: (wx - this.view.x) * this.view.scale + rect.width / 2,
-      y: (wy - this.view.y) * this.view.scale + rect.height / 2
+      x: (wx - this.view.x) * this.view.scale + this.canvas.offsetWidth / 2,
+      y: (wy - this.view.y) * this.view.scale + this.canvas.offsetHeight / 2
     };
   }
 
@@ -143,13 +146,17 @@ export class Editor2D {
   hitTest(wx, wy) {
     const p = this.store.project;
     const tol = 10 / this.view.scale;
-    // items (topmost drawn last => iterate reversed, non-rug first)
-    const sorted = this.sortedItems().slice().reverse();
-    for (const it of sorted) {
+    // items: among everything under the cursor, grab the one whose center is
+    // proportionally closest — so a small ceiling lamp over a sofa doesn't
+    // steal every tap meant for the sofa.
+    let bestItem = null, bestScore = Infinity;
+    for (const it of this.sortedItems()) {
       if (pointInItemRect(wx, wy, it, it.w + tol, it.d + tol)) {
-        return { kind: 'item', id: it.id };
+        const score = Math.hypot(wx - it.x, wy - it.y) / Math.max(it.w, it.d);
+        if (score <= bestScore) { bestScore = score; bestItem = it; }
       }
     }
+    if (bestItem) return { kind: 'item', id: bestItem.id };
     // openings
     for (const o of p.openings) {
       const w = this.store.wall(o.wallId);
@@ -196,12 +203,12 @@ export class Editor2D {
   // ---- pointer handling -------------------------------------------------------
 
   evtPos(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
+    const p = localPos(e, this.canvas);
+    return { sx: p.x, sy: p.y };
   }
 
   onDown(e) {
-    this.canvas.setPointerCapture(e.pointerId);
+    try { this.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
     const { sx, sy } = this.evtPos(e);
     this.pointers.set(e.pointerId, { sx, sy });
 
@@ -264,7 +271,7 @@ export class Editor2D {
     if (sel?.kind === 'wall') {
       const wall = store.wall(sel.id);
       if (wall) {
-        const tolPx = HANDLE_PX + 4;
+        const tolPx = this.handleHit;
         for (const end of ['a', 'b']) {
           const pt = this.toScreen(wall[end + 'x'], wall[end + 'y']);
           if (Math.hypot(pt.x - sx, pt.y - sy) < tolPx) {
@@ -374,32 +381,20 @@ export class Editor2D {
     store.select({ kind: 'item', id: it.id });
   }
 
-  /** Position + rotation for placing an item, snapping wall-mounted items to walls. */
-  placePose(w, def) {
-    if (def.mount === 'wall') {
-      const near = this.nearestWall(w.x, w.y, 60);
-      if (near) {
-        const ang = wallAngle(near.wall);
-        const nx = Math.sin(ang), ny = -Math.cos(ang); // wall normal
-        // put item on the cursor's side of the wall
-        const side = ((w.x - near.px) * nx + (w.y - near.py) * ny) >= 0 ? 1 : -1;
-        const off = near.wall.thickness / 2 + def.d / 2 + 0.5;
-        return {
-          x: near.px + nx * off * side,
-          y: near.py + ny * off * side,
-          rot: ang + (side > 0 ? Math.PI : 0)
-        };
-      }
-    }
-    return { x: Math.round(w.x / GRID) * GRID, y: Math.round(w.y / GRID) * GRID, rot: 0 };
+  /** Position + rotation for placing an item, snapping to walls where sensible. */
+  placePose(w, def, opts = {}) {
+    return snapPose(this.store.project.walls, def, w.x, w.y, opts);
   }
 
   itemHandleAt(it, sx, sy) {
     const handles = this.itemHandles(it);
+    let best = null, bestD = this.handleHit;
     for (const h of handles) {
-      if (Math.hypot(h.sx - sx, h.sy - sy) <= HANDLE_PX + 4) return h.id;
+      const d = Math.hypot(h.sx - sx, h.sy - sy);
+      // rotate handle wins ties — it's the one users reach for most
+      if (d <= bestD + (h.id === 'rotate' ? 6 : 0)) { bestD = d; best = h.id; }
     }
-    return null;
+    return best;
   }
 
   itemHandles(it) {
@@ -410,7 +405,7 @@ export class Editor2D {
       const s = this.toScreen(wx, wy);
       return { sx: s.x, sy: s.y };
     };
-    const rotDist = it.d / 2 + 26 / this.view.scale;
+    const rotDist = it.d / 2 + (this.coarse ? 40 : 28) / this.view.scale;
     return [
       { id: 'rotate', ...loc(0, -rotDist) },
       { id: 'br', ...loc(it.w / 2, it.d / 2) },
@@ -436,12 +431,12 @@ export class Editor2D {
       const factor = clamp(d / Math.max(this.pinch.d, 1), 0.2, 5);
       const newScale = clamp(this.pinch.scale * factor, 0.04, 6);
       // keep pinch center anchored + apply two-finger pan
-      const rect = this.canvas.getBoundingClientRect();
-      const wx = (this.pinch.cx - rect.width / 2) / this.pinch.scale + this.pinch.vx;
-      const wy = (this.pinch.cy - rect.height / 2) / this.pinch.scale + this.pinch.vy;
+      const cw = this.canvas.offsetWidth, ch = this.canvas.offsetHeight;
+      const wx = (this.pinch.cx - cw / 2) / this.pinch.scale + this.pinch.vx;
+      const wy = (this.pinch.cy - ch / 2) / this.pinch.scale + this.pinch.vy;
       this.view.scale = newScale;
-      this.view.x = wx - (cx - rect.width / 2) / newScale;
-      this.view.y = wy - (cy - rect.height / 2) / newScale;
+      this.view.x = wx - (cx - cw / 2) / newScale;
+      this.view.y = wy - (cy - ch / 2) / newScale;
       this.requestRender();
       return;
     }
@@ -468,13 +463,13 @@ export class Editor2D {
         if (!it) break;
         m.moved = true;
         const def = ITEM_MAP.get(it.defId);
-        if (def?.mount === 'wall') {
-          const pose = this.placePose(w, def);
-          it.x = pose.x; it.y = pose.y; it.rotation = pose.rot;
-        } else {
-          it.x = Math.round((w.x - m.offX) / 2) * 2;
-          it.y = Math.round((w.y - m.offY) / 2) * 2;
-        }
+        const target = def?.mount === 'wall'
+          ? w
+          : { x: w.x - m.offX, y: w.y - m.offY };
+        const pose = this.placePose(target, def, { fine: true, rot: it.rotation, d: it.d });
+        it.x = pose.x;
+        it.y = pose.y;
+        if (pose.snapped) it.rotation = pose.rot;
         store.commit(false);
         break;
       }
@@ -595,10 +590,9 @@ export class Editor2D {
     const w = this.toWorld(sx, sy);
     const factor = Math.exp(-e.deltaY * 0.0012);
     const ns = clamp(this.view.scale * factor, 0.04, 6);
-    const rect = this.canvas.getBoundingClientRect();
     this.view.scale = ns;
-    this.view.x = w.x - (sx - rect.width / 2) / ns;
-    this.view.y = w.y - (sy - rect.height / 2) / ns;
+    this.view.x = w.x - (sx - this.canvas.offsetWidth / 2) / ns;
+    this.view.y = w.y - (sy - this.canvas.offsetHeight / 2) / ns;
     this.requestRender();
   }
 
@@ -645,8 +639,7 @@ export class Editor2D {
 
   render() {
     const ctx = this.ctx;
-    const rect = this.canvas.getBoundingClientRect();
-    const W = rect.width, H = rect.height;
+    const W = this.canvas.offsetWidth, H = this.canvas.offsetHeight;
     const { scale } = this.view;
     const store = this.store;
     const p = store.project;
@@ -981,17 +974,8 @@ export class Editor2D {
     if (sel?.kind === 'item') {
       const it = store.item(sel.id);
       if (!it) return;
-      for (const h of this.itemHandles(it)) {
-        ctx.beginPath();
-        ctx.arc(h.sx, h.sy, h.id === 'rotate' ? 8 : 6, 0, Math.PI * 2);
-        ctx.fillStyle = h.id === 'rotate' ? '#3884ff' : '#ffffff';
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = h.id === 'rotate' ? '#ffffff' : '#3884ff';
-        ctx.stroke();
-      }
-      // line from item to rotate handle
       const hs = this.itemHandles(it);
+      // line from item to rotate handle (under the handles)
       const c = this.toScreen(it.x, it.y);
       ctx.strokeStyle = 'rgba(56,132,255,0.5)';
       ctx.lineWidth = 1.5;
@@ -999,6 +983,29 @@ export class Editor2D {
       ctx.moveTo(c.x, c.y);
       ctx.lineTo(hs[0].sx, hs[0].sy);
       ctx.stroke();
+      for (const h of hs) {
+        const r = h.id === 'rotate' ? this.handleR + 3 : this.handleR;
+        ctx.beginPath();
+        ctx.arc(h.sx, h.sy, r, 0, Math.PI * 2);
+        ctx.fillStyle = h.id === 'rotate' ? '#3884ff' : '#ffffff';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = h.id === 'rotate' ? '#ffffff' : '#3884ff';
+        ctx.stroke();
+        if (h.id === 'rotate') {
+          // small rotate glyph inside the handle
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(h.sx, h.sy, r * 0.45, -Math.PI * 0.2, Math.PI * 1.2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(h.sx + r * 0.45 - 4, h.sy - r * 0.35);
+          ctx.lineTo(h.sx + r * 0.45 + 2, h.sy - r * 0.55);
+          ctx.lineTo(h.sx + r * 0.45 + 3, h.sy - r * 0.1);
+          ctx.stroke();
+        }
+      }
     }
     if (sel?.kind === 'wall') {
       const w = store.wall(sel.id);
@@ -1006,7 +1013,7 @@ export class Editor2D {
       for (const [x, y] of [[w.ax, w.ay], [w.bx, w.by]]) {
         const s = this.toScreen(x, y);
         ctx.beginPath();
-        ctx.arc(s.x, s.y, 7, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, this.handleR - 1, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.lineWidth = 2.5;

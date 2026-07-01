@@ -1,10 +1,13 @@
 // Real-time 3D view: renders the project with lighting/shadows, orbit and
-// first-person walk controls, and direct furniture dragging in 3D.
+// first-person walk controls, and direct furniture editing (drag with wall
+// snapping) in 3D. All pointer input goes through rotation-aware helpers so
+// the forced-landscape mode on iPhone/iPad works identically.
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildWalls, buildFloors, buildCeilings, buildGround } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp } from '../core/geometry.js';
+import { snapPose } from '../core/placement.js';
+import { localPos } from '../core/orientation.js';
 
 export class Viewer3D {
   constructor(container, store) {
@@ -33,12 +36,12 @@ export class Viewer3D {
     this.camera = new THREE.PerspectiveCamera(50, 1, 5, 20000);
     this.camera.position.set(600, 550, 750);
 
-    this.controls = new OrbitControls(this.camera, renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.09;
-    this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
-    this.controls.minDistance = 60;
-    this.controls.maxDistance = 5000;
+    // custom orbit rig (rotation-aware, touch-first)
+    this.orbit = {
+      target: new THREE.Vector3(0, 60, 0),
+      theta: 0.6, phi: 1.0, radius: 900,
+      enabled: true
+    };
 
     // lighting
     const hemi = new THREE.HemisphereLight('#dfeaf4', '#8a7f6a', 0.75);
@@ -68,7 +71,8 @@ export class Viewer3D {
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
-    this.drag = null;
+    this.drag = null;       // item drag
+    this.gesture = null;    // orbit / pinch / walk-look
     this.pointers = new Map();
 
     const el = renderer.domElement;
@@ -76,6 +80,7 @@ export class Viewer3D {
     el.addEventListener('pointermove', e => this.onMove(e));
     el.addEventListener('pointerup', e => this.onUp(e));
     el.addEventListener('pointercancel', e => this.onUp(e));
+    el.addEventListener('wheel', e => this.onWheel(e), { passive: false });
     el.style.touchAction = 'none';
     window.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -97,7 +102,11 @@ export class Viewer3D {
   resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     if (!w || !h) return;
-    this.renderer.setSize(w, h, false);
+    const c = this.renderer.domElement;
+    if (c.width !== Math.floor(w * this.renderer.getPixelRatio()) ||
+        c.height !== Math.floor(h * this.renderer.getPixelRatio())) {
+      this.renderer.setSize(w, h, false);
+    }
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -119,14 +128,29 @@ export class Viewer3D {
 
   frameAll() {
     const c = this.center();
-    this.controls.target.set(c.x, 60, c.z);
-    const d = c.span * 1.15;
-    this.camera.position.set(c.x + d * 0.55, d * 0.75, c.z + d * 0.9);
+    this.orbit.target.set(c.x, 60, c.z);
+    this.orbit.radius = clamp(c.span * 1.6, 300, 4000);
+    this.orbit.theta = 0.55;
+    this.orbit.phi = 0.95;
+    this.applyOrbit();
     this.sun.target.position.set(c.x, 0, c.z);
     const s = this.sun.shadow.camera;
     s.left = -c.span; s.right = c.span; s.top = c.span; s.bottom = -c.span;
     s.updateProjectionMatrix();
     this.walk.pos.set(c.x, 160, c.z + 100);
+  }
+
+  applyOrbit() {
+    const o = this.orbit;
+    o.phi = clamp(o.phi, 0.08, Math.PI / 2 - 0.02);
+    o.radius = clamp(o.radius, 80, 6000);
+    const sp = Math.sin(o.phi), cp = Math.cos(o.phi);
+    this.camera.position.set(
+      o.target.x + o.radius * sp * Math.sin(o.theta),
+      o.target.y + o.radius * cp,
+      o.target.z + o.radius * sp * Math.cos(o.theta)
+    );
+    this.camera.lookAt(o.target);
   }
 
   rebuild() {
@@ -218,7 +242,6 @@ export class Viewer3D {
       if (g) {
         this.selBox.box.setFromObject(g);
         this.selBox.visible = true;
-        // stash palette/size so syncItems can detect appearance changes
         const it = this.store.item(sel.id);
         if (it) {
           g.userData.palette = it.palette;
@@ -232,14 +255,12 @@ export class Viewer3D {
 
   setWalkMode(on) {
     this.walkMode = on;
-    this.controls.enabled = !on;
     if (on) {
       const c = this.center();
       this.walk.pos.set(this.camera.position.x, 160, this.camera.position.z);
-      const dir = new THREE.Vector3().subVectors(this.controls.target, this.camera.position);
+      const dir = new THREE.Vector3().subVectors(this.orbit.target, this.camera.position);
       this.walk.yaw = Math.atan2(-dir.x, -dir.z) + Math.PI;
       this.walk.pitch = 0;
-      // if far outside, walk in from the center's edge
       if (Math.hypot(this.walk.pos.x - c.x, this.walk.pos.z - c.z) > c.span * 1.5) {
         this.walk.pos.set(c.x, 160, c.z);
       }
@@ -262,13 +283,19 @@ export class Viewer3D {
 
   // ---- input ---------------------------------------------------------------
 
-  castItems(e) {
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.set(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1
+  pos(e) {
+    return localPos(e, this.container);
+  }
+
+  toNDC(p) {
+    return new THREE.Vector2(
+      (p.x / this.container.clientWidth) * 2 - 1,
+      -(p.y / this.container.clientHeight) * 2 + 1
     );
-    this.raycaster.setFromCamera(this.pointer, this.camera);
+  }
+
+  castItems(p) {
+    this.raycaster.setFromCamera(this.toNDC(p), this.camera);
     const hits = this.raycaster.intersectObjects(this.itemsGroup.children, true);
     for (const h of hits) {
       let obj = h.object;
@@ -279,18 +306,35 @@ export class Viewer3D {
   }
 
   onDown(e) {
-    this.pointers.set(e.pointerId, true);
-    if (this.walkMode) {
-      this.lookFrom = { x: e.clientX, y: e.clientY, yaw: this.walk.yaw, pitch: this.walk.pitch, id: e.pointerId };
+    const p = this.pos(e);
+    this.pointers.set(e.pointerId, p);
+    try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+
+    if (this.pointers.size === 2) {
+      // pinch takes over: cancel single-pointer gestures (keep item drag)
+      const pts = [...this.pointers.values()];
+      this.gesture = {
+        kind: 'pinch',
+        d0: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+        mid0: { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 },
+        radius0: this.orbit.radius,
+        target0: this.orbit.target.clone()
+      };
       return;
     }
-    if (this.pointers.size > 1) return;
-    const hit = this.castItems(e);
+    if (this.pointers.size > 2) return;
+
+    if (this.walkMode) {
+      this.gesture = { kind: 'look', id: e.pointerId, x: p.x, y: p.y, yaw: this.walk.yaw, pitch: this.walk.pitch };
+      return;
+    }
+
+    const hit = this.castItems(p);
     if (hit) {
       const it = this.store.item(hit.itemId);
       this.store.select({ kind: 'item', id: hit.itemId });
       const def = ITEM_MAP.get(it.defId);
-      if (def?.mount === 'ceiling') return; // don't drag ceiling lights on floor plane
+      if (def?.mount === 'ceiling') return;
       this.store.checkpoint();
       this.drag = {
         id: hit.itemId,
@@ -299,40 +343,85 @@ export class Viewer3D {
         offZ: hit.point.z - it.y,
         moved: false
       };
-      this.controls.enabled = false;
-      this.renderer.domElement.setPointerCapture(e.pointerId);
+    } else {
+      this.gesture = {
+        kind: 'rotate', id: e.pointerId, x: p.x, y: p.y,
+        theta0: this.orbit.theta, phi0: this.orbit.phi, moved: false
+      };
     }
   }
 
   onMove(e) {
-    if (this.walkMode && this.lookFrom && this.lookFrom.id === e.pointerId) {
-      const dx = e.clientX - this.lookFrom.x, dy = e.clientY - this.lookFrom.y;
-      this.walk.yaw = this.lookFrom.yaw - dx * 0.004;
-      this.walk.pitch = clamp(this.lookFrom.pitch - dy * 0.003, -1.2, 1.2);
+    if (!this.pointers.has(e.pointerId)) return;
+    const p = this.pos(e);
+    this.pointers.set(e.pointerId, p);
+    const g = this.gesture;
+
+    if (g?.kind === 'pinch' && this.pointers.size >= 2) {
+      const pts = [...this.pointers.values()];
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      this.orbit.radius = clamp(g.radius0 * (g.d0 / Math.max(d, 1)), 80, 6000);
+      // pan with the midpoint: move target in the camera's screen plane
+      const dx = mid.x - g.mid0.x, dy = mid.y - g.mid0.y;
+      const panScale = this.orbit.radius * 0.0016;
+      const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 1);
+      this.orbit.target.copy(g.target0)
+        .addScaledVector(right, -dx * panScale)
+        .addScaledVector(up, dy * panScale);
       return;
     }
-    if (!this.drag) return;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.set(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1
-    );
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    const pt = new THREE.Vector3();
-    if (this.raycaster.ray.intersectPlane(this.drag.plane, pt)) {
-      const it = this.store.item(this.drag.id);
-      if (it) {
-        it.x = Math.round((pt.x - this.drag.offX) / 2) * 2;
-        it.y = Math.round((pt.z - this.drag.offZ) / 2) * 2;
-        this.drag.moved = true;
-        this.store.commit(false);
+
+    if (g?.kind === 'look' && g.id === e.pointerId) {
+      this.walk.yaw = g.yaw - (p.x - g.x) * 0.005;
+      this.walk.pitch = clamp(g.pitch - (p.y - g.y) * 0.004, -1.2, 1.2);
+      return;
+    }
+
+    if (g?.kind === 'rotate' && g.id === e.pointerId) {
+      const dx = p.x - g.x, dy = p.y - g.y;
+      if (Math.hypot(dx, dy) > 4) g.moved = true;
+      this.orbit.theta = g.theta0 - dx * 0.0055;
+      this.orbit.phi = clamp(g.phi0 - dy * 0.0045, 0.08, Math.PI / 2 - 0.02);
+      return;
+    }
+
+    if (this.drag) {
+      this.raycaster.setFromCamera(this.toNDC(p), this.camera);
+      const pt = new THREE.Vector3();
+      if (this.raycaster.ray.intersectPlane(this.drag.plane, pt)) {
+        const it = this.store.item(this.drag.id);
+        if (it) {
+          const def = ITEM_MAP.get(it.defId);
+          const target = def?.mount === 'wall'
+            ? { x: pt.x, y: pt.z }
+            : { x: pt.x - this.drag.offX, y: pt.z - this.drag.offZ };
+          const pose = snapPose(this.store.project.walls, def, target.x, target.y,
+            { fine: true, rot: it.rotation, d: it.d });
+          it.x = pose.x;
+          it.y = pose.y;
+          if (pose.snapped) it.rotation = pose.rot;
+          this.drag.moved = true;
+          this.store.commit(false);
+        }
       }
     }
   }
 
   onUp(e) {
     this.pointers.delete(e.pointerId);
-    if (this.lookFrom?.id === e.pointerId) this.lookFrom = null;
+    const g = this.gesture;
+    if (g?.kind === 'pinch' && this.pointers.size === 1) {
+      // hand back to single-finger rotate anchored at the remaining pointer
+      const [id, p] = [...this.pointers.entries()][0];
+      this.gesture = { kind: 'rotate', id, x: p.x, y: p.y, theta0: this.orbit.theta, phi0: this.orbit.phi, moved: true };
+    } else if (g && (g.id === e.pointerId || this.pointers.size === 0)) {
+      if (g.kind === 'rotate' && !g.moved && !this.walkMode) {
+        this.store.select(null); // simple tap on empty space deselects
+      }
+      this.gesture = null;
+    }
     if (this.drag) {
       if (!this.drag.moved) {
         this.store.undoStack.pop();
@@ -341,7 +430,11 @@ export class Viewer3D {
       this.drag = null;
       this.store.commit(false);
     }
-    if (!this.walkMode) this.controls.enabled = true;
+  }
+
+  onWheel(e) {
+    e.preventDefault();
+    this.orbit.radius = clamp(this.orbit.radius * Math.exp(e.deltaY * 0.0012), 80, 6000);
   }
 
   // ---- frame loop ------------------------------------------------------------
@@ -375,7 +468,7 @@ export class Viewer3D {
       );
       this.camera.lookAt(look);
     } else {
-      this.controls.update();
+      this.applyOrbit();
     }
     this.renderer.render(this.scene, this.camera);
   }

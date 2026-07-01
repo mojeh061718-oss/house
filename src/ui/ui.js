@@ -1,12 +1,10 @@
-// UI shell: toolbar, catalog panel with 3D thumbnails, properties panel,
-// status bar, file operations, responsive drawers.
+// Studio UI shell: slim top bar, left tool rail, catalog & properties
+// drawers, floating action cluster, hint pill. Landscape-first, touch-first.
 import { ICONS, icon } from './icons.js';
 import { thumbnail } from './thumbs.js';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview } from '../core/textures.js';
 import { wallLength } from '../core/geometry.js';
-import { emptyProject } from '../core/state.js';
-import { demoProject } from '../demo.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -20,84 +18,80 @@ function el(tag, cls = '', html = '') {
 const deg = rad => Math.round((rad * 180 / Math.PI) % 360);
 
 export class UI {
-  constructor(store, editor, viewer) {
+  constructor(store, editor, viewer, onHome) {
     this.store = store;
     this.editor = editor;
     this.viewer = viewer;
+    this.onHome = onHome;
     this.activeCat = 'living';
+    this.wide = window.matchMedia('(min-width: 1100px)');
+    this._hintTimer = null;
 
     this.buildToolbar();
+    this.buildToolRail();
     this.buildCatalog();
-    this.buildStatus();
+    this.buildFabs();
 
-    store.on('selection', () => this.renderProps());
+    store.on('selection', () => { this.renderProps(); this.syncFabs(); });
     store.on('change', () => this.renderPropsSoft());
-    store.on('tool', () => this.syncToolbar());
+    store.on('tool', () => { this.syncTools(); this.showHint(); });
     store.on('view', () => this.syncView());
     store.on('history', () => this.syncHistory());
-    store.on('status', pos => this.updateCoords(pos));
     store.on('projectLoaded', () => {
-      $('#projectName').value = store.project.name || 'Untitled';
+      const inp = $('#projectName');
+      if (inp) inp.value = store.project.name || 'Untitled';
+      this.closeDrawer('catalog');
+      this.closeDrawer('props');
       this.renderProps();
+      this.syncFabs();
+      this.showHint();
     });
 
     this.renderProps();
-    this.syncToolbar();
+    this.syncTools();
     this.syncView();
     this.syncHistory();
+    this.syncFabs();
   }
 
-  // ============================ TOOLBAR =====================================
+  // ============================ TOP BAR =====================================
 
   buildToolbar() {
     const store = this.store;
     const bar = $('#topbar');
     bar.innerHTML = `
-      <div class="brand">${ICONS.logo}<span class="brand-name">Haven<b>Plan</b></span></div>
-      <input id="projectName" class="project-name" value="${store.project.name || 'Untitled'}" spellcheck="false"/>
-      <div class="tb-group">
-        <button class="tb-btn" id="btnUndo" title="Undo (Ctrl+Z)">${ICONS.undo}</button>
-        <button class="tb-btn" id="btnRedo" title="Redo (Ctrl+Y)">${ICONS.redo}</button>
-      </div>
-      <div class="tb-sep"></div>
-      <div class="tb-group tools">
-        <button class="tb-btn tool" data-tool="select" title="Select / move (Esc)">${ICONS.select}<span>Select</span></button>
-        <button class="tb-btn tool" data-tool="wall" title="Draw walls — click to chain, double-click or Esc to finish">${ICONS.wall}<span>Wall</span></button>
-        <button class="tb-btn tool" data-tool="room" title="Draw a rectangular room">${ICONS.room}<span>Room</span></button>
-        <button class="tb-btn tool" data-tool="door" title="Place a door on a wall">${ICONS.door}<span>Door</span></button>
-        <button class="tb-btn tool" data-tool="window" title="Place a window on a wall">${ICONS.window}<span>Window</span></button>
-      </div>
-      <div class="tb-sep"></div>
-      <div class="tb-group view-toggle" id="viewToggle">
-        <button class="tb-btn" data-view="2d" title="2D plan">${ICONS.d2}<span>2D</span></button>
-        <button class="tb-btn" data-view="3d" title="3D view">${ICONS.d3}<span>3D</span></button>
-        <button class="tb-btn only-wide" data-view="split" title="Side by side">${ICONS.split}<span>Split</span></button>
-      </div>
-      <div class="tb-group" id="threeDControls">
-        <button class="tb-btn" id="btnWalk" title="First-person walk (WASD + drag)">${ICONS.walk}<span>Walk</span></button>
-        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}<span>Ceiling</span></button>
-      </div>
+      <button class="tb-btn" id="btnHome" title="Back to projects">${ICONS.logo}</button>
+      <input id="projectName" class="project-name" value="${store.project.name || 'Untitled'}" spellcheck="false" aria-label="Project name"/>
+      <button class="tb-btn" id="btnUndo" title="Undo">${ICONS.undo}</button>
+      <button class="tb-btn" id="btnRedo" title="Redo">${ICONS.redo}</button>
       <div class="tb-spacer"></div>
-      <div class="tb-group">
-        <button class="tb-btn" id="btnShot" title="Save 3D snapshot as PNG">${ICONS.camera}</button>
-        <button class="tb-btn" id="btnMenu" title="Project menu">${ICONS.menu}</button>
+      <div class="view-toggle" id="viewToggle">
+        <button class="tb-btn" data-view="2d">${ICONS.d2}<span>Plan</span></button>
+        <button class="tb-btn" data-view="3d">${ICONS.d3}<span>3D</span></button>
+        <button class="tb-btn only-wide" data-view="split">${ICONS.split}<span>Split</span></button>
       </div>
+      <span id="threeDControls">
+        <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}</button>
+        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}</button>
+      </span>
+      <button class="tb-btn only-wide" id="btnShot" title="Save 3D snapshot">${ICONS.camera}</button>
+      <button class="tb-btn" id="btnMenu" title="Project menu">${ICONS.menu}</button>
       <div class="menu hidden" id="fileMenu">
-        <button id="mNew">${icon('file')} New project</button>
-        <button id="mDemo">${icon('logo')} Load sample apartment</button>
-        <button id="mOpen">${icon('open')} Open… <span class="hint">.json</span></button>
-        <button id="mSave">${icon('download')} Download project</button>
+        <button id="mHome">${icon('logo')} Back to projects</button>
+        <button id="mRename">${icon('file')} Rename project</button>
+        <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
+        <button id="mSave">${icon('download')} Download project file</button>
+        <button id="mOpen">${icon('open')} Open project file</button>
       </div>`;
 
+    $('#btnHome').onclick = () => this.onHome();
+    $('#mHome').onclick = () => this.onHome();
     $('#projectName').addEventListener('change', e => {
       store.project.name = e.target.value;
       store.scheduleAutosave();
     });
     $('#btnUndo').onclick = () => store.undo();
     $('#btnRedo').onclick = () => store.redo();
-    bar.querySelectorAll('.tool').forEach(b => {
-      b.onclick = () => store.setTool(b.dataset.tool === store.tool ? 'select' : b.dataset.tool);
-    });
     bar.querySelectorAll('#viewToggle .tb-btn').forEach(b => {
       b.onclick = () => store.setViewMode(b.dataset.view);
     });
@@ -105,38 +99,45 @@ export class UI {
       this.viewer.setWalkMode(!this.viewer.walkMode);
       $('#btnWalk').classList.toggle('active', this.viewer.walkMode);
       if (this.viewer.walkMode && store.viewMode === '2d') store.setViewMode('3d');
-      this.updateHint();
+      this.showHint();
     };
     $('#btnCeil').onclick = () => {
       this.viewer.setCeilings(!this.viewer.showCeilings);
       $('#btnCeil').classList.toggle('active', this.viewer.showCeilings);
     };
-    $('#btnShot').onclick = () => {
-      const url = this.viewer.snapshot();
+    const shoot = () => {
       const a = document.createElement('a');
-      a.href = url;
+      a.href = this.viewer.snapshot();
       a.download = `${store.project.name || 'design'}.png`;
       a.click();
     };
+    $('#btnShot').onclick = shoot;
+    $('#mShot').onclick = shoot;
+    $('#mRename').onclick = () => {
+      const name = prompt('Project name', store.project.name || '');
+      if (name) {
+        store.project.name = name;
+        const inp = $('#projectName');
+        if (inp) inp.value = name;
+        store.scheduleAutosave();
+      }
+    };
 
-    // file menu
     const menu = $('#fileMenu');
     $('#btnMenu').onclick = e => {
       e.stopPropagation();
       menu.classList.toggle('hidden');
     };
-    document.addEventListener('click', () => menu.classList.add('hidden'));
-    $('#mNew').onclick = () => {
-      if (confirm('Start a new empty project? Unsaved work is kept in the browser autosave until you draw.')) {
-        store.loadProject(emptyProject('Untitled project'));
+    document.addEventListener('pointerdown', (e) => {
+      if (!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target.closest('#btnMenu') === null) {
+        menu.classList.add('hidden');
       }
-    };
-    $('#mDemo').onclick = () => store.loadProject(demoProject());
+    });
     $('#mSave').onclick = () => {
       const blob = new Blob([store.exportJSON()], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${(store.project.name || 'project').replace(/[^\w\- ]+/g, '')}.havenplan.json`;
+      a.download = `${(store.project.name || 'project').replace(/[^\w\- ]+/g, '')}.homestudio.json`;
       a.click();
       URL.revokeObjectURL(a.href);
     };
@@ -151,21 +152,14 @@ export class UI {
           try {
             const data = JSON.parse(txt);
             if (!Array.isArray(data.walls)) throw new Error('bad file');
-            store.loadProject(data);
+            store.loadProject(data, store.currentProjectId);
           } catch {
-            alert('This file is not a valid HavenPlan project.');
+            alert('This file is not a valid Home Studio project.');
           }
         });
       };
       input.click();
     };
-  }
-
-  syncToolbar() {
-    document.querySelectorAll('#topbar .tool').forEach(b => {
-      b.classList.toggle('active', b.dataset.tool === this.store.tool);
-    });
-    this.updateHint();
   }
 
   syncHistory() {
@@ -178,28 +172,96 @@ export class UI {
     document.querySelectorAll('#viewToggle .tb-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.view === mode);
     });
-    const vp = $('#viewport');
-    vp.dataset.mode = mode;
+    $('#viewport').dataset.mode = mode;
     $('#threeDControls').style.display = mode === '2d' ? 'none' : '';
+    $('#toolrail').style.display = mode === '3d' ? 'none' : '';
     requestAnimationFrame(() => {
       this.editor.resize();
       this.viewer.resize();
     });
-    this.updateHint();
+    this.showHint();
+  }
+
+  // ============================ TOOL RAIL ===================================
+
+  buildToolRail() {
+    const store = this.store;
+    const rail = $('#toolrail');
+    rail.innerHTML = `
+      <button class="rail-btn tool" data-tool="select" title="Select & move">${ICONS.select}</button>
+      <button class="rail-btn tool" data-tool="wall" title="Draw walls">${ICONS.wall}</button>
+      <button class="rail-btn tool" data-tool="room" title="Draw a room">${ICONS.room}</button>
+      <button class="rail-btn tool" data-tool="door" title="Add a door">${ICONS.door}</button>
+      <button class="rail-btn tool" data-tool="window" title="Add a window">${ICONS.window}</button>
+      <span class="rail-spacer"></span>
+      <button class="rail-btn" id="btnFit" title="Fit to screen">${ICONS.fit}</button>`;
+    rail.querySelectorAll('.tool').forEach(b => {
+      b.onclick = () => store.setTool(b.dataset.tool === store.tool ? 'select' : b.dataset.tool);
+    });
+    $('#btnFit').onclick = () => {
+      this.editor.fitToContent();
+      this.viewer.frameAll();
+    };
+  }
+
+  syncTools() {
+    document.querySelectorAll('#toolrail .tool').forEach(b => {
+      b.classList.toggle('active', b.dataset.tool === this.store.tool);
+    });
+  }
+
+  // ============================ FABS ========================================
+
+  buildFabs() {
+    const store = this.store;
+    const c = $('#fabCluster');
+    c.innerHTML = `
+      <div class="sel-actions hidden" id="selActions">
+        <button class="fab mini" id="selRotL" title="Rotate left">${ICONS.rotate}</button>
+        <button class="fab mini flip" id="selRotR" title="Rotate right">${ICONS.rotate}</button>
+        <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}</button>
+        <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}</button>
+      </div>
+      <button class="fab primary" id="fabAdd" title="Add furniture">${ICONS.plus}</button>`;
+    $('#fabAdd').onclick = () => this.toggleDrawer('catalog');
+    const rotate = (dir) => {
+      const sel = store.selection;
+      if (sel?.kind !== 'item') return;
+      const it = store.item(sel.id);
+      store.checkpoint();
+      it.rotation += dir * Math.PI / 12;
+      store.commit(false);
+    };
+    $('#selRotL').onclick = () => rotate(-1);
+    $('#selRotR').onclick = () => rotate(1);
+    $('#selEdit').onclick = () => this.toggleDrawer('props');
+    $('#selDel').onclick = () => store.deleteSelection();
+  }
+
+  syncFabs() {
+    const sel = this.store.selection;
+    const actions = $('#selActions');
+    actions.classList.toggle('hidden', !sel);
+    const isItem = sel?.kind === 'item';
+    $('#selRotL').style.display = isItem ? '' : 'none';
+    $('#selRotR').style.display = isItem ? '' : 'none';
+    // wide screens: surface the details drawer automatically
+    if (sel && this.wide.matches) $('#props').classList.add('open');
+    if (!sel) this.closeDrawer('props');
   }
 
   // ============================ CATALOG =====================================
 
   buildCatalog() {
-    const store = this.store;
     const panel = $('#catalog');
     panel.innerHTML = `
       <div class="panel-head">
-        <span>Catalog</span>
-        <button class="tb-btn close-drawer" data-close="catalog">${ICONS.close}</button>
+        <span>Add furniture</span>
+        <button class="tb-btn" data-close="catalog">${ICONS.close}</button>
       </div>
       <div class="cat-tabs" id="catTabs"></div>
       <div class="cat-grid" id="catGrid"></div>`;
+    panel.querySelector('[data-close]').onclick = () => this.closeDrawer('catalog');
 
     const tabs = $('#catTabs');
     for (const c of CATEGORIES) {
@@ -212,7 +274,6 @@ export class UI {
       tabs.appendChild(b);
     }
     this.renderCatalogGrid();
-    void store;
   }
 
   renderCatalogGrid() {
@@ -222,8 +283,7 @@ export class UI {
     });
     const grid = $('#catGrid');
     grid.innerHTML = '';
-    const items = ITEMS.filter(i => i.cat === this.activeCat);
-    for (const def of items) {
+    for (const def of ITEMS.filter(i => i.cat === this.activeCat)) {
       const card = el('button', 'cat-card');
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
@@ -236,7 +296,6 @@ export class UI {
       };
       grid.appendChild(card);
       const img = card.querySelector('img');
-      // render thumbnails asynchronously so the panel opens instantly
       setTimeout(() => { img.src = thumbnail(def.id); }, 0);
     }
   }
@@ -244,7 +303,6 @@ export class UI {
   // ============================ PROPERTIES ==================================
 
   renderPropsSoft() {
-    // refresh values without rebuilding inputs while user drags in canvas
     if (this._propsKind !== this.selKind()) this.renderProps();
     else this.fillPropValues();
   }
@@ -259,16 +317,15 @@ export class UI {
     const panel = $('#props');
     const sel = store.selection;
     this._propsKind = this.selKind();
-    const head = `
+    const head = (title) => `
       <div class="panel-head">
-        <span id="propsTitle"></span>
-        <button class="tb-btn close-drawer" data-close="props">${ICONS.close}</button>
+        <span>${title}</span>
+        <button class="tb-btn" data-close="props">${ICONS.close}</button>
       </div>`;
 
     if (!sel) {
-      panel.innerHTML = `${head}
+      panel.innerHTML = `${head('Project settings')}
         <div class="props-body">
-          <div class="props-section-title">Project settings</div>
           ${this.numRow('setWallH', 'Wall height', store.project.settings.wallHeight, 'cm')}
           <div class="props-section-title">Default floor</div>
           <div class="mat-grid" id="matDefFloor"></div>
@@ -277,7 +334,6 @@ export class UI {
           <div class="props-section-title">Exterior finish</div>
           <div class="mat-grid" id="matExtWall"></div>
         </div>`;
-      $('#propsTitle').textContent = 'No selection';
       this.bindNum('setWallH', v => {
         store.checkpoint();
         store.project.settings.wallHeight = Math.max(180, Math.min(400, v));
@@ -297,7 +353,7 @@ export class UI {
       const it = store.item(sel.id);
       if (!it) { store.select(null); return; }
       const def = ITEM_MAP.get(it.defId);
-      panel.innerHTML = `${head}
+      panel.innerHTML = `${head(def?.name || 'Item')}
         <div class="props-body">
           <div class="props-grid2">
             ${this.numRow('pW', 'Width', it.w, 'cm')}
@@ -312,7 +368,6 @@ export class UI {
             <button class="action danger" id="pDel">${icon('trash')} Delete</button>
           </div>
         </div>`;
-      $('#propsTitle').textContent = def?.name || 'Item';
       const commit = (fn) => { store.checkpoint(); fn(); store.commit(false); };
       this.bindNum('pW', v => commit(() => it.w = Math.max(10, v)));
       this.bindNum('pD', v => commit(() => it.d = Math.max(10, v)));
@@ -331,8 +386,7 @@ export class UI {
       }
       $('#pDup').onclick = () => {
         store.checkpoint();
-        const copy = { ...it, id: undefined, x: it.x + 40, y: it.y + 40 };
-        const created = store.addItem(it.defId, copy.x, copy.y, it.rotation, def);
+        const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
         Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
         store.commit(false);
         store.select({ kind: 'item', id: created.id });
@@ -341,7 +395,7 @@ export class UI {
     } else if (sel.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) { store.select(null); return; }
-      panel.innerHTML = `${head}
+      panel.innerHTML = `${head('Wall')}
         <div class="props-body">
           <div class="props-grid2">
             ${this.numRow('pLen', 'Length', Math.round(wallLength(w)), 'cm', true)}
@@ -352,7 +406,6 @@ export class UI {
             <button class="action danger" id="pDel">${icon('trash')} Delete wall</button>
           </div>
         </div>`;
-      $('#propsTitle').textContent = 'Wall';
       this.bindNum('pThick', v => {
         store.checkpoint(); w.thickness = Math.max(5, Math.min(60, v)); store.commit(true);
       });
@@ -364,7 +417,7 @@ export class UI {
       const o = store.opening(sel.id);
       if (!o) { store.select(null); return; }
       const isWin = o.type === 'window';
-      panel.innerHTML = `${head}
+      panel.innerHTML = `${head(isWin ? 'Window' : 'Door')}
         <div class="props-body">
           ${isWin ? '' : `
           <div class="props-section-title">Type</div>
@@ -387,7 +440,6 @@ export class UI {
             <button class="action danger" id="pDel">${icon('trash')} Delete</button>
           </div>
         </div>`;
-      $('#propsTitle').textContent = isWin ? 'Window' : 'Door';
       const structural = fn => { store.checkpoint(); fn(); store.commit(true); };
       this.bindNum('pOW', v => structural(() => o.width = Math.max(40, Math.min(300, v))));
       this.bindNum('pOH', v => structural(() => o.height = Math.max(60, Math.min(280, v))));
@@ -407,7 +459,7 @@ export class UI {
       const room = store.room(sel.id);
       if (!room) { store.select(null); return; }
       const style = store.roomStyle(sel.id);
-      panel.innerHTML = `${head}
+      panel.innerHTML = `${head(style.name || 'Room')}
         <div class="props-body">
           <label class="field"><span>Room name</span>
             <input id="roomName" value="${style.name || ''}" placeholder="e.g. Living room"/>
@@ -418,12 +470,10 @@ export class UI {
           <div class="props-section-title">Walls</div>
           <div class="mat-grid" id="matWall"></div>
         </div>`;
-      $('#propsTitle').textContent = style.name || 'Room';
       $('#roomName').addEventListener('change', e => {
         store.checkpoint();
         store.roomStyle(sel.id).name = e.target.value;
         store.commit(false);
-        $('#propsTitle').textContent = e.target.value || 'Room';
       });
       this.matGrid('#matFloor', 'floor', style.floor, id => {
         store.checkpoint(); store.roomStyle(sel.id).floor = id; store.commit(true);
@@ -432,7 +482,8 @@ export class UI {
         store.checkpoint(); store.roomStyle(sel.id).wall = id; store.commit(true);
       });
     }
-    this.updateHint();
+    const closeBtn = panel.querySelector('[data-close]');
+    if (closeBtn) closeBtn.onclick = () => this.closeDrawer('props');
   }
 
   fillPropValues() {
@@ -487,63 +538,45 @@ export class UI {
     }
   }
 
-  // ============================ STATUS BAR ==================================
-
-  buildStatus() {
-    const bar = $('#status');
-    bar.innerHTML = `
-      <button class="tb-btn drawer-btn" id="btnCatalog">${ICONS.plus}<span>Catalog</span></button>
-      <span class="hint-text" id="hintText"></span>
-      <span class="coords" id="coords"></span>
-      <button class="tb-btn" id="btnFit" title="Fit plan to screen">${ICONS.fit}</button>
-      <button class="tb-btn drawer-btn" id="btnProps">${ICONS.sliders}<span>Details</span></button>`;
-    $('#btnFit').onclick = () => {
-      this.editor.fitToContent();
-      this.viewer.frameAll();
-    };
-    $('#btnCatalog').onclick = () => this.toggleDrawer('catalog');
-    $('#btnProps').onclick = () => this.toggleDrawer('props');
-    document.querySelectorAll('.close-drawer').forEach(b => {
-      b.onclick = () => this.closeDrawer(b.dataset.close);
-    });
-    this.updateHint();
-  }
+  // ============================ DRAWERS & HINTS =============================
 
   toggleDrawer(which) {
-    $('#' + which).classList.toggle('open');
-    const other = which === 'catalog' ? 'props' : 'catalog';
-    $('#' + other).classList.remove('open');
-    // drawers change layout → re-bind close buttons created after buildStatus
-    document.querySelectorAll('.close-drawer').forEach(b => {
-      b.onclick = () => this.closeDrawer(b.dataset.close);
-    });
+    const d = $('#' + which);
+    const willOpen = !d.classList.contains('open');
+    this.closeDrawer('catalog');
+    this.closeDrawer('props');
+    if (willOpen) d.classList.add('open');
   }
 
   closeDrawer(which) {
     $('#' + which)?.classList.remove('open');
   }
 
-  updateCoords(pos) {
-    const c = $('#coords');
-    if (c && pos) c.textContent = `${(pos.x / 100).toFixed(2)}, ${(pos.y / 100).toFixed(2)} m`;
-  }
-
-  updateHint() {
-    const t = $('#hintText');
-    if (!t) return;
+  showHint() {
+    const pill = $('#hintPill');
+    if (!pill) return;
     const store = this.store;
+    let text;
     if (store.viewMode === '3d' && this.viewer.walkMode) {
-      t.textContent = 'Walk mode — WASD / arrows to move, drag to look around';
-      return;
+      text = 'Walk mode — drag to look around · WASD / arrows to move';
+    } else if (store.viewMode === '3d') {
+      text = 'Drag to orbit · pinch to zoom · tap furniture to select & move it';
+    } else {
+      const hints = {
+        select: store.project.walls.length
+          ? 'Tap to select · drag to move · pinch to zoom'
+          : 'Start with the Wall or Room tool on the left',
+        wall: 'Tap to place wall points · double-tap or Esc to finish',
+        room: 'Drag to draw a rectangular room',
+        door: 'Tap a wall to place a door',
+        window: 'Tap a wall to place a window',
+        place: `Tap the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
+      };
+      text = hints[store.tool] || '';
     }
-    const hints = {
-      select: 'Tap to select · drag to move · pinch or scroll to zoom',
-      wall: 'Click to place wall points · double-click or Esc to finish',
-      room: 'Drag to draw a rectangular room',
-      door: 'Click on a wall to place a door',
-      window: 'Click on a wall to place a window',
-      place: `Tap the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'item'}`
-    };
-    t.textContent = hints[store.tool] || '';
+    pill.textContent = text;
+    pill.classList.remove('hidden', 'fade');
+    clearTimeout(this._hintTimer);
+    this._hintTimer = setTimeout(() => pill.classList.add('fade'), 4200);
   }
 }

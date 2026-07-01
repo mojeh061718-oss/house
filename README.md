@@ -1,103 +1,88 @@
-# HavenPlan — Home Design Studio
+# Honeycutt Home Studio
 
-A professional 2D/3D home design application in the spirit of Planner 5D,
-built for the browser and fully touch-optimized for phones and tablets.
-It ships with **zero binary assets** — every floor, wall finish, fabric and
-piece of furniture is generated procedurally at runtime.
+A professional 2D/3D home design app in the spirit of Planner 5D, built for
+the browser and designed **landscape-first for iPhone and iPad**. It ships
+with **zero binary assets** — every floor, wall finish, fabric and piece of
+furniture is generated procedurally at runtime.
 
-![HavenPlan](docs/screenshot-3d.png)
-
-## Features
-
-**Floor planning (2D)**
-- Draw walls point-to-point with grid, endpoint, and 45° angle snapping
-- One-drag rectangular room tool
-- Automatic room detection (planar face tracing with T-junction splitting),
-  live area labels and per-wall dimensions in meters
-- Hinged doors (with flip/hinge-side controls and swing arcs), doorways,
-  sliding doors, and windows with adjustable width/height/sill
-- Architectural top-view symbols for every catalog item
-- Drag to move, handles to rotate and resize, keyboard shortcuts
-  (`R` rotate, `Del` delete, `Ctrl+Z/Y` undo/redo, `Esc` cancel)
-- Pan with drag, zoom with wheel or pinch — full multi-touch support
-
-**Real-time 3D**
-- Textured walls that are painted per room (each wall face takes the
-  material of the room it looks into), cut open for doors and windows
-- Full 3D door/window models: frames, panels, handles, glass, mullions
-- Per-room floor materials, optional ceilings, exterior lawn
-- Sun + sky lighting with soft shadows, ACES tone mapping
-- Orbit controls and a first-person **walk mode** (WASD + drag to look)
-- Select and drag furniture directly in 3D
-- One-click PNG snapshots of the 3D view
-
-**Catalog — 45+ parametric models**
-Living room (sofas, armchair, media console, bookshelf with books, rugs,
-fireplace, floor lamp), bedroom (beds, wardrobe, dresser, nightstand),
-kitchen (cabinets, island, fridge, range cooker, hood, dishwasher, washer,
-bar stool), bathroom (bathtub, shower, vanity, toilet, mirror), dining,
-office, plus decor & lighting (plants, pendant/ceiling lights that actually
-emit light, curtains, wall art). Catalog thumbnails are real renders of the
-3D models; many items offer fabric/wood finish palettes.
-
-**Materials**
-40+ procedural PBR-style materials with color + bump maps: oak, walnut,
-herringbone parquet, porcelain/slate/travertine tile, Calacatta and Nero
-marble, polished concrete, carpets, subway tile, exposed and painted brick,
-wall paints, wallpapers, fabrics, stone countertops, lawn.
-
-**Projects**
-- Autosave to the browser (localStorage)
-- Download / open project files (`.havenplan.json`)
-- Furnished sample apartment included
+![Honeycutt Home Studio](docs/screenshot-3d.png)
 
 ## Use it
 
 **Live app:** https://mojeh061718-oss.github.io/house/
 
-HavenPlan is an installable PWA with full offline support:
-- **Android / Chrome & Edge:** open the link → menu → **Add to home screen**
-  (or accept the install prompt)
+Installable PWA with full offline support:
 - **iPhone / iPad:** open in Safari → Share → **Add to Home Screen**
 - **Desktop:** click the install icon in the address bar
 
-Once installed it launches full-screen like a native app and keeps working
-without a connection; your designs autosave on the device.
+The app opens with a splash screen and a **project home**: start a new
+project, open the furnished sample apartment, or continue any saved design
+(each shows a live plan thumbnail). Designs autosave on the device.
 
-Deployment is automated: every push to `main` (and the current feature
-branch) builds the app and publishes it to the `gh-pages` branch via
-GitHub Actions (`.github/workflows/deploy.yml`).
+The studio is landscape-first: hold the device in portrait and the UI
+renders in landscape, so you naturally rotate — no nag screens. Installed
+PWAs also request a landscape orientation lock where supported.
+
+## Features
+
+**Floor planning (2D)**
+- Draw walls point-to-point with grid, endpoint and 45° angle snapping
+- One-drag rectangular room tool; automatic room detection with live area
+  labels and per-wall dimensions
+- Hinged / sliding doors and doorways, windows with adjustable sill/size
+- Furniture drag with **wall snapping** — items seat and align against
+  nearby walls, like the big design apps
+- Big touch-friendly rotate/resize handles; smart hit-testing so small
+  ceiling lamps don't steal taps meant for the sofa under them
+- Pinch zoom, two-finger pan, undo/redo
+
+**Real-time 3D**
+- Textured walls painted per room, cut open for doors and windows with full
+  3D frames, panels, handles and glass
+- Furniture is editable in 3D too: tap to select, drag to move with the
+  same wall snapping, floating rotate/edit/delete buttons
+- Custom touch orbit (drag) + pinch zoom/pan, first-person walk mode
+- Sun + sky lighting with soft shadows; one-tap PNG snapshots
+
+**Catalog — 45+ parametric models** across living room, bedroom, kitchen,
+bathroom, dining, office and decor/lighting, with finish palettes and 3D-
+rendered thumbnails. **40+ procedural materials**: woods, parquet, tiles,
+marble, brick, carpets, paints, fabrics, stone counters.
 
 ## Run it locally
 
 ```bash
 npm install
-npm run dev        # development server (add --host for LAN/mobile testing)
+npm run dev        # development server (add --host for LAN/device testing)
 npm run build      # production build in dist/
 npm run preview    # serve the production build
 ```
 
-Open the printed URL. On a phone, use the bottom-bar **Catalog** and
-**Details** buttons; two fingers pan/zoom the plan.
+Deployment is automated: every push to `main` (and the active feature
+branch) builds the app and publishes it to the `gh-pages` branch via
+GitHub Actions (`.github/workflows/deploy.yml`).
 
 ## Architecture
 
 ```
 src/
 ├── core/
-│   ├── state.js        # project model, undo/redo, autosave, events
+│   ├── state.js        # project model, undo/redo, events
+│   ├── projects.js     # multi-project repository (localStorage)
 │   ├── geometry.js     # vector math, planar-graph room detection
+│   ├── placement.js    # shared wall-snapping placement logic (2D & 3D)
+│   ├── orientation.js  # landscape-first rotation + pointer mapping
 │   └── textures.js     # procedural texture engine + material registry
 ├── catalog/
 │   ├── builders.js     # primitive helpers for parametric furniture
-│   └── items.js        # the 45+ item definitions (3D + plan symbol + palettes)
+│   └── items.js        # item definitions (3D + plan symbol + palettes)
 ├── editor/
-│   ├── editor2d.js     # canvas floor-plan editor (mouse/touch/pen)
+│   ├── editor2d.js     # canvas floor-plan editor (touch-first)
 │   └── plansymbols.js  # architectural top-view symbols
 ├── viewer/
-│   ├── arch3d.js       # walls/floors/ceilings/openings mesh construction
-│   └── viewer3d.js     # scene, lighting, controls, walk mode, 3D dragging
-└── ui/                 # toolbar, catalog, properties, icons, thumbnails
+│   ├── arch3d.js       # walls/floors/ceilings/openings construction
+│   └── viewer3d.js     # scene, lighting, custom orbit, walk mode, 3D editing
+└── ui/                 # splash/home screens, studio shell, icons, thumbnails
 ```
 
 Units are centimeters throughout. The only runtime dependency is
