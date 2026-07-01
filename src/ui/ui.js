@@ -71,11 +71,18 @@ export class UI {
         <button class="tb-btn only-wide" data-view="split">${ICONS.split}<span>Split</span></button>
       </div>
       <span id="threeDControls">
+        <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}</button>
         <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}</button>
         <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}</button>
       </span>
       <button class="tb-btn only-wide" id="btnShot" title="Save 3D snapshot">${ICONS.camera}</button>
+      <button class="tb-btn" id="btnFull" title="Fullscreen">${ICONS.expand}</button>
       <button class="tb-btn" id="btnMenu" title="Project menu">${ICONS.menu}</button>
+      <div class="day-pop hidden" id="dayPop">
+        <div class="day-head">${icon('sun')}<span id="dayLabel"></span></div>
+        <input type="range" id="daySlider" min="5" max="22" step="0.25" aria-label="Time of day"/>
+        <div class="day-scale"><span>Dawn</span><span>Noon</span><span>Dusk</span><span>Night</span></div>
+      </div>
       <div class="menu hidden" id="fileMenu">
         <button id="mHome">${icon('logo')} Back to projects</button>
         <button id="mRename">${icon('file')} Rename project</button>
@@ -105,6 +112,54 @@ export class UI {
       this.viewer.setCeilings(!this.viewer.showCeilings);
       $('#btnCeil').classList.toggle('active', this.viewer.showCeilings);
     };
+
+    // time-of-day popover
+    const dayPop = $('#dayPop');
+    const daySlider = $('#daySlider');
+    const fmtTime = (t) => {
+      const h = Math.floor(t), m = Math.round((t - h) * 60);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const hh = ((h + 11) % 12) + 1;
+      return `${hh}:${String(m).padStart(2, '0')} ${ampm}`;
+    };
+    const syncDay = () => {
+      const t = store.project.settings.timeOfDay ?? 13;
+      daySlider.value = t;
+      $('#dayLabel').textContent = fmtTime(t);
+    };
+    $('#btnDay').onclick = (e) => {
+      e.stopPropagation();
+      syncDay();
+      dayPop.classList.toggle('hidden');
+      $('#btnDay').classList.toggle('active', !dayPop.classList.contains('hidden'));
+    };
+    daySlider.addEventListener('input', () => {
+      const t = parseFloat(daySlider.value);
+      store.project.settings.timeOfDay = t;
+      $('#dayLabel').textContent = fmtTime(t);
+      this.viewer.applyTimeOfDay(t);
+      store.scheduleAutosave();
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (!dayPop.classList.contains('hidden') &&
+          !dayPop.contains(e.target) && !e.target.closest('#btnDay')) {
+        dayPop.classList.add('hidden');
+        $('#btnDay').classList.remove('active');
+      }
+    });
+
+    // fullscreen (supported on iPad/desktop; iOS hides the status bar
+    // automatically for installed apps held in landscape)
+    const fsRoot = document.documentElement;
+    if (fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen) {
+      $('#btnFull').onclick = () => {
+        const active = document.fullscreenElement || document.webkitFullscreenElement;
+        if (active) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        else (fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen).call(fsRoot);
+      };
+    } else {
+      $('#btnFull').style.display = 'none';
+    }
     const shoot = () => {
       const a = document.createElement('a');
       a.href = this.viewer.snapshot();
@@ -187,14 +242,16 @@ export class UI {
   buildToolRail() {
     const store = this.store;
     const rail = $('#toolrail');
+    const tool = (id, label, title) =>
+      `<button class="rail-btn tool" data-tool="${id}" title="${title}">${ICONS[id]}<span>${label}</span></button>`;
     rail.innerHTML = `
-      <button class="rail-btn tool" data-tool="select" title="Select & move">${ICONS.select}</button>
-      <button class="rail-btn tool" data-tool="wall" title="Draw walls">${ICONS.wall}</button>
-      <button class="rail-btn tool" data-tool="room" title="Draw a room">${ICONS.room}</button>
-      <button class="rail-btn tool" data-tool="door" title="Add a door">${ICONS.door}</button>
-      <button class="rail-btn tool" data-tool="window" title="Add a window">${ICONS.window}</button>
+      ${tool('select', 'Select', 'Select & move things')}
+      ${tool('wall', 'Wall', 'Draw walls point to point')}
+      ${tool('room', 'Room', 'Drag out a rectangular room')}
+      ${tool('door', 'Door', 'Place a door on a wall')}
+      ${tool('window', 'Window', 'Place a window on a wall')}
       <span class="rail-spacer"></span>
-      <button class="rail-btn" id="btnFit" title="Fit to screen">${ICONS.fit}</button>`;
+      <button class="rail-btn" id="btnFit" title="Fit plan to screen">${ICONS.fit}<span>Fit view</span></button>`;
     rail.querySelectorAll('.tool').forEach(b => {
       b.onclick = () => store.setTool(b.dataset.tool === store.tool ? 'select' : b.dataset.tool);
     });

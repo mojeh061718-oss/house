@@ -26,7 +26,8 @@ export function emptyProject(name = 'Untitled project') {
       defaultFloor: 'oak',
       defaultWall: 'paint_warmwhite',
       exteriorWall: 'plaster_light',
-      groundType: 'grass'
+      groundType: 'grass',
+      timeOfDay: 13
     }
   };
 }
@@ -209,7 +210,8 @@ export class Store {
 
   loadProject(data, projectId = null) {
     this.currentProjectId = projectId;
-    this.project = { ...emptyProject(), ...data };
+    const base = emptyProject();
+    this.project = { ...base, ...data, settings: { ...base.settings, ...data.settings } };
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.selection = null;

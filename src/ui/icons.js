@@ -33,7 +33,9 @@ export const ICONS = {
   sliders: svg('<path d="M5 5v14M12 5v14M19 5v14"/><circle cx="5" cy="10" r="2.2" fill="var(--panel,#fff)"/><circle cx="12" cy="15" r="2.2" fill="var(--panel,#fff)"/><circle cx="19" cy="8" r="2.2" fill="var(--panel,#fff)"/>'),
   rotate: svg('<path d="M20 8a8.5 8.5 0 1 0 1.5 5"/><path d="M20 3v5h-5"/>'),
   paint: svg('<path d="M4 4h12v5H4z"/><path d="M16 6h4v4h-8v3"/><rect x="10.5" y="13" width="3" height="7.5"/>'),
-  info: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.4" fill="currentColor"/>')
+  info: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.4" fill="currentColor"/>'),
+  sun: svg('<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/>'),
+  expand: svg('<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6" rx="1"/>')
 };
 
 export function icon(name) {

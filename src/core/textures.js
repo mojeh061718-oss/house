@@ -44,10 +44,10 @@ function makeNoise(seed, cells = 8, octaves = 4) {
   };
 }
 
-function canvasPair() {
+function canvasPair(size = SIZE) {
   const mk = () => {
     const c = document.createElement('canvas');
-    c.width = SIZE; c.height = SIZE;
+    c.width = size; c.height = size;
     return c;
   };
   return { color: mk(), bump: mk() };
@@ -399,23 +399,70 @@ function genFabric(ctx, bctx, p) {
 }
 
 function genGrass(ctx, bctx, p) {
-  const noise = makeNoise(p.seed, 24, 3);
-  const noise2 = makeNoise(p.seed + 4, 5, 3);
-  const a = hexToRgb('#4a7c3a'), b = hexToRgb('#6b9c4e'), c = hexToRgb('#3a6329');
-  const img = ctx.createImageData(SIZE, SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const f = noise(x / SIZE, y / SIZE);
-      const patch = noise2(x / SIZE, y / SIZE);
-      let col = mix(c, f > 0.5 ? b : a, Math.abs(f - 0.5) * 2 + 0.2);
-      col = mix(col, b, patch * 0.4);
-      const idx = (y * SIZE + x) * 4;
-      img.data[idx] = col[0]; img.data[idx + 1] = col[1]; img.data[idx + 2] = col[2]; img.data[idx + 3] = 255;
+  // lifelike lawn: layered ground tones + thousands of individual blade
+  // strokes with natural hue drift, clumping and soft shadowing
+  const S = ctx.canvas.width; // grass renders at higher resolution
+  const rand = mulberry32(p.seed);
+  const patchNoise = makeNoise(p.seed + 4, 4, 4);    // broad dry/lush patches
+  const clumpNoise = makeNoise(p.seed + 9, 16, 3);   // clumps
+  const fineNoise = makeNoise(p.seed + 13, 64, 2);   // soil / thatch detail
+  const soil = hexToRgb('#2e3d1f');
+  const lush = hexToRgb('#3f6d2b');
+  const mid = hexToRgb('#4e7f33');
+  const dry = hexToRgb('#7a8a45');
+  const img = ctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S;
+      const patch = patchNoise(u, v);
+      const clump = clumpNoise(u, v);
+      const fine = fineNoise(u, v);
+      let col = mix(lush, dry, Math.pow(patch, 2.2) * 0.85);
+      col = mix(col, mid, clump * 0.5);
+      col = mix(col, soil, Math.pow(1 - clump, 3) * 0.45);
+      const d = (fine - 0.5) * 26;
+      const idx = (y * S + x) * 4;
+      img.data[idx] = col[0] + d;
+      img.data[idx + 1] = col[1] + d;
+      img.data[idx + 2] = col[2] + d * 0.8;
+      img.data[idx + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
-  bctx.fillStyle = 'rgb(128,128,128)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+
+  // blade pass: short curved strokes, dark under-blades first then lit tips
+  const blade = (shadow) => {
+    const bx = rand() * S, by = rand() * S;
+    const len = 5 + rand() * 11;
+    const lean = (rand() - 0.5) * 8;
+    const g = 78 + rand() * 90;
+    const r = g * (0.52 + rand() * 0.2);
+    const b = g * (0.30 + rand() * 0.14);
+    ctx.strokeStyle = shadow
+      ? `rgba(${r * 0.35 | 0},${g * 0.38 | 0},${b * 0.35 | 0},0.5)`
+      : `rgba(${r | 0},${g | 0},${b | 0},${0.5 + rand() * 0.4})`;
+    ctx.lineWidth = shadow ? 1.6 : 0.7 + rand() * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + lean * 0.4, by - len * 0.6, bx + lean, by - len);
+    ctx.stroke();
+  };
+  ctx.lineCap = 'round';
+  for (let i = 0; i < S * 6; i++) blade(true);
+  for (let i = 0; i < S * 14; i++) blade(false);
+
+  // bump: clumps read as height so the sun catches the lawn unevenly
+  const bimg = bctx.createImageData(bctx.canvas.width, bctx.canvas.height);
+  const BS = bctx.canvas.width;
+  for (let y = 0; y < BS; y++) {
+    for (let x = 0; x < BS; x++) {
+      const h = 90 + clumpNoise(x / BS, y / BS) * 90 + (fineNoise(x / BS, y / BS) - 0.5) * 60;
+      const idx = (y * BS + x) * 4;
+      bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h;
+      bimg.data[idx + 3] = 255;
+    }
+  }
+  bctx.putImageData(bimg, 0, 0);
 }
 
 const GENERATORS = {
@@ -480,7 +527,7 @@ export const MATERIALS = [
   { id: 'plaster_light', name: 'Plaster', use: 'wall', gen: 'concrete', scale: 260, rough: 0.85, params: { seed: 78, base: '#d8d3c8' } },
 
   // Environment / internal
-  { id: 'grass', name: 'Lawn', use: 'ground', gen: 'grass', scale: 300, rough: 1.0, params: { seed: 80 } },
+  { id: 'grass', name: 'Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 80 } },
   { id: 'pavement', name: 'Pavement', use: 'ground', gen: 'tiles', scale: 200, rough: 0.8, params: { seed: 81, count: 2, gap: 4, grout: '#6f6d68', colors: ['#a5a29b', '#98958e'], variation: 10 } },
   { id: 'fabric_gray', name: 'Fabric Grey', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 90, base: '#8e8e92' } },
   { id: 'fabric_beige', name: 'Fabric Beige', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 91, base: '#c4b49a' } },
@@ -497,7 +544,7 @@ export function getTextureCanvases(matId) {
   let entry = canvasCache.get(matId);
   if (entry) return entry;
   const def = MATERIAL_MAP.get(matId) || MATERIAL_MAP.get('paint_warmwhite');
-  const { color, bump } = canvasPair();
+  const { color, bump } = canvasPair(def.res || SIZE);
   const gen = GENERATORS[def.gen];
   gen(color.getContext('2d'), bump.getContext('2d'), def.params);
   entry = { color, bump, def };

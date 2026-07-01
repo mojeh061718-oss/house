@@ -3,6 +3,7 @@
 // snapping) in 3D. All pointer input goes through rotation-aware helpers so
 // the forced-landscape mode on iPhone/iPad works identically.
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildWalls, buildFloors, buildCeilings, buildGround } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp } from '../core/geometry.js';
@@ -29,11 +30,16 @@ export class Viewer3D {
     this.renderer = renderer;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#bfd5e4');
-    scene.fog = new THREE.Fog('#bfd5e4', 3500, 9000);
+    scene.fog = new THREE.Fog('#bfd5e4', 3500, 12000);
     this.scene = scene;
 
-    this.camera = new THREE.PerspectiveCamera(50, 1, 5, 20000);
+    // image-based environment lighting: materials pick up soft realistic
+    // reflections instead of looking flat
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.55;
+
+    this.camera = new THREE.PerspectiveCamera(50, 1, 5, 30000);
     this.camera.position.set(600, 550, 750);
 
     // custom orbit rig (rotation-aware, touch-first)
@@ -46,16 +52,29 @@ export class Viewer3D {
     // lighting
     const hemi = new THREE.HemisphereLight('#dfeaf4', '#8a7f6a', 0.75);
     scene.add(hemi);
+    this.hemi = hemi;
     const sun = new THREE.DirectionalLight('#fff4e0', 2.0);
     sun.position.set(900, 1400, 600);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 100;
-    sun.shadow.camera.far = 5000;
+    sun.shadow.camera.far = 6000;
     sun.shadow.bias = -0.0004;
     scene.add(sun);
     scene.add(sun.target);
     this.sun = sun;
+
+    // gradient sky dome, driven by time of day
+    this.skyCanvas = document.createElement('canvas');
+    this.skyCanvas.width = 1;
+    this.skyCanvas.height = 256;
+    this.skyTexture = new THREE.CanvasTexture(this.skyCanvas);
+    this.skyTexture.colorSpace = THREE.SRGBColorSpace;
+    const skyGeo = new THREE.SphereGeometry(12000, 32, 16);
+    const skyMat = new THREE.MeshBasicMaterial({ map: this.skyTexture, side: THREE.BackSide, fog: false });
+    this.skyDome = new THREE.Mesh(skyGeo, skyMat);
+    scene.add(this.skyDome);
+    this.applyTimeOfDay(13);
 
     this.archGroup = new THREE.Group();
     this.itemsGroup = new THREE.Group();
@@ -93,7 +112,11 @@ export class Viewer3D {
       else this.syncItems();
     });
     store.on('selection', () => this.updateSelBox());
-    store.on('projectLoaded', () => { this.needsRebuild = true; this.frameAll(); });
+    store.on('projectLoaded', () => {
+      this.needsRebuild = true;
+      this.frameAll();
+      this.applyTimeOfDay(store.project.settings.timeOfDay ?? 13);
+    });
 
     this.clock = new THREE.Clock();
     renderer.setAnimationLoop(() => this.tick());
@@ -172,6 +195,7 @@ export class Viewer3D {
     const span = Math.max(c.span, 600);
     s.left = -span; s.right = span; s.top = span; s.bottom = -span;
     s.updateProjectionMatrix();
+    this.applyTimeOfDay(this.timeOfDay ?? 13);
   }
 
   rebuildItems() {
@@ -271,6 +295,85 @@ export class Viewer3D {
   setCeilings(on) {
     this.showCeilings = on;
     this.needsRebuild = true;
+  }
+
+  /**
+   * Set lighting/sky for an hour of day (5..22). Blends between night,
+   * golden hour and midday keyframes; the setting persists per project.
+   */
+  applyTimeOfDay(t) {
+    this.timeOfDay = t;
+    const c = this.center();
+    const sunrise = 6.2, sunset = 20.3;
+    const f = (t - sunrise) / (sunset - sunrise);
+    const elev = Math.sin(Math.PI * Math.min(Math.max(f, 0), 1)) *
+      (f >= 0 && f <= 1 ? 1 : 0) + (f < 0 ? f * 0.5 : 0) + (f > 1 ? (1 - f) * 0.5 : 0);
+
+    const K = {
+      night: {
+        zenith: '#0a111e', horizon: '#182338', below: '#10161f',
+        sun: '#8fa5d0', sunI: 0.12, hemiSky: '#24304a', hemiGround: '#12161e', hemiI: 0.18,
+        exposure: 0.7, envI: 0.05
+      },
+      golden: {
+        zenith: '#41609a', horizon: '#f2a660', below: '#8a6a4a',
+        sun: '#ff9648', sunI: 1.35, hemiSky: '#8ca0c8', hemiGround: '#7a6a52', hemiI: 0.5,
+        exposure: 1.0, envI: 0.4
+      },
+      day: {
+        zenith: '#63a3e6', horizon: '#dcecf7', below: '#b9c9d4',
+        sun: '#fff2dc', sunI: 2.0, hemiSky: '#dfeaf4', hemiGround: '#8a7f6a', hemiI: 0.75,
+        exposure: 1.05, envI: 0.55
+      }
+    };
+    const lerpHex = (a, b, k) =>
+      new THREE.Color(a).lerp(new THREE.Color(b), k);
+    const blend = (a, b, k) => ({
+      zenith: lerpHex(a.zenith, b.zenith, k), horizon: lerpHex(a.horizon, b.horizon, k),
+      below: lerpHex(a.below, b.below, k), sun: lerpHex(a.sun, b.sun, k),
+      sunI: a.sunI + (b.sunI - a.sunI) * k,
+      hemiSky: lerpHex(a.hemiSky, b.hemiSky, k), hemiGround: lerpHex(a.hemiGround, b.hemiGround, k),
+      hemiI: a.hemiI + (b.hemiI - a.hemiI) * k,
+      exposure: a.exposure + (b.exposure - a.exposure) * k,
+      envI: a.envI + (b.envI - a.envI) * k
+    });
+    let s;
+    if (elev <= 0) {
+      s = blend(K.night, K.golden, Math.max(0, 1 + elev / 0.08) * 0.3);
+    } else if (elev < 0.55) {
+      s = blend(K.golden, K.day, elev / 0.55);
+    } else {
+      s = blend(K.day, K.day, 0);
+    }
+
+    // sun position along its arc, centered on the plan
+    const az = -Math.PI * 0.62 + Math.min(Math.max(f, 0), 1) * Math.PI * 1.24;
+    const up = Math.max(elev, 0.05);
+    this.sun.position.set(
+      c.x + Math.sin(az) * 2400 * (1 - up * 0.45),
+      up * 2600 + 150,
+      c.z + Math.cos(az) * 2400 * (1 - up * 0.45)
+    );
+    this.sun.color.copy(s.sun);
+    this.sun.intensity = elev > 0 ? s.sunI : 0.1;
+    this.sun.castShadow = elev > 0.02;
+    this.hemi.color.copy(s.hemiSky);
+    this.hemi.groundColor.copy(s.hemiGround);
+    this.hemi.intensity = s.hemiI;
+    this.renderer.toneMappingExposure = s.exposure;
+    this.scene.environmentIntensity = s.envI;
+    this.scene.fog.color.copy(s.horizon);
+
+    // repaint the sky gradient
+    const g = this.skyCanvas.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#' + s.zenith.getHexString());
+    grad.addColorStop(0.52, '#' + s.horizon.getHexString());
+    grad.addColorStop(0.62, '#' + s.below.getHexString());
+    grad.addColorStop(1, '#' + s.below.getHexString());
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 1, 256);
+    this.skyTexture.needsUpdate = true;
   }
 
   /** Render one frame and return it as a PNG data-URL. */
