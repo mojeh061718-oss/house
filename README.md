@@ -51,7 +51,24 @@ wall paints, wallpapers, fabrics, stone countertops, lawn.
 - Download / open project files (`.havenplan.json`)
 - Furnished sample apartment included
 
-## Run it
+## Use it
+
+**Live app:** https://mojeh061718-oss.github.io/house/
+
+HavenPlan is an installable PWA with full offline support:
+- **Android / Chrome & Edge:** open the link → menu → **Add to home screen**
+  (or accept the install prompt)
+- **iPhone / iPad:** open in Safari → Share → **Add to Home Screen**
+- **Desktop:** click the install icon in the address bar
+
+Once installed it launches full-screen like a native app and keeps working
+without a connection; your designs autosave on the device.
+
+Deployment is automated: every push to `main` (and the current feature
+branch) builds the app and publishes it to the `gh-pages` branch via
+GitHub Actions (`.github/workflows/deploy.yml`).
+
+## Run it locally
 
 ```bash
 npm install
