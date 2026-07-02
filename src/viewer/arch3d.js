@@ -21,7 +21,7 @@ export function archMat(matId, opts = {}) {
     const bumpMap = new THREE.CanvasTexture(bump);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     m = new THREE.MeshStandardMaterial({
-      map, bumpMap, bumpScale: 0.5,
+      map, bumpMap, bumpScale: 0.9,
       roughness: def.rough, metalness: 0,
       side: opts.side || THREE.FrontSide
     });

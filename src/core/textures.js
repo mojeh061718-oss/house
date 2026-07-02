@@ -435,10 +435,11 @@ function genGrass(ctx, bctx, p) {
   const patchNoise = makeNoise(p.seed + 4, 4, 4);    // broad dry/lush patches
   const clumpNoise = makeNoise(p.seed + 9, 16, 3);   // clumps
   const fineNoise = makeNoise(p.seed + 13, 64, 2);   // soil / thatch detail
-  const soil = hexToRgb(p.soil || '#2e3d1f');
-  const lush = hexToRgb(p.lush || '#3f6d2b');
-  const mid = hexToRgb(p.mid || '#4e7f33');
-  const dry = hexToRgb(p.dry || '#7a8a45');
+  // earthy, desaturated tones — vivid greens read as cartoon grass
+  const soil = hexToRgb(p.soil || '#3a3f28');
+  const lush = hexToRgb(p.lush || '#4d633a');
+  const mid = hexToRgb(p.mid || '#5d7347');
+  const dry = hexToRgb(p.dry || '#7f814f');
   const warm = p.bladeWarm ?? 0.52; // higher = yellower blades
   const img = ctx.createImageData(S, S);
   for (let y = 0; y < S; y++) {

@@ -61,6 +61,7 @@ export class Viewer3D {
     sun.shadow.camera.near = 100;
     sun.shadow.camera.far = 6000;
     sun.shadow.bias = -0.0004;
+    sun.shadow.radius = 4;
     scene.add(sun);
     scene.add(sun.target);
     this.sun = sun;
@@ -330,6 +331,55 @@ export class Viewer3D {
     this.selBox.visible = false;
   }
 
+  // ---- walk joystick visual + camera flight --------------------------------
+
+  showJoystick(x, y) {
+    if (!this.joyEl) {
+      const base = document.createElement('div');
+      base.style.cssText = 'position:absolute;width:110px;height:110px;border-radius:50%;' +
+        'border:2px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.08);' +
+        'pointer-events:none;z-index:30;transform:translate(-50%,-50%)';
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:absolute;width:46px;height:46px;border-radius:50%;' +
+        'background:rgba(255,255,255,0.55);pointer-events:none;z-index:31;transform:translate(-50%,-50%)';
+      this.container.appendChild(base);
+      this.container.appendChild(thumb);
+      this.joyEl = { base, thumb };
+    }
+    this.joyEl.base.style.display = this.joyEl.thumb.style.display = 'block';
+    this.joyEl.base.style.left = x + 'px';
+    this.joyEl.base.style.top = y + 'px';
+    this.moveJoystickThumb(x, y);
+  }
+
+  moveJoystickThumb(x, y) {
+    if (!this.joyEl) return;
+    this.joyEl.thumb.style.left = x + 'px';
+    this.joyEl.thumb.style.top = y + 'px';
+  }
+
+  hideJoystick() {
+    if (this.joyEl) this.joyEl.base.style.display = this.joyEl.thumb.style.display = 'none';
+  }
+
+  /** Smoothly fly the orbit camera to frame a point (build-mode close-up). */
+  flyTo(cx, cz, radius, phi = 0.85, targetY = 60) {
+    this.flight = {
+      from: {
+        target: this.orbit.target.clone(),
+        radius: this.orbit.radius, phi: this.orbit.phi
+      },
+      to: { x: cx, y: targetY, z: cz, radius, phi },
+      t: 0
+    };
+  }
+
+  /** Frame an item up close, ready to be positioned. */
+  flyToItem(it) {
+    const size = Math.max(it.w, it.d, it.h, 60);
+    this.flyTo(it.x, it.y, clamp(size * 3.2, 220, 900), 0.8, Math.min(it.h * 0.5, 120));
+  }
+
   setWalkMode(on) {
     this.walkMode = on;
     if (on) {
@@ -338,6 +388,8 @@ export class Viewer3D {
       const dir = new THREE.Vector3().subVectors(this.orbit.target, this.camera.position);
       this.walk.yaw = Math.atan2(-dir.x, -dir.z) + Math.PI;
       this.walk.pitch = 0;
+      this.walk.targetYaw = this.walk.yaw;
+      this.walk.targetPitch = 0;
       if (Math.hypot(this.walk.pos.x - c.x, this.walk.pos.z - c.z) > c.span * 1.5) {
         this.walk.pos.set(c.x, 160, c.z);
       }
@@ -374,9 +426,9 @@ export class Viewer3D {
         exposure: 1.0, envI: 0.4
       },
       day: {
-        zenith: '#63a3e6', horizon: '#dcecf7', below: '#b9c9d4',
-        sun: '#fff2dc', sunI: 2.0, hemiSky: '#dfeaf4', hemiGround: '#8a7f6a', hemiI: 0.75,
-        exposure: 1.05, envI: 0.55
+        zenith: '#5b9bdf', horizon: '#d6e6f2', below: '#adbfcc',
+        sun: '#fff0d6', sunI: 2.6, hemiSky: '#d8e4ee', hemiGround: '#7d7361', hemiI: 0.48,
+        exposure: 1.0, envI: 0.34
       }
     };
     const lerpHex = (a, b, k) =>
@@ -566,6 +618,25 @@ export class Viewer3D {
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
+    this.flyToItem(it);
+    return true;
+  }
+
+  /**
+   * Build mode: drop an item in the middle of a room and fly the camera to a
+   * close working angle so it can be nudged into place immediately.
+   */
+  placeInRoom(defId, room) {
+    const store = this.store;
+    const def = ITEM_MAP.get(defId);
+    if (!def || !room) return false;
+    const pose = snapPose(store.project.walls, def, room.centroid.x, room.centroid.y, {});
+    store.checkpoint();
+    const it = store.addItem(defId, pose.x, pose.y, pose.rot, def);
+    store.commit(false);
+    store.setTool('select');
+    store.select({ kind: 'item', id: it.id });
+    this.flyToItem(it);
     return true;
   }
 
@@ -615,6 +686,7 @@ export class Viewer3D {
       if (e.pointerType === 'touch' && p.x < this.container.clientWidth * 0.42) {
         this.gesture = { kind: 'joy', id: e.pointerId, x: p.x, y: p.y };
         this.walk.joy = { mx: 0, mz: 0 };
+        this.showJoystick(p.x, p.y);
       } else {
         this.gesture = { kind: 'look', id: e.pointerId, x: p.x, y: p.y, yaw: this.walk.yaw, pitch: this.walk.pitch };
       }
@@ -637,6 +709,7 @@ export class Viewer3D {
         moved: false
       };
     } else {
+      this.flight = null; // user takes over the camera
       this.gesture = {
         kind: 'rotate', id: e.pointerId, x: p.x, y: p.y,
         theta0: this.orbit.theta, phi0: this.orbit.phi, moved: false
@@ -667,8 +740,9 @@ export class Viewer3D {
     }
 
     if (g?.kind === 'look' && g.id === e.pointerId) {
-      this.walk.yaw = g.yaw - (p.x - g.x) * 0.005;
-      this.walk.pitch = clamp(g.pitch - (p.y - g.y) * 0.004, -1.2, 1.2);
+      // gentler sensitivity; tick() eases toward these targets for smoothness
+      this.walk.targetYaw = g.yaw - (p.x - g.x) * 0.0032;
+      this.walk.targetPitch = clamp(g.pitch - (p.y - g.y) * 0.0026, -1.15, 1.15);
       return;
     }
 
@@ -677,6 +751,10 @@ export class Viewer3D {
         mx: clamp((p.x - g.x) / 70, -1, 1),
         mz: clamp((p.y - g.y) / 70, -1, 1)
       };
+      this.moveJoystickThumb(
+        g.x + clamp(p.x - g.x, -55, 55),
+        g.y + clamp(p.y - g.y, -55, 55)
+      );
       return;
     }
 
@@ -713,7 +791,10 @@ export class Viewer3D {
   onUp(e) {
     this.pointers.delete(e.pointerId);
     const g = this.gesture;
-    if (g?.kind === 'joy' && g.id === e.pointerId) this.walk.joy = null;
+    if (g?.kind === 'joy' && g.id === e.pointerId) {
+      this.walk.joy = null;
+      this.hideJoystick();
+    }
     if (g?.kind === 'pinch' && this.pointers.size === 1) {
       // hand back to single-finger rotate anchored at the remaining pointer
       const [id, p] = [...this.pointers.entries()][0];
@@ -779,6 +860,12 @@ export class Viewer3D {
         this.walk.pos.x += (fx * -mz + rx * mx) * speed;
         this.walk.pos.z += (fz * -mz + rz * mx) * speed;
       }
+      // eased look for comfortable navigation
+      if (this.walk.targetYaw !== undefined) {
+        const k = Math.min(1, dt * 11);
+        this.walk.yaw += (this.walk.targetYaw - this.walk.yaw) * k;
+        this.walk.pitch += (this.walk.targetPitch - this.walk.pitch) * k;
+      }
       this.camera.position.copy(this.walk.pos);
       const look = new THREE.Vector3(
         this.walk.pos.x - Math.sin(this.walk.yaw) * Math.cos(this.walk.pitch),
@@ -787,6 +874,19 @@ export class Viewer3D {
       );
       this.camera.lookAt(look);
     } else {
+      if (this.flight) {
+        const f = this.flight;
+        f.t = Math.min(1, f.t + dt / 0.65);
+        const k = f.t * f.t * (3 - 2 * f.t); // smoothstep
+        this.orbit.target.set(
+          f.from.target.x + (f.to.x - f.from.target.x) * k,
+          f.from.target.y + (f.to.y - f.from.target.y) * k,
+          f.from.target.z + (f.to.z - f.from.target.z) * k
+        );
+        this.orbit.radius = f.from.radius + (f.to.radius - f.from.radius) * k;
+        this.orbit.phi = f.from.phi + (f.to.phi - f.from.phi) * k;
+        if (f.t >= 1) this.flight = null;
+      }
       this.applyOrbit();
     }
     this.renderer.render(this.scene, this.camera);

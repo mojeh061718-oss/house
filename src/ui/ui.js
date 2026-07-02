@@ -37,7 +37,11 @@ export class UI {
     this.buildCatalog();
     this.buildFabs();
 
-    store.on('selection', () => { this.renderProps(); this.syncFabs(); });
+    store.on('selection', () => {
+      if (store.selection?.kind === 'room') this._lastRoomKey = store.selection.id;
+      this.renderProps();
+      this.syncFabs();
+    });
     store.on('change', () => this.renderPropsSoft());
     store.on('tool', () => { this.syncTools(); this.showHint(); });
     store.on('view', () => this.syncView());
@@ -402,9 +406,18 @@ export class UI {
         <span class="cat-card-name">${def.name}</span>
         <span class="cat-card-dims">${fmtFtIn(def.w)} × ${fmtFtIn(def.d)} × ${fmtFtIn(def.h)}</span>`;
       card.onclick = () => {
-        store.setTool('place', def.id);
         this.closeDrawer('catalog');
-        // placement works in both views: tap the plan or tap the 3D ground
+        // build mode: in 3D with a room chosen, drop it right in that room
+        // and fly the camera to a working close-up
+        if (store.viewMode === '3d') {
+          const key = store.selection?.kind === 'room' ? store.selection.id : this._lastRoomKey;
+          const room = key && store.room(key);
+          if (room && this.viewer.placeInRoom(def.id, room)) {
+            this.toast(`${def.name} placed — drag to position`);
+            return;
+          }
+        }
+        store.setTool('place', def.id);
       };
       grid.appendChild(card);
       const img = card.querySelector('img');
