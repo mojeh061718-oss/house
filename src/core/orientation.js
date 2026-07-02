@@ -55,16 +55,12 @@ function applyMetrics() {
   const ins = measureEnvInsets();
   const landscapePhysical = window.innerWidth > window.innerHeight;
 
+  // size strictly to the real web view: when iOS serves a stale, smaller
+  // viewport to an installed app (e.g. 812pt on an 874pt screen), anything
+  // drawn beyond it is clipped — only re-adding the app to the Home Screen
+  // refreshes it, so never draw past innerWidth/innerHeight
   phys.w = window.innerWidth;
   phys.h = window.innerHeight;
-  if (isStandalone() && isTouchDevice()) {
-    // installed iOS apps own the whole screen; innerHeight sometimes
-    // under-reports and leaves a dead strip — trust the screen dimensions
-    const sMin = Math.min(screen.width, screen.height);
-    const sMax = Math.max(screen.width, screen.height);
-    phys.w = Math.max(phys.w, landscapePhysical ? sMax : sMin);
-    phys.h = Math.max(phys.h, landscapePhysical ? sMin : sMax);
-  }
 
   // Safari keeps the clock/battery overlay in landscape while env() says 0
   if (!isStandalone() && landscapePhysical && isTouchDevice() && ins.top < 4) {
