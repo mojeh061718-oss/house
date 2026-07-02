@@ -109,6 +109,35 @@ function genWoodPlanks(ctx, bctx, p) {
   }
   ctx.putImageData(img, 0, 0);
   bctx.putImageData(bimg, 0, 0);
+
+  // knots: darker cores with growth rings, sunk slightly into the bump map
+  for (let i = 0; i < p.planks; i++) {
+    if (rand() < 0.5) continue;
+    const knots = 1 + (rand() < 0.25 ? 1 : 0);
+    for (let k = 0; k < knots; k++) {
+      const kx = i * plankW + plankW * (0.22 + rand() * 0.56);
+      const ky = rand() * SIZE;
+      const kr = 3 + rand() * 5;
+      const grd = ctx.createRadialGradient(kx, ky, 0.5, kx, ky, kr * 1.6);
+      grd.addColorStop(0, 'rgba(38,22,10,0.85)');
+      grd.addColorStop(0.45, 'rgba(62,38,20,0.5)');
+      grd.addColorStop(0.75, 'rgba(96,64,36,0.22)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.ellipse(kx, ky, kr, kr * 1.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(48,30,16,0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(kx, ky, kr * 0.6, kr * 1.1, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      bctx.fillStyle = 'rgba(0,0,0,0.35)';
+      bctx.beginPath();
+      bctx.ellipse(kx, ky, kr, kr * 1.7, 0, 0, Math.PI * 2);
+      bctx.fill();
+    }
+  }
 }
 
 function genHerringbone(ctx, bctx, p) {
@@ -493,6 +522,15 @@ export const MATERIALS = [
   { id: 'ash_gray', group: 'Wood', name: 'Ash Grey', use: 'floor', gen: 'wood', scale: 240, rough: 0.66, params: { seed: 31, base: '#a89a8a', dark: '#7d7264', light: '#cfc2b0', planks: 6 } },
   { id: 'honey_pine', group: 'Wood', name: 'Honey Pine', use: 'floor', gen: 'wood', scale: 240, rough: 0.6, params: { seed: 47, base: '#c99a5f', dark: '#9c7038', light: '#e8c288', planks: 8 } },
   { id: 'parquet', group: 'Wood', name: 'Herringbone', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.5, params: { seed: 13, base: '#a97e4f', dark: '#7c5a33', light: '#cfa76f' } },
+  { id: 'chevron_blond', group: 'Wood', name: 'Chevron Blond', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.45, params: { seed: 17, base: '#c8a878', dark: '#a08252', light: '#e8cba0' } },
+  { id: 'maple', group: 'Wood', name: 'Natural Maple', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 101, base: '#d9bc94', dark: '#b6976e', light: '#efd9b8', planks: 6 } },
+  { id: 'cherry', group: 'Wood', name: 'Cherry', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 103, base: '#9c5a3c', dark: '#6e3a24', light: '#c07c56', planks: 6 } },
+  { id: 'hickory', group: 'Wood', name: 'Rustic Hickory', use: 'floor', gen: 'wood', scale: 260, rough: 0.62, params: { seed: 105, base: '#a5825a', dark: '#6b4c2e', light: '#d3b284', planks: 5 } },
+  { id: 'espresso', group: 'Wood', name: 'Espresso', use: 'floor', gen: 'wood', scale: 240, rough: 0.45, params: { seed: 107, base: '#4a352a', dark: '#2e1f16', light: '#6a4f3e', planks: 6 } },
+  { id: 'teak', group: 'Wood', name: 'Golden Teak', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 109, base: '#b08347', dark: '#825c2c', light: '#d8a968', planks: 7 } },
+  { id: 'whitewash', group: 'Wood', name: 'Whitewashed', use: 'floor', gen: 'wood', scale: 240, rough: 0.6, params: { seed: 111, base: '#ddd2c2', dark: '#b3a894', light: '#f2ebdf', planks: 5 } },
+  { id: 'wide_oak', group: 'Wood', name: 'Wide Plank Oak', use: 'floor', gen: 'wood', scale: 300, rough: 0.55, params: { seed: 113, base: '#b08a5e', dark: '#84643e', light: '#d6b184', planks: 4 } },
+  { id: 'barnwood', group: 'Wood', name: 'Barnwood', use: 'floor', gen: 'wood', scale: 300, rough: 0.8, params: { seed: 115, base: '#8a7a68', dark: '#5c5040', light: '#b0a28c', planks: 4 } },
   // Stone / tile floors
   { id: 'tile_white', group: 'Stone & Tile', name: 'Porcelain White', use: 'floor', gen: 'tiles', scale: 120, rough: 0.25, params: { seed: 5, count: 2, gap: 3, grout: '#b9b6ae', colors: ['#e8e6e0'], variation: 8 } },
   { id: 'tile_gray', group: 'Stone & Tile', name: 'Slate Grey', use: 'floor', gen: 'tiles', scale: 120, rough: 0.4, params: { seed: 9, count: 2, gap: 3, grout: '#77746e', colors: ['#9a978f', '#8b8880'], variation: 12 } },
