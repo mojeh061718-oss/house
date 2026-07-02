@@ -5,6 +5,7 @@ import { thumbnail } from './thumbs.js';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview } from '../core/textures.js';
 import { wallLength, pointInPolygon } from '../core/geometry.js';
+import { fmtFtIn, fmtArea, inValue, inToCm } from '../core/units.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -347,7 +348,7 @@ export class UI {
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
         <span class="cat-card-name">${def.name}</span>
-        <span class="cat-card-dims">${def.w} × ${def.d} × ${def.h} cm</span>`;
+        <span class="cat-card-dims">${fmtFtIn(def.w)} × ${fmtFtIn(def.d)} × ${fmtFtIn(def.h)}</span>`;
       card.onclick = () => {
         store.setTool('place', def.id);
         this.closeDrawer('catalog');
@@ -385,7 +386,7 @@ export class UI {
     if (!sel) {
       panel.innerHTML = `${head('Project settings')}
         <div class="props-body">
-          ${this.numRow('setWallH', 'Wall height', store.project.settings.wallHeight, 'cm')}
+          ${this.lenRow('setWallH', 'Wall height', store.project.settings.wallHeight)}
           <div class="props-section-title">Default floor</div>
           <div class="mat-grid" id="matDefFloor"></div>
           <div class="props-section-title">Default wall paint</div>
@@ -393,7 +394,7 @@ export class UI {
           <div class="props-section-title">Exterior finish</div>
           <div class="mat-grid" id="matExtWall"></div>
         </div>`;
-      this.bindNum('setWallH', v => {
+      this.bindLen('setWallH', v => {
         store.checkpoint();
         store.project.settings.wallHeight = Math.max(180, Math.min(400, v));
         for (const w of store.project.walls) w.height = store.project.settings.wallHeight;
@@ -415,11 +416,11 @@ export class UI {
       panel.innerHTML = `${head(def?.name || 'Item')}
         <div class="props-body">
           <div class="props-grid2">
-            ${this.numRow('pW', 'Width', it.w, 'cm')}
-            ${this.numRow('pD', 'Depth', it.d, 'cm')}
-            ${this.numRow('pH', 'Height', it.h, 'cm')}
+            ${this.lenRow('pW', 'Width', it.w)}
+            ${this.lenRow('pD', 'Depth', it.d)}
+            ${this.lenRow('pH', 'Height', it.h)}
             ${this.numRow('pRot', 'Rotation', deg(it.rotation), '°')}
-            ${this.numRow('pElev', 'Elevation', Math.round(it.elevation || 0), 'cm')}
+            ${this.lenRow('pElev', 'Elevation', it.elevation || 0)}
           </div>
           ${def?.palettes ? '<div class="props-section-title">Finish</div><div class="chip-row" id="palRow"></div>' : ''}
           <div class="btn-row">
@@ -428,11 +429,11 @@ export class UI {
           </div>
         </div>`;
       const commit = (fn) => { store.checkpoint(); fn(); store.commit(false); };
-      this.bindNum('pW', v => commit(() => it.w = Math.max(10, v)));
-      this.bindNum('pD', v => commit(() => it.d = Math.max(10, v)));
-      this.bindNum('pH', v => commit(() => it.h = Math.max(10, v)));
+      this.bindLen('pW', v => commit(() => it.w = Math.max(10, Math.round(v))));
+      this.bindLen('pD', v => commit(() => it.d = Math.max(10, Math.round(v))));
+      this.bindLen('pH', v => commit(() => it.h = Math.max(10, Math.round(v))));
       this.bindNum('pRot', v => commit(() => it.rotation = v * Math.PI / 180));
-      this.bindNum('pElev', v => commit(() => it.elevation = Math.max(0, v)));
+      this.bindLen('pElev', v => commit(() => it.elevation = Math.max(0, Math.round(v))));
       if (def?.palettes) {
         const row = $('#palRow');
         def.palettes.forEach((pal, idx) => {
@@ -457,19 +458,19 @@ export class UI {
       panel.innerHTML = `${head('Wall')}
         <div class="props-body">
           <div class="props-grid2">
-            ${this.numRow('pLen', 'Length', Math.round(wallLength(w)), 'cm', true)}
-            ${this.numRow('pThick', 'Thickness', w.thickness, 'cm')}
-            ${this.numRow('pWH', 'Height', w.height, 'cm')}
+            ${this.lenRow('pLen', 'Length', wallLength(w), true)}
+            ${this.lenRow('pThick', 'Thickness', w.thickness)}
+            ${this.lenRow('pWH', 'Height', w.height)}
           </div>
           <div class="btn-row">
             <button class="action danger" id="pDel">${icon('trash')} Delete wall</button>
           </div>
         </div>`;
-      this.bindNum('pThick', v => {
-        store.checkpoint(); w.thickness = Math.max(5, Math.min(60, v)); store.commit(true);
+      this.bindLen('pThick', v => {
+        store.checkpoint(); w.thickness = Math.max(5, Math.min(60, Math.round(v))); store.commit(true);
       });
-      this.bindNum('pWH', v => {
-        store.checkpoint(); w.height = Math.max(120, Math.min(400, v)); store.commit(true);
+      this.bindLen('pWH', v => {
+        store.checkpoint(); w.height = Math.max(120, Math.min(400, Math.round(v))); store.commit(true);
       });
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'opening') {
@@ -486,9 +487,9 @@ export class UI {
             <button data-t="slidingDoor">Sliding</button>
           </div>`}
           <div class="props-grid2">
-            ${this.numRow('pOW', 'Width', o.width, 'cm')}
-            ${this.numRow('pOH', 'Height', o.height, 'cm')}
-            ${isWin ? this.numRow('pOS', 'Sill height', o.sill, 'cm') : ''}
+            ${this.lenRow('pOW', 'Width', o.width)}
+            ${this.lenRow('pOH', 'Height', o.height)}
+            ${isWin ? this.lenRow('pOS', 'Sill height', o.sill) : ''}
           </div>
           ${o.type === 'door' ? `
           <div class="btn-row">
@@ -500,9 +501,9 @@ export class UI {
           </div>
         </div>`;
       const structural = fn => { store.checkpoint(); fn(); store.commit(true); };
-      this.bindNum('pOW', v => structural(() => o.width = Math.max(40, Math.min(300, v))));
-      this.bindNum('pOH', v => structural(() => o.height = Math.max(60, Math.min(280, v))));
-      if (isWin) this.bindNum('pOS', v => structural(() => o.sill = Math.max(0, Math.min(200, v))));
+      this.bindLen('pOW', v => structural(() => o.width = Math.max(40, Math.min(300, Math.round(v)))));
+      this.bindLen('pOH', v => structural(() => o.height = Math.max(60, Math.min(280, Math.round(v)))));
+      if (isWin) this.bindLen('pOS', v => structural(() => o.sill = Math.max(0, Math.min(200, Math.round(v)))));
       if (!isWin) {
         document.querySelectorAll('#doorType button').forEach(b => {
           b.classList.toggle('active', b.dataset.t === o.type);
@@ -525,10 +526,10 @@ export class UI {
             <input id="roomName" value="${style.name || ''}" placeholder="e.g. Living room"/>
           </label>
           ${rect ? `<div class="props-grid2">
-            ${this.numRow('pRW', 'Width', Math.round(rect.maxX - rect.minX), 'cm')}
-            ${this.numRow('pRD', 'Depth', Math.round(rect.maxY - rect.minY), 'cm')}
+            ${this.lenRow('pRW', 'Width', rect.maxX - rect.minX)}
+            ${this.lenRow('pRD', 'Depth', rect.maxY - rect.minY)}
           </div>` : ''}
-          <div class="props-stat">Area&ensp;<b>${(room.area / 10000).toFixed(2)} m²</b></div>
+          <div class="props-stat">Area&ensp;<b>${fmtArea(room.area)}</b></div>
           <div class="props-section-title">Floor</div>
           <div class="mat-grid" id="matFloor"></div>
           <div class="props-section-title">Walls</div>
@@ -549,8 +550,8 @@ export class UI {
           const r2 = store.rooms.find(r => pointInPolygon(cx, cy, r.polygon));
           if (r2) store.select({ kind: 'room', id: r2.key });
         };
-        this.bindNum('pRW', v => resize(Math.max(100, Math.min(3000, v)), Math.round(rect.maxY - rect.minY)));
-        this.bindNum('pRD', v => resize(Math.round(rect.maxX - rect.minX), Math.max(100, Math.min(3000, v))));
+        this.bindLen('pRW', v => resize(Math.max(100, Math.min(3000, Math.round(v))), Math.round(rect.maxY - rect.minY)));
+        this.bindLen('pRD', v => resize(Math.round(rect.maxX - rect.minX), Math.max(100, Math.min(3000, Math.round(v)))));
       }
       this.matGrid('#matFloor', 'floor', style.floor, id => {
         store.checkpoint(); store.roomStyle(sel.id).floor = id; store.commit(true);
@@ -569,13 +570,13 @@ export class UI {
     if (sel?.kind === 'item') {
       const it = store.item(sel.id);
       if (!it) return;
-      this.setVal('pW', it.w); this.setVal('pD', it.d); this.setVal('pH', it.h);
+      this.setVal('pW', inValue(it.w)); this.setVal('pD', inValue(it.d)); this.setVal('pH', inValue(it.h));
       this.setVal('pRot', deg(it.rotation));
-      this.setVal('pElev', Math.round(it.elevation || 0));
+      this.setVal('pElev', inValue(it.elevation || 0));
     } else if (sel?.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) return;
-      this.setVal('pLen', Math.round(wallLength(w)));
+      this.setVal('pLen', inValue(wallLength(w)));
     }
   }
 
@@ -584,9 +585,18 @@ export class UI {
     if (inp && document.activeElement !== inp) inp.value = v;
   }
 
-  /** Axis-aligned bounding rect of a simple 4-corner rectangular room, else null. */
+  /** Axis-aligned bounding rect of a rectangular room, else null. */
   roomRect(room) {
-    const poly = room.polygon;
+    // collapse collinear vertices (T-junction split points along an edge)
+    const raw = room.polygon;
+    const poly = [];
+    for (let i = 0; i < raw.length; i++) {
+      const prev = raw[(i - 1 + raw.length) % raw.length];
+      const cur = raw[i];
+      const next = raw[(i + 1) % raw.length];
+      const cross = (cur.x - prev.x) * (next.y - cur.y) - (cur.y - prev.y) * (next.x - cur.x);
+      if (Math.abs(cross) > 1) poly.push(cur);
+    }
     if (poly.length !== 4) return null;
     for (let i = 0; i < 4; i++) {
       const a = poly[i], b = poly[(i + 1) % 4];
@@ -615,8 +625,13 @@ export class UI {
 
   numRow(id, label, value, unit, readonly = false) {
     return `<label class="field"><span>${label}</span>
-      <span class="num-wrap"><input id="${id}" type="number" value="${value}" ${readonly ? 'readonly' : ''}/><i>${unit}</i></span>
+      <span class="num-wrap"><input id="${id}" type="number" step="0.5" value="${value}" ${readonly ? 'readonly' : ''}/><i>${unit}</i></span>
     </label>`;
+  }
+
+  /** Length row: stored in cm, displayed/edited in inches. */
+  lenRow(id, label, cmValue, readonly = false) {
+    return this.numRow(id, label, inValue(cmValue), 'in', readonly);
   }
 
   bindNum(id, fn) {
@@ -626,6 +641,11 @@ export class UI {
       const v = parseFloat(inp.value);
       if (!Number.isNaN(v)) fn(v);
     });
+  }
+
+  /** Change handler for length rows: input inches -> handler gets cm. */
+  bindLen(id, fn) {
+    this.bindNum(id, v => fn(inToCm(v)));
   }
 
   matGrid(sel, use, current, onPick) {

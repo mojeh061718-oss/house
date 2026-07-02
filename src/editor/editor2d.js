@@ -9,6 +9,7 @@ import { ITEM_MAP } from '../catalog/items.js';
 import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
 import { localPos } from '../core/orientation.js';
+import { fmtFtIn, fmtArea } from '../core/units.js';
 import { snapPose } from '../core/placement.js';
 
 const GRID = 10;            // snap grid (cm)
@@ -967,14 +968,14 @@ export class Editor2D {
       const style = store.project.roomStyles[r.key];
       const name = style?.name || 'Room';
       const s = this.toScreen(r.centroid.x, r.centroid.y);
-      const m2 = (r.area / 10000).toFixed(1);
+      const area = fmtArea(r.area);
       ctx.textAlign = 'center';
       ctx.font = '600 13px system-ui, sans-serif';
       ctx.fillStyle = 'rgba(40,44,52,0.82)';
       ctx.fillText(name, s.x, s.y - 3);
       ctx.font = '11px system-ui, sans-serif';
       ctx.fillStyle = 'rgba(40,44,52,0.55)';
-      ctx.fillText(`${m2} m²`, s.x, s.y + 12);
+      ctx.fillText(area, s.x, s.y + 12);
     }
   }
 
@@ -1001,7 +1002,7 @@ export class Editor2D {
       ctx.textAlign = 'center';
       ctx.font = selected ? '600 12px system-ui, sans-serif' : '10px system-ui, sans-serif';
       ctx.fillStyle = selected ? '#2b6fe0' : 'rgba(40,44,52,0.5)';
-      ctx.fillText(`${(len / 100).toFixed(2)} m`, 0, 0);
+      ctx.fillText(fmtFtIn(len), 0, 0);
       ctx.restore();
     }
     // live wall-draw length
@@ -1013,7 +1014,7 @@ export class Editor2D {
         ctx.font = '600 13px system-ui, sans-serif';
         ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
-        ctx.fillText(`${(len / 100).toFixed(2)} m`, s.x, s.y - 14);
+        ctx.fillText(fmtFtIn(len), s.x, s.y - 14);
       }
     }
     // live dimensions while dragging out a room
@@ -1025,7 +1026,7 @@ export class Editor2D {
         ctx.font = '700 14px system-ui, sans-serif';
         ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
-        ctx.fillText(`${(w / 100).toFixed(2)} × ${(d / 100).toFixed(2)} m`, s.x, s.y);
+        ctx.fillText(`${fmtFtIn(w)} × ${fmtFtIn(d)}`, s.x, s.y);
       }
     }
     // selected item dims
@@ -1037,7 +1038,7 @@ export class Editor2D {
         ctx.font = '600 11px system-ui, sans-serif';
         ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
-        ctx.fillText(`${it.w} × ${it.d} cm`, s.x, s.y + yOff);
+        ctx.fillText(`${fmtFtIn(it.w)} × ${fmtFtIn(it.d)}`, s.x, s.y + yOff);
       }
     }
   }

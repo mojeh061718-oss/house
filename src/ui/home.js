@@ -1,5 +1,6 @@
 // Splash screen and project home screen ("Honeycutt Home Studio").
 import { ICONS } from './icons.js';
+import { isStandalone } from '../core/orientation.js';
 import { listProjects, deleteProject, newProjectId, migrateLegacy } from '../core/projects.js';
 import { emptyProject } from '../core/state.js';
 import { detectRooms } from '../core/geometry.js';
@@ -101,8 +102,19 @@ export class Home {
   render() {
     const home = $('#home');
     const projects = listProjects();
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const showInstallTip = isIOS && !isStandalone() &&
+      !localStorage.getItem('hs.installTipDismissed');
     home.innerHTML = `
       <div class="home-scroll">
+        ${showInstallTip ? `
+        <div class="install-tip" id="installTip">
+          <span>${ICONS.expand}</span>
+          <p>For true full screen — no clock or signal bar — add this app to your
+          Home Screen: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>
+          <button id="tipClose" aria-label="Dismiss">${ICONS.close}</button>
+        </div>` : ''}
         <header class="home-head">
           <span class="home-logo">${ICONS.logo}</span>
           <div>
@@ -131,6 +143,13 @@ export class Home {
         </div>
       </div>`;
 
+    const tipClose = $('#tipClose');
+    if (tipClose) {
+      tipClose.onclick = () => {
+        localStorage.setItem('hs.installTipDismissed', '1');
+        $('#installTip').remove();
+      };
+    }
     $('#homeNew').onclick = () => {
       this.hide();
       this.openFn(emptyProject('My home'), newProjectId());

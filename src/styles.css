@@ -33,7 +33,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: #000;
+  background: var(--bg);
   color: var(--text);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
@@ -137,6 +137,36 @@ canvas { display: block; }
   gap: 16px;
   margin-bottom: 26px;
 }
+
+.install-tip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(160deg, rgba(56, 132, 255, 0.14), rgba(56, 132, 255, 0.05));
+  border: 1px solid rgba(56, 132, 255, 0.35);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  margin-bottom: 18px;
+  max-width: 1200px;
+}
+.install-tip > span { color: var(--accent); flex: none; display: grid; place-items: center; }
+.install-tip svg { width: 22px; height: 22px; }
+.install-tip p { font-size: 12.5px; color: var(--text); line-height: 1.45; flex: 1; }
+.install-tip b { color: var(--accent); }
+.install-tip button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.install-tip button:hover { background: var(--panel-2); color: var(--text); }
+.install-tip button svg { width: 17px; height: 17px; }
 .home-logo {
   display: inline-grid;
   place-items: center;
