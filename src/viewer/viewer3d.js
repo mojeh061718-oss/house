@@ -65,10 +65,32 @@ export class Viewer3D {
     scene.add(sun.target);
     this.sun = sun;
 
-    // gradient sky dome, driven by time of day
+    // crisp stars as point sprites (canvas stars blur on the huge dome)
+    {
+      const starGeo = new THREE.BufferGeometry();
+      const pos = new Float32Array(420 * 3);
+      let sr = 24681357;
+      const rnd = () => { sr = (sr * 1664525 + 1013904223) >>> 0; return sr / 4294967296; };
+      for (let i = 0; i < 420; i++) {
+        const az = rnd() * Math.PI * 2;
+        const el = Math.asin(rnd() * 0.96 + 0.03);
+        const r = 11000;
+        pos[i * 3] = Math.cos(az) * Math.cos(el) * r;
+        pos[i * 3 + 1] = Math.sin(el) * r;
+        pos[i * 3 + 2] = Math.sin(az) * Math.cos(el) * r;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      this.stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+        color: '#ffffff', size: 2.2, sizeAttenuation: false,
+        transparent: true, opacity: 0, depthWrite: false, fog: false
+      }));
+      scene.add(this.stars);
+    }
+
+    // sky dome: gradient + clouds by day, moon at night
     this.skyCanvas = document.createElement('canvas');
-    this.skyCanvas.width = 1;
-    this.skyCanvas.height = 256;
+    this.skyCanvas.width = 1024;
+    this.skyCanvas.height = 512;
     this.skyTexture = new THREE.CanvasTexture(this.skyCanvas);
     this.skyTexture.colorSpace = THREE.SRGBColorSpace;
     const skyGeo = new THREE.SphereGeometry(12000, 32, 16);
@@ -373,15 +395,65 @@ export class Viewer3D {
     this.scene.environmentIntensity = s.envI;
     this.scene.fog.color.copy(s.horizon);
 
-    // repaint the sky gradient
+    // repaint the sky: gradient base, clouds by day, moon at night
     const g = this.skyCanvas.getContext('2d');
-    const grad = g.createLinearGradient(0, 0, 0, 256);
+    const W = 1024, H = 512;
+    const grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#' + s.zenith.getHexString());
     grad.addColorStop(0.52, '#' + s.horizon.getHexString());
     grad.addColorStop(0.62, '#' + s.below.getHexString());
     grad.addColorStop(1, '#' + s.below.getHexString());
     g.fillStyle = grad;
-    g.fillRect(0, 0, 1, 256);
+    g.fillRect(0, 0, W, H);
+
+    let seed = 987654;
+    const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const dayness = clamp(elev / 0.3, 0, 1);
+    const nightness = clamp(-elev / 0.05, 0, 1);
+
+    if (dayness > 0.05) {
+      // soft cumulus bands
+      g.save();
+      g.globalAlpha = 0.5 * dayness;
+      for (let i = 0; i < 22; i++) {
+        const cx = rand() * W, cy = 60 + rand() * 180;
+        const rw = 52 + rand() * 92, rh = 12 + rand() * 18;
+        const cloud = g.createRadialGradient(cx, cy, 1, cx, cy, rw);
+        cloud.addColorStop(0, 'rgba(255,255,255,0.85)');
+        cloud.addColorStop(0.6, 'rgba(255,255,255,0.35)');
+        cloud.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = cloud;
+        g.save();
+        g.translate(cx, cy);
+        g.scale(1, rh / rw);
+        g.beginPath();
+        g.arc(0, 0, rw, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+      }
+      g.restore();
+    }
+
+    if (nightness > 0.05) {
+      // moon with halo (stars are separate crisp point sprites)
+      g.save();
+      g.globalAlpha = nightness;
+      const mx = W * 0.72, my = H * 0.16;
+      const halo = g.createRadialGradient(mx, my, 4, mx, my, 60);
+      halo.addColorStop(0, 'rgba(240,240,255,0.9)');
+      halo.addColorStop(0.3, 'rgba(220,225,245,0.35)');
+      halo.addColorStop(1, 'rgba(220,225,245,0)');
+      g.fillStyle = halo;
+      g.beginPath();
+      g.arc(mx, my, 60, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(246,246,252,0.96)';
+      g.beginPath();
+      g.arc(mx, my, 15, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    }
+    if (this.stars) this.stars.material.opacity = nightness * 0.95;
     this.skyTexture.needsUpdate = true;
   }
 

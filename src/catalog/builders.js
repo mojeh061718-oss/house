@@ -138,6 +138,17 @@ export function mirror() {
   return mirrorMat;
 }
 
+let waterMat = null;
+export function water() {
+  if (!waterMat) {
+    waterMat = new THREE.MeshStandardMaterial({
+      color: '#2e6a86', roughness: 0.06, metalness: 0.45,
+      transparent: true, opacity: 0.92
+    });
+  }
+  return waterMat;
+}
+
 export function G() {
   return new THREE.Group();
 }

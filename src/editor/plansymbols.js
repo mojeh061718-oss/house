@@ -289,6 +289,31 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       outline(2);
       break;
     }
+    case 'pond': {
+      ctx.fillStyle = '#a8cede';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, hw - 4, hd - 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#6d98ac';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, hw * 0.55, hd * 0.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'pool': {
+      outline(4);
+      ctx.fillStyle = '#a8cede';
+      rr(ctx, -hw + 12, -hd + 12, w - 24, d - 24, 4);
+      ctx.fill();
+      ctx.stroke();
+      // lane ripples
+      ctx.strokeStyle = '#7fa9bd';
+      for (let i = 1; i < 4; i++) {
+        line(-hw + 20, -hd + (d / 4) * i, hw - 20, -hd + (d / 4) * i);
+      }
+      break;
+    }
     default:
       outline(2);
   }

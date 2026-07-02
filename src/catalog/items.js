@@ -3,7 +3,7 @@
 // symbols and selectable finish palettes.
 import {
   G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel,
-  solid, wood, tex, metal, chrome, glass, mirror, artMaterial, foliage
+  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage
 } from './builders.js';
 
 export const CATEGORIES = [
@@ -871,6 +871,48 @@ export const ITEMS = [
       for (let x = -108; x <= 108; x += 18) {
         box(g, wd, 9, 100, 2.5, x, 4, 3);
       }
+      return g;
+    }
+  },
+  {
+    id: 'pond', name: 'Garden Pond', cat: 'outdoor', w: 280, d: 200, h: 18, noShadow: true,
+    palettes: null, plan: { type: 'pond' },
+    build: () => {
+      const g = G();
+      // water surface (irregular oval)
+      const w = cyl(g, water(), 128, 3, 0, 6, 0, { seg: 28 });
+      w.scale.z = 0.72;
+      w.scale.x = 1.04;
+      // stone rim
+      let s = 55;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      for (let i = 0; i < 26; i++) {
+        const a = (i / 26) * Math.PI * 2;
+        const rx = Math.cos(a) * 134 * 1.02, rz = Math.sin(a) * 134 * 0.74;
+        const rockMat = solid(rand() < 0.5 ? '#8a8478' : '#75705f', 0.9);
+        sphere(g, rockMat, 9 + rand() * 7, rx, 6, rz, { sy: 0.6, seg: 8 });
+      }
+      // lily pads
+      for (let i = 0; i < 4; i++) {
+        const a = rand() * Math.PI * 2, d = rand() * 80;
+        cyl(g, solid('#3f7038', 0.8), 8 + rand() * 5, 0.8, Math.cos(a) * d, 9, Math.sin(a) * d * 0.7, { seg: 12 });
+      }
+      return g;
+    }
+  },
+  {
+    id: 'pool', name: 'Swimming Pool', cat: 'outdoor', w: 500, d: 300, h: 24, noShadow: true,
+    palettes: null, plan: { type: 'pool' },
+    build: () => {
+      const g = G();
+      box(g, tex('tile_white', 2.4, 1.5), 500, 12, 300, 0, 0, 0, { r: 3 });   // deck rim
+      box(g, solid('#3a7d9c', 0.3), 440, 10, 240, 0, 4, 0);                    // basin
+      const w = box(g, water(), 432, 6, 232, 0, 10, 0);
+      w.receiveShadow = true;
+      // chrome ladder
+      cyl(g, chrome(), 2, 26, 190, 12, -60);
+      cyl(g, chrome(), 2, 26, 190, 12, -90);
+      cyl(g, chrome(), 2, 30, 190, 30, -75, { rx: Math.PI / 2 });
       return g;
     }
   },

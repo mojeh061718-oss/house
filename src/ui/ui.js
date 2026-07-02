@@ -92,7 +92,8 @@ export class UI {
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
         <button id="mSave">${icon('download')} Download project file</button>
         <button id="mOpen">${icon('open')} Open project file</button>
-        <div class="menu-version">Honeycutt Home Studio v${pkg.version}</div>
+        <div class="menu-version">Honeycutt Home Studio v${pkg.version}
+          <span id="vpDiag"></span></div>
       </div>`;
 
     $('#btnHome').onclick = () => this.onHome();
@@ -187,6 +188,14 @@ export class UI {
     $('#btnMenu').onclick = e => {
       e.stopPropagation();
       menu.classList.toggle('hidden');
+      // viewport diagnostics: lets us verify sizing on real devices
+      const d = $('#vpDiag');
+      if (d) {
+        const app = document.getElementById('app');
+        d.textContent = ` · view ${window.innerWidth}×${window.innerHeight}` +
+          ` · screen ${screen.width}×${screen.height}` +
+          ` · app ${Math.round(app.offsetWidth)}×${Math.round(app.offsetHeight)}`;
+      }
     };
     document.addEventListener('pointerdown', (e) => {
       if (!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target.closest('#btnMenu') === null) {

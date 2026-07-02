@@ -4,7 +4,7 @@ import { isStandalone } from '../core/orientation.js';
 import { listProjects, deleteProject, newProjectId, migrateLegacy } from '../core/projects.js';
 import { emptyProject } from '../core/state.js';
 import { detectRooms } from '../core/geometry.js';
-import { demoProject } from '../demo.js';
+import { demoProject, mansionProject } from '../demo.js';
 
 const $ = s => document.querySelector(s);
 
@@ -133,6 +133,11 @@ export class Home {
             <span class="proj-name">Sample apartment</span>
             <span class="proj-meta">Furnished one-bedroom template</span>
           </button>
+          <button class="proj-card template" id="homeMansion">
+            <span class="proj-thumb"><canvas></canvas></span>
+            <span class="proj-name">Luxury estate</span>
+            <span class="proj-meta">Furnished mansion with pool &amp; landscaped yard</span>
+          </button>
           ${projects.map(p => `
           <div class="proj-card saved" data-id="${p.id}" role="button" tabindex="0">
             <span class="proj-thumb"><canvas></canvas></span>
@@ -155,11 +160,16 @@ export class Home {
       this.openFn(emptyProject('My home'), newProjectId());
     };
     const sample = $('#homeSample');
-    const sampleData = demoProject();
-    drawPreview(sample.querySelector('canvas'), sampleData, 320, 190);
+    drawPreview(sample.querySelector('canvas'), demoProject(), 320, 190);
     sample.onclick = () => {
       this.hide();
       this.openFn(demoProject(), newProjectId());
+    };
+    const mansion = $('#homeMansion');
+    drawPreview(mansion.querySelector('canvas'), mansionProject(), 320, 190);
+    mansion.onclick = () => {
+      this.hide();
+      this.openFn(mansionProject(), newProjectId());
     };
 
     for (const card of home.querySelectorAll('.proj-card.saved')) {
