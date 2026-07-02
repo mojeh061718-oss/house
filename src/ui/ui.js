@@ -7,6 +7,8 @@ import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview } from '../core/textures.js';
 import { wallLength, pointInPolygon } from '../core/geometry.js';
 import { fmtFtIn, fmtArea, inValue, inToCm } from '../core/units.js';
+import { THEMES, applyTheme } from '../core/themes.js';
+import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -437,6 +439,8 @@ export class UI {
       panel.innerHTML = `${head('Project settings')}
         <div class="props-body">
           ${this.lenRow('setWallH', 'Wall height', store.project.settings.wallHeight)}
+          <div class="props-section-title">Style themes — one tap restyles the whole home</div>
+          <div class="theme-list" id="themeList"></div>
           <div class="props-section-title">Yard / ground</div>
           <div class="mat-grid" id="matGround"></div>
           <div class="props-section-title">Default floor</div>
@@ -452,6 +456,18 @@ export class UI {
         for (const w of store.project.walls) w.height = store.project.settings.wallHeight;
         store.commit(true);
       });
+      const tl = $('#themeList');
+      for (const th of THEMES) {
+        const b = el('button', 'theme-btn',
+          `<span class="theme-dots"><i style="background:${th.chips[0]}"></i><i style="background:${th.chips[1]}"></i></span>${th.name}`);
+        b.onclick = () => {
+          store.checkpoint();
+          applyTheme(store.project, th);
+          store.commit(true);
+          this.toast(`${th.name} theme applied`);
+        };
+        tl.appendChild(b);
+      }
       this.matGrid('#matGround', 'ground', store.project.settings.groundType || 'grass', id => {
         store.checkpoint(); store.project.settings.groundType = id; store.commit(true);
       });
@@ -585,6 +601,8 @@ export class UI {
             ${this.lenRow('pRD', 'Depth', rect.maxY - rect.minY)}
           </div>` : ''}
           <div class="props-stat">Area&ensp;<b>${fmtArea(room.area)}</b></div>
+          ${rect ? `<div class="props-section-title">Auto-furnish</div>
+          <div class="furnish-row" id="furnishRow"></div>` : ''}
           <div class="props-section-title">Floor</div>
           <div class="mat-grid" id="matFloor"></div>
           <div class="props-section-title">Walls</div>
@@ -607,6 +625,27 @@ export class UI {
         };
         this.bindLen('pRW', v => resize(Math.max(100, Math.min(3000, Math.round(v))), Math.round(rect.maxY - rect.minY)));
         this.bindLen('pRD', v => resize(Math.round(rect.maxX - rect.minX), Math.max(100, Math.min(3000, Math.round(v)))));
+      }
+      if (rect) {
+        const row = $('#furnishRow');
+        const guessed = guessType(style.name);
+        for (const ft of FURNISH_TYPES) {
+          const b = el('button', 'furnish-btn' + (ft.id === guessed ? ' hinted' : ''), ft.name);
+          b.onclick = () => {
+            store.checkpoint();
+            const n = furnishRoom(store, rect, ft.id);
+            if (n > 0) {
+              const st = store.roomStyle(sel.id);
+              if (!st.name) st.name = ft.name;
+              store.commit(false);
+              this.toast(`Furnished as ${ft.name} — ${n} items placed`);
+            } else {
+              store.undoStack.pop();
+              this.toast('Room is too small for that layout');
+            }
+          };
+          row.appendChild(b);
+        }
       }
       this.matGrid('#matFloor', 'floor', style.floor, id => {
         store.checkpoint(); store.roomStyle(sel.id).floor = id; store.commit(true);
