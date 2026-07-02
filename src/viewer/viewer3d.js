@@ -142,6 +142,28 @@ export class Viewer3D {
     });
 
     this.clock = new THREE.Clock();
+
+    // performance overlay for real-device debugging (?debug=1)
+    if (/[?&]debug=1/.test(location.search)) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:absolute;left:8px;top:8px;z-index:99;background:rgba(0,0,0,0.65);' +
+        'color:#7fff9a;font:10px monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre';
+      container.appendChild(d);
+      this.debugEl = d;
+      this._frames = 0;
+      this._lastFpsAt = performance.now();
+      setInterval(() => {
+        const now = performance.now();
+        const fps = Math.round((this._frames * 1000) / (now - this._lastFpsAt));
+        this._frames = 0;
+        this._lastFpsAt = now;
+        const i = this.renderer.info;
+        d.textContent =
+          `fps ${fps}\ncalls ${i.render.calls}\ntris ${(i.render.triangles / 1000).toFixed(1)}k` +
+          `\ngeo ${i.memory.geometries} tex ${i.memory.textures}`;
+      }, 1000);
+    }
+
     renderer.setAnimationLoop(() => this.tick());
   }
 
@@ -740,6 +762,7 @@ export class Viewer3D {
     this.resize();
     if (this.needsRebuild) this.rebuild();
 
+    if (this.debugEl) this._frames++;
     if (this.walkMode) {
       const k = this.walk.keys;
       const speed = (k.has('ShiftLeft') ? 450 : 220) * dt;
