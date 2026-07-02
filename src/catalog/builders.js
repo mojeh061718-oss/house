@@ -7,13 +7,86 @@ import { getTextureCanvases, MATERIAL_MAP } from '../core/textures.js';
 
 const solidCache = new Map();
 const texCache = new Map();
+const woodCache = new Map();
+
+// shared micro-surface bump so plain materials don't read as flat plastic
+let microBump = null;
+function getMicroBump() {
+  if (!microBump) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(128, 128);
+    let s = 1234567;
+    for (let i = 0; i < img.data.length; i += 4) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      const v = 118 + (s % 21);
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    microBump = new THREE.CanvasTexture(c);
+    microBump.wrapS = microBump.wrapT = THREE.RepeatWrapping;
+    microBump.repeat.set(3, 3);
+  }
+  return microBump;
+}
+
+// shared grayscale grain map — tinted by material color for any wood tone
+let grainTex = null;
+function getGrainTex() {
+  if (!grainTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = 'rgb(228,228,228)';
+    ctx.fillRect(0, 0, 256, 256);
+    let s = 424243;
+    const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    for (let i = 0; i < 90; i++) {
+      const y = rand() * 256;
+      const w = 0.5 + rand() * 1.8;
+      const tone = 176 + rand() * 62;
+      ctx.strokeStyle = `rgba(${tone | 0},${tone | 0},${tone | 0},${0.35 + rand() * 0.4})`;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(-10, y);
+      ctx.bezierCurveTo(64, y + (rand() - 0.5) * 14, 192, y + (rand() - 0.5) * 14, 266, y + (rand() - 0.5) * 8);
+      ctx.stroke();
+    }
+    grainTex = new THREE.CanvasTexture(c);
+    grainTex.wrapS = grainTex.wrapT = THREE.RepeatWrapping;
+    grainTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  return grainTex;
+}
 
 export function solid(hex, rough = 0.8, metal = 0) {
   const key = `${hex}_${rough}_${metal}`;
   let m = solidCache.get(key);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: metal });
+    m = new THREE.MeshStandardMaterial({
+      color: hex, roughness: rough, metalness: metal,
+      bumpMap: metal > 0.5 ? null : getMicroBump(),
+      bumpScale: 0.25
+    });
     solidCache.set(key, m);
+  }
+  return m;
+}
+
+/** Wood-grain material tinted to any tone — used for all wooden furniture. */
+export function wood(hex, rough = 0.55) {
+  const key = `${hex}_${rough}`;
+  let m = woodCache.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({
+      color: hex, roughness: rough,
+      map: getGrainTex(),
+      bumpMap: getGrainTex(),
+      bumpScale: 0.35
+    });
+    woodCache.set(key, m);
   }
   return m;
 }

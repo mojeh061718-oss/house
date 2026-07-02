@@ -249,6 +249,46 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       ctx.restore();
       break;
     }
+    case 'slab': {
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#d3d2cd';
+      rr(ctx, -hw, -hd, w, d, 2);
+      ctx.fill();
+      ctx.stroke();
+      // expansion joints
+      const step = Math.max(60, w / 5);
+      for (let x = -hw + step; x < hw - 4; x += step) line(x, -hd, x, hd);
+      ctx.restore();
+      break;
+    }
+    case 'hedge': {
+      ctx.fillStyle = '#b9d3a8';
+      rr(ctx, -hw, -hd, w, d, Math.min(14, d / 2));
+      ctx.fill();
+      ctx.stroke();
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      for (let x = -hw + 14; x < hw - 8; x += 20) circle(x, 0, Math.min(8, hd - 3));
+      ctx.restore();
+      break;
+    }
+    case 'car': {
+      outline(Math.min(18, w * 0.2));
+      rr(ctx, -hw + 8, -hd * 0.42, w - 16, d * 0.46, 10); // cabin/glass
+      ctx.stroke();
+      line(-hw + 8, -hd * 0.42 + d * 0.16, hw - 8, -hd * 0.42 + d * 0.16);
+      break;
+    }
+    case 'fence': {
+      outline(1);
+      for (let x = -hw + 10; x < hw - 5; x += 18) line(x, -hd, x, hd);
+      break;
+    }
+    case 'box': {
+      outline(2);
+      break;
+    }
     default:
       outline(2);
   }

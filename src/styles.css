@@ -420,6 +420,14 @@ canvas { display: block; }
   cursor: pointer;
 }
 .menu button:hover { background: var(--accent-soft); }
+.menu-version {
+  padding: 9px 12px 5px;
+  border-top: 1px solid var(--border);
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  text-align: center;
+}
 
 /* ---- workspace ---- */
 #workspace { flex: 1; display: flex; min-height: 0; position: relative; }

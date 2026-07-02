@@ -2,6 +2,7 @@
 // drawers, floating action cluster, hint pill. Landscape-first, touch-first.
 import { ICONS, icon } from './icons.js';
 import { thumbnail } from './thumbs.js';
+import pkg from '../../package.json';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview } from '../core/textures.js';
 import { wallLength, pointInPolygon } from '../core/geometry.js';
@@ -91,6 +92,7 @@ export class UI {
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
         <button id="mSave">${icon('download')} Download project file</button>
         <button id="mOpen">${icon('open')} Open project file</button>
+        <div class="menu-version">Honeycutt Home Studio v${pkg.version}</div>
       </div>`;
 
     $('#btnHome').onclick = () => this.onHome();
@@ -232,7 +234,12 @@ export class UI {
     });
     $('#viewport').dataset.mode = mode;
     $('#threeDControls').style.display = mode === '2d' ? 'none' : '';
-    $('#toolrail').style.display = mode === '3d' ? 'none' : '';
+    // rail stays in 3D too (doors/windows placeable there); drawing tools
+    // switch back to the plan where drawing happens
+    document.querySelectorAll('#toolrail .tool').forEach(b => {
+      const drawTool = b.dataset.tool === 'wall' || b.dataset.tool === 'room';
+      b.style.opacity = (mode === '3d' && drawTool) ? 0.45 : '';
+    });
     requestAnimationFrame(() => {
       this.editor.resize();
       this.viewer.resize();
@@ -256,7 +263,14 @@ export class UI {
       <span class="rail-spacer"></span>
       <button class="rail-btn" id="btnFit" title="Fit plan to screen">${ICONS.fit}<span>Fit view</span></button>`;
     rail.querySelectorAll('.tool').forEach(b => {
-      b.onclick = () => store.setTool(b.dataset.tool === store.tool ? 'select' : b.dataset.tool);
+      b.onclick = () => {
+        const t = b.dataset.tool;
+        // drawing happens on the plan — jump back when a draw tool is picked in 3D
+        if ((t === 'wall' || t === 'room') && store.viewMode === '3d') {
+          store.setViewMode('2d');
+        }
+        store.setTool(t === store.tool ? 'select' : t);
+      };
     });
     $('#btnFit').onclick = () => {
       this.editor.fitToContent();
@@ -277,23 +291,49 @@ export class UI {
     const c = $('#fabCluster');
     c.innerHTML = `
       <div class="sel-actions hidden" id="selActions">
-        <button class="fab mini" id="selRotL" title="Rotate left 45°">${ICONS.rotate}<span>−45°</span></button>
-        <button class="fab mini flip" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
+        <button class="fab mini item-only" id="selRotL" title="Rotate left 45°">${ICONS.rotate}<span>−45°</span></button>
+        <button class="fab mini flip item-only" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
+        <button class="fab mini item-only" id="selShrink" title="Smaller">${ICONS.minus}<span>Smaller</span></button>
+        <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
+        <button class="fab mini item-only" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
         <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
         <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
       </div>
       <button class="fab primary" id="fabAdd" title="Add furniture">${ICONS.plus}</button>`;
     $('#fabAdd').onclick = () => this.toggleDrawer('catalog');
-    const rotate = (dir) => {
+    const withItem = (fn) => {
       const sel = store.selection;
       if (sel?.kind !== 'item') return;
       const it = store.item(sel.id);
+      if (!it) return;
       store.checkpoint();
-      it.rotation += dir * Math.PI / 4;
+      fn(it);
       store.commit(false);
     };
-    $('#selRotL').onclick = () => rotate(-1);
-    $('#selRotR').onclick = () => rotate(1);
+    $('#selRotL').onclick = () => withItem(it => it.rotation -= Math.PI / 4);
+    $('#selRotR').onclick = () => withItem(it => it.rotation += Math.PI / 4);
+    $('#selGrow').onclick = () => withItem(it => {
+      it.w = Math.min(2000, Math.round(it.w * 1.1));
+      it.d = Math.min(2000, Math.round(it.d * 1.1));
+      it.h = Math.min(1000, Math.round(it.h * 1.1));
+    });
+    $('#selShrink').onclick = () => withItem(it => {
+      it.w = Math.max(10, Math.round(it.w / 1.1));
+      it.d = Math.max(10, Math.round(it.d / 1.1));
+      it.h = Math.max(10, Math.round(it.h / 1.1));
+    });
+    $('#selDup').onclick = () => {
+      const sel = store.selection;
+      if (sel?.kind !== 'item') return;
+      const it = store.item(sel.id);
+      const def = ITEM_MAP.get(it.defId);
+      store.checkpoint();
+      const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
+      Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
+      store.commit(false);
+      store.select({ kind: 'item', id: created.id });
+      this.toast('Duplicated');
+    };
     $('#selEdit').onclick = () => this.toggleDrawer('props');
     $('#selDel').onclick = () => store.deleteSelection();
   }
@@ -303,8 +343,9 @@ export class UI {
     const actions = $('#selActions');
     actions.classList.toggle('hidden', !sel);
     const isItem = sel?.kind === 'item';
-    $('#selRotL').style.display = isItem ? '' : 'none';
-    $('#selRotR').style.display = isItem ? '' : 'none';
+    actions.querySelectorAll('.item-only').forEach(b => {
+      b.style.display = isItem ? '' : 'none';
+    });
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) $('#props').classList.add('open');
     if (!sel) this.closeDrawer('props');
@@ -352,7 +393,7 @@ export class UI {
       card.onclick = () => {
         store.setTool('place', def.id);
         this.closeDrawer('catalog');
-        if (store.viewMode === '3d') store.setViewMode('2d');
+        // placement works in both views: tap the plan or tap the 3D ground
       };
       grid.appendChild(card);
       const img = card.querySelector('img');
@@ -387,6 +428,8 @@ export class UI {
       panel.innerHTML = `${head('Project settings')}
         <div class="props-body">
           ${this.lenRow('setWallH', 'Wall height', store.project.settings.wallHeight)}
+          <div class="props-section-title">Yard / ground</div>
+          <div class="mat-grid" id="matGround"></div>
           <div class="props-section-title">Default floor</div>
           <div class="mat-grid" id="matDefFloor"></div>
           <div class="props-section-title">Default wall paint</div>
@@ -399,6 +442,9 @@ export class UI {
         store.project.settings.wallHeight = Math.max(180, Math.min(400, v));
         for (const w of store.project.walls) w.height = store.project.settings.wallHeight;
         store.commit(true);
+      });
+      this.matGrid('#matGround', 'ground', store.project.settings.groundType || 'grass', id => {
+        store.checkpoint(); store.project.settings.groundType = id; store.commit(true);
       });
       this.matGrid('#matDefFloor', 'floor', store.project.settings.defaultFloor, id => {
         store.checkpoint(); store.project.settings.defaultFloor = id; store.commit(true);
@@ -703,6 +749,10 @@ export class UI {
       text = this.coarse
         ? 'Walk mode — left side: drag to walk · right side: drag to look'
         : 'Walk mode — WASD / arrows to move · drag to look';
+    } else if (store.viewMode === '3d' && store.tool === 'place') {
+      text = `${tap} the ground or a floor to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`;
+    } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
+      text = `${tap} a wall to place a ${store.tool}`;
     } else if (store.viewMode === '3d') {
       text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select & move it`;
     } else {

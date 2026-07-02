@@ -6,9 +6,10 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildWalls, buildFloors, buildCeilings, buildGround } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
-import { clamp } from '../core/geometry.js';
+import { clamp, wallLength } from '../core/geometry.js';
 import { snapPose } from '../core/placement.js';
 import { localPos } from '../core/orientation.js';
+import { DEFAULTS } from '../core/state.js';
 
 export class Viewer3D {
   constructor(container, store) {
@@ -427,6 +428,75 @@ export class Viewer3D {
     return null;
   }
 
+  /** Wall surface under the pointer: { wallId, point } or null. */
+  castWall(p) {
+    this.raycaster.setFromCamera(this.toNDC(p), this.camera);
+    const hits = this.raycaster.intersectObjects(this.archGroup.children, true);
+    for (const h of hits) {
+      // climb ancestors: door/window models carry the wall id on their group
+      let obj = h.object;
+      while (obj) {
+        if (obj.userData.wallId !== undefined) {
+          return { wallId: obj.userData.wallId, point: h.point };
+        }
+        obj = obj.parent;
+      }
+    }
+    return null;
+  }
+
+  /** Ground-plane point under the pointer (world cm in plan coords). */
+  castGround(p) {
+    this.raycaster.setFromCamera(this.toNDC(p), this.camera);
+    const pt = new THREE.Vector3();
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    if (this.raycaster.ray.intersectPlane(plane, pt)) return { x: pt.x, y: pt.z };
+    return null;
+  }
+
+  /** Tap-to-place in 3D: furniture on the ground/floor, wall items on walls. */
+  placeItemAt(p) {
+    const store = this.store;
+    const def = ITEM_MAP.get(store.placeDefId);
+    if (!def) return false;
+    let target = null;
+    if (def.mount === 'wall') {
+      const hit = this.castWall(p);
+      if (hit) target = { x: hit.point.x, y: hit.point.z };
+    }
+    if (!target) target = this.castGround(p);
+    if (!target) return false;
+    const pose = snapPose(store.project.walls, def, target.x, target.y, {});
+    store.checkpoint();
+    const it = store.addItem(def.id, pose.x, pose.y, pose.rot, def);
+    store.commit(false);
+    store.setTool('select');
+    store.select({ kind: 'item', id: it.id });
+    return true;
+  }
+
+  /** Tap-to-place doors/windows on a wall in 3D. */
+  placeOpeningAt(p, type) {
+    const store = this.store;
+    const hit = this.castWall(p);
+    if (!hit) return false;
+    const wall = store.wall(hit.wallId);
+    if (!wall) return false;
+    const len = wallLength(wall);
+    const width = type === 'door' ? DEFAULTS.doorWidth : DEFAULTS.windowWidth;
+    if (len < width + 12) return false;
+    // parametric position of the tap along the wall
+    const dx = wall.bx - wall.ax, dy = wall.by - wall.ay;
+    let t = ((hit.point.x - wall.ax) * dx + (hit.point.z - wall.ay) * dy) / (len * len);
+    t = clamp(t, (width / 2 + 6) / len, 1 - (width / 2 + 6) / len);
+    store.checkpoint();
+    const o = store.addOpening(wall.id, type, t);
+    store.commit(true);
+    store.setTool('select');
+    store.select({ kind: 'opening', id: o.id });
+    return true;
+  }
+
   onDown(e) {
     const p = this.pos(e);
     this.pointers.set(e.pointerId, p);
@@ -457,7 +527,8 @@ export class Viewer3D {
       return;
     }
 
-    const hit = this.castItems(p);
+    // placement tools claim the tap; only the select tool grabs items
+    const hit = this.store.tool === 'select' ? this.castItems(p) : null;
     if (hit) {
       const it = this.store.item(hit.itemId);
       this.store.select({ kind: 'item', id: hit.itemId });
@@ -555,13 +626,21 @@ export class Viewer3D {
       this.gesture = { kind: 'rotate', id, x: p.x, y: p.y, theta0: this.orbit.theta, phi0: this.orbit.phi, moved: true };
     } else if (g && (g.id === e.pointerId || this.pointers.size === 0)) {
       if (g.kind === 'rotate' && !g.moved && !this.walkMode) {
-        // simple tap: try the architecture (select the room a floor/wall
-        // belongs to, so materials can be edited straight from 3D)
-        const roomKey = this.castRoom({ x: g.x, y: g.y });
-        if (roomKey && this.store.room(roomKey)) {
-          this.store.select({ kind: 'room', id: roomKey });
+        const tap = { x: g.x, y: g.y };
+        const tool = this.store.tool;
+        if (tool === 'place' && this.store.placeDefId) {
+          this.placeItemAt(tap);
+        } else if (tool === 'door' || tool === 'window') {
+          this.placeOpeningAt(tap, tool);
         } else {
-          this.store.select(null);
+          // simple tap: try the architecture (select the room a floor/wall
+          // belongs to, so materials can be edited straight from 3D)
+          const roomKey = this.castRoom(tap);
+          if (roomKey && this.store.room(roomKey)) {
+            this.store.select({ kind: 'room', id: roomKey });
+          } else {
+            this.store.select(null);
+          }
         }
       }
       this.gesture = null;

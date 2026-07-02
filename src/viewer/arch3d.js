@@ -219,10 +219,12 @@ export function buildWalls(project, rooms) {
     const capMat = archMat(settings.exteriorWall);
     wallBox(wg, capMat, settings.exteriorWall, len, 2.5, th, 0, H, 0);
 
-    // opening models
+    // opening models (tagged so taps on a door/window still find the wall)
     for (const { o, c } of ops) {
       const om = buildOpeningModel(o, th);
       om.position.set(c - len / 2, 0, 0);
+      om.userData.wallId = wall.id;
+      om.userData.openingId = o.id;
       wg.add(om);
     }
 

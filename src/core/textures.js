@@ -406,10 +406,11 @@ function genGrass(ctx, bctx, p) {
   const patchNoise = makeNoise(p.seed + 4, 4, 4);    // broad dry/lush patches
   const clumpNoise = makeNoise(p.seed + 9, 16, 3);   // clumps
   const fineNoise = makeNoise(p.seed + 13, 64, 2);   // soil / thatch detail
-  const soil = hexToRgb('#2e3d1f');
-  const lush = hexToRgb('#3f6d2b');
-  const mid = hexToRgb('#4e7f33');
-  const dry = hexToRgb('#7a8a45');
+  const soil = hexToRgb(p.soil || '#2e3d1f');
+  const lush = hexToRgb(p.lush || '#3f6d2b');
+  const mid = hexToRgb(p.mid || '#4e7f33');
+  const dry = hexToRgb(p.dry || '#7a8a45');
+  const warm = p.bladeWarm ?? 0.52; // higher = yellower blades
   const img = ctx.createImageData(S, S);
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
@@ -436,7 +437,7 @@ function genGrass(ctx, bctx, p) {
     const len = 5 + rand() * 11;
     const lean = (rand() - 0.5) * 8;
     const g = 78 + rand() * 90;
-    const r = g * (0.52 + rand() * 0.2);
+    const r = g * (warm + rand() * 0.2);
     const b = g * (0.30 + rand() * 0.14);
     ctx.strokeStyle = shadow
       ? `rgba(${r * 0.35 | 0},${g * 0.38 | 0},${b * 0.35 | 0},0.5)`
@@ -527,8 +528,10 @@ export const MATERIALS = [
   { id: 'plaster_light', group: 'Plaster & Concrete', name: 'Plaster', use: 'wall', gen: 'concrete', scale: 260, rough: 0.85, params: { seed: 78, base: '#d8d3c8' } },
 
   // Environment / internal
-  { id: 'grass', name: 'Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 80 } },
+  { id: 'grass', name: 'Lush Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 80 } },
+  { id: 'grass_dry', name: 'Dry Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 83, soil: '#4a3f24', lush: '#6f7a38', mid: '#8a8a4a', dry: '#a89858', bladeWarm: 0.8 } },
   { id: 'pavement', name: 'Pavement', use: 'ground', gen: 'tiles', scale: 200, rough: 0.8, params: { seed: 81, count: 2, gap: 4, grout: '#6f6d68', colors: ['#a5a29b', '#98958e'], variation: 10 } },
+  { id: 'gravel', name: 'Gravel', use: 'ground', gen: 'concrete', scale: 160, rough: 0.95, params: { seed: 84, base: '#9a938a' } },
   { id: 'fabric_gray', name: 'Fabric Grey', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 90, base: '#8e8e92' } },
   { id: 'fabric_beige', name: 'Fabric Beige', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 91, base: '#c4b49a' } },
   { id: 'fabric_blue', name: 'Fabric Blue', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 92, base: '#5a6e8c' } },
