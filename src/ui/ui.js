@@ -72,11 +72,11 @@ export class UI {
         <button class="tb-btn only-wide" data-view="split">${ICONS.split}<span>Split</span></button>
       </div>
       <span id="threeDControls">
-        <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}</button>
-        <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}</button>
-        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}</button>
+        <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}<span class="only-wide">Sun</span></button>
+        <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}<span class="only-wide">Walk</span></button>
+        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}<span class="only-wide">Roof</span></button>
       </span>
-      <button class="tb-btn only-wide" id="btnShot" title="Save 3D snapshot">${ICONS.camera}</button>
+      <button class="tb-btn only-wide" id="btnShot" title="Save 3D snapshot">${ICONS.camera}<span class="only-wide">Photo</span></button>
       <button class="tb-btn" id="btnFull" title="Fullscreen">${ICONS.expand}</button>
       <button class="tb-btn" id="btnMenu" title="Project menu">${ICONS.menu}</button>
       <div class="day-pop hidden" id="dayPop">
@@ -166,6 +166,7 @@ export class UI {
       a.href = this.viewer.snapshot();
       a.download = `${store.project.name || 'design'}.png`;
       a.click();
+      this.toast('Snapshot saved as PNG');
     };
     $('#btnShot').onclick = shoot;
     $('#mShot').onclick = shoot;
@@ -275,10 +276,10 @@ export class UI {
     const c = $('#fabCluster');
     c.innerHTML = `
       <div class="sel-actions hidden" id="selActions">
-        <button class="fab mini" id="selRotL" title="Rotate left">${ICONS.rotate}</button>
-        <button class="fab mini flip" id="selRotR" title="Rotate right">${ICONS.rotate}</button>
-        <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}</button>
-        <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}</button>
+        <button class="fab mini" id="selRotL" title="Rotate left 45°">${ICONS.rotate}<span>−45°</span></button>
+        <button class="fab mini flip" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
+        <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
+        <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
       </div>
       <button class="fab primary" id="fabAdd" title="Add furniture">${ICONS.plus}</button>`;
     $('#fabAdd').onclick = () => this.toggleDrawer('catalog');
@@ -287,7 +288,7 @@ export class UI {
       if (sel?.kind !== 'item') return;
       const it = store.item(sel.id);
       store.checkpoint();
-      it.rotation += dir * Math.PI / 12;
+      it.rotation += dir * Math.PI / 4;
       store.commit(false);
     };
     $('#selRotL').onclick = () => rotate(-1);
@@ -322,7 +323,7 @@ export class UI {
     panel.querySelector('[data-close]').onclick = () => this.closeDrawer('catalog');
 
     const tabs = $('#catTabs');
-    for (const c of CATEGORIES) {
+    for (const c of [{ id: 'all', name: 'All' }, ...CATEGORIES]) {
       const b = el('button', 'cat-tab', c.name);
       b.dataset.cat = c.id;
       b.onclick = () => {
@@ -341,7 +342,7 @@ export class UI {
     });
     const grid = $('#catGrid');
     grid.innerHTML = '';
-    for (const def of ITEMS.filter(i => i.cat === this.activeCat)) {
+    for (const def of ITEMS.filter(i => this.activeCat === 'all' || i.cat === this.activeCat)) {
       const card = el('button', 'cat-card');
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
@@ -630,16 +631,21 @@ export class UI {
   matGrid(sel, use, current, onPick) {
     const grid = $(sel);
     if (!grid) return;
-    for (const m of MATERIALS.filter(m => m.use === use)) {
-      const b = el('button', 'mat-swatch' + (m.id === current ? ' active' : ''));
-      b.title = m.name;
-      b.innerHTML = `<img src="${getMaterialPreview(m.id)}" alt="${m.name}"/><span>${m.name}</span>`;
-      b.onclick = () => {
-        grid.querySelectorAll('.mat-swatch').forEach(s => s.classList.remove('active'));
-        b.classList.add('active');
-        onPick(m.id);
-      };
-      grid.appendChild(b);
+    const list = MATERIALS.filter(m => m.use === use);
+    const groups = [...new Set(list.map(m => m.group || ''))];
+    for (const g of groups) {
+      if (g && groups.length > 1) grid.appendChild(el('div', 'mat-group-title', g));
+      for (const m of list.filter(m => (m.group || '') === g)) {
+        const b = el('button', 'mat-swatch' + (m.id === current ? ' active' : ''));
+        b.title = m.name;
+        b.innerHTML = `<img src="${getMaterialPreview(m.id)}" alt="${m.name}"/><span>${m.name}</span>`;
+        b.onclick = () => {
+          grid.querySelectorAll('.mat-swatch').forEach(s => s.classList.remove('active'));
+          b.classList.add('active');
+          onPick(m.id);
+        };
+        grid.appendChild(b);
+      }
     }
   }
 
@@ -655,6 +661,15 @@ export class UI {
 
   closeDrawer(which) {
     $('#' + which)?.classList.remove('open');
+  }
+
+  toast(msg) {
+    const t = $('#toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
   }
 
   showHint() {

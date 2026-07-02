@@ -128,7 +128,7 @@ function buildOpeningModel(o, thickness) {
       knob.position.set(lw - 8, knobY, 6.5);
       leaf.add(knob);
       leaf.position.set(-w / 2 + jamb / 2, 0, (o.flip ? -1 : 1) * 1);
-      leaf.rotation.y = (o.flip ? 1 : -1) * (o.swing ? -0.32 : 0.32);
+      leaf.rotation.y = (o.flip ? 1 : -1) * (o.swing ? -0.45 : 0.45);
       if (o.swing) { leaf.position.x = w / 2 - jamb / 2; leaf.scale.x = -1; }
       g.add(leaf);
     } else if (o.type === 'slidingDoor') {
@@ -182,6 +182,7 @@ export function buildWalls(project, rooms) {
         ? (roomStyles[room.key]?.wall || settings.defaultWall)
         : settings.exteriorWall;
       const mat = archMat(matId);
+      const roomKey = room?.key || null;
       // z offset of this slab in local space: local +z corresponds to plan normal?
       // local x axis = wall direction, local z = (sin, -cos) rotated... With
       // wg.rotation.y=-ang, local +x maps to (cos, sin), local +z maps to (-sin? )
@@ -207,8 +208,10 @@ export function buildWalls(project, rooms) {
       if (x0 < len / 2 - 0.5) segs.push({ x0, x1: len / 2, y0: 0, y1: H });
 
       for (const s of segs) {
-        wallBox(wg, mat, matId, s.x1 - s.x0, s.y1 - s.y0, th / 2,
+        const mesh = wallBox(wg, mat, matId, s.x1 - s.x0, s.y1 - s.y0, th / 2,
           (s.x0 + s.x1) / 2, s.y0, zLocal);
+        mesh.userData.roomKey = roomKey;
+        mesh.userData.wallId = wall.id;
       }
     }
 
@@ -249,6 +252,7 @@ export function buildFloors(project, rooms) {
     const mesh = new THREE.Mesh(geo, archMat(matId));
     mesh.position.y = 0.6;
     mesh.receiveShadow = true;
+    mesh.userData.roomKey = r.key;
     group.add(mesh);
   }
   return group;

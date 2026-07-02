@@ -111,34 +111,83 @@ export class Editor2D {
 
   snapPoint(x, y, opts = {}) {
     const p = this.store.project;
-    const tolWorld = 12 / this.view.scale;
-    // endpoint snap
-    let best = null, bestD = tolWorld;
-    for (const w of p.walls) {
-      if (opts.excludeWall === w.id) continue;
-      for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
-        const d = dist(x, y, ex, ey);
-        if (d < bestD) { bestD = d; best = { x: ex, y: ey, kind: 'endpoint' }; }
+    const tol = (this.coarse ? 24 : 14) / this.view.scale;
+
+    const endpointNear = (px, py) => {
+      let best = null, bestD = tol;
+      for (const w of p.walls) {
+        if (opts.excludeWall === w.id) continue;
+        for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+          const d = dist(px, py, ex, ey);
+          if (d < bestD) { bestD = d; best = { x: ex, y: ey, kind: 'endpoint' }; }
+        }
       }
-    }
-    if (best) return best;
-    // axis alignment with reference point
-    let gx = Math.round(x / GRID) * GRID;
-    let gy = Math.round(y / GRID) * GRID;
+      return best;
+    };
+
+    // 1. strongest: an existing wall endpoint near the cursor
+    const ep = endpointNear(x, y);
+    if (ep) return ep;
+
     if (opts.ref) {
+      // constrain to a clean angle from the reference point
       const dx = x - opts.ref.x, dy = y - opts.ref.y;
       const ang = snapAngle(Math.atan2(dy, dx));
       const len = Math.hypot(dx, dy);
-      const ax = opts.ref.x + Math.cos(ang) * len;
-      const ay = opts.ref.y + Math.sin(ang) * len;
-      // grid-snap the length along the snapped axis
-      return {
-        x: Math.abs(Math.cos(ang)) > 0.99 ? Math.round(ax / GRID) * GRID : (Math.abs(Math.cos(ang)) < 0.01 ? opts.ref.x : ax),
-        y: Math.abs(Math.sin(ang)) > 0.99 ? Math.round(ay / GRID) * GRID : (Math.abs(Math.sin(ang)) < 0.01 ? opts.ref.y : ay),
-        kind: 'axis'
-      };
+      let ax = opts.ref.x + Math.cos(ang) * len;
+      let ay = opts.ref.y + Math.sin(ang) * len;
+      // if an endpoint sits near the constrained tip, close onto it exactly
+      const ep2 = endpointNear(ax, ay);
+      if (ep2) return ep2;
+      // landing on another wall's edge makes a clean T-junction
+      const onWall = this.nearestWall(ax, ay, tol);
+      if (onWall && onWall.wall.id !== opts.excludeWall) {
+        return { x: onWall.px, y: onWall.py, kind: 'onwall' };
+      }
+      const horiz = Math.abs(Math.cos(ang)) > 0.99;
+      const vert = Math.abs(Math.sin(ang)) > 0.99;
+      let guide = null;
+      if (horiz) {
+        ay = opts.ref.y;
+        // align the free end with other walls' endpoints
+        for (const w of p.walls) {
+          for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+            if (Math.abs(ax - ex) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) {
+              ax = ex; guide = { x: ex, y: ey };
+            }
+          }
+        }
+        if (!guide) ax = Math.round(ax / GRID) * GRID;
+      } else if (vert) {
+        ax = opts.ref.x;
+        for (const w of p.walls) {
+          for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+            if (Math.abs(ay - ey) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) {
+              ay = ey; guide = { x: ex, y: ey };
+            }
+          }
+        }
+        if (!guide) ay = Math.round(ay / GRID) * GRID;
+      }
+      return { x: ax, y: ay, kind: guide ? 'align' : 'axis', guide };
     }
-    return { x: gx, y: gy, kind: 'grid' };
+
+    // free placement: snap onto a nearby wall edge (clean T-junction start)
+    const onWall = this.nearestWall(x, y, tol);
+    if (onWall && onWall.wall.id !== opts.excludeWall) {
+      return { x: onWall.px, y: onWall.py, kind: 'onwall' };
+    }
+    // alignment with existing endpoints, else grid
+    let gx = Math.round(x / GRID) * GRID;
+    let gy = Math.round(y / GRID) * GRID;
+    let guide = null;
+    for (const w of p.walls) {
+      for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+        if (Math.abs(x - ex) < tol) { gx = ex; guide = { x: ex, y: ey }; }
+        if (Math.abs(y - ey) < tol) { gy = ey; guide = guide || { x: ex, y: ey }; }
+      }
+    }
+    return { x: gx, y: gy, kind: guide ? 'align' : 'grid', guide };
   }
 
   // ---- hit testing -----------------------------------------------------------
@@ -151,7 +200,9 @@ export class Editor2D {
     // steal every tap meant for the sofa.
     let bestItem = null, bestScore = Infinity;
     for (const it of this.sortedItems()) {
-      if (pointInItemRect(wx, wy, it, it.w + tol, it.d + tol)) {
+      // very shallow items (wall TVs, shelves) get a minimum hit depth
+      const hitD = Math.max(it.d, 22);
+      if (pointInItemRect(wx, wy, it, it.w + tol, hitD + tol)) {
         const score = Math.hypot(wx - it.x, wy - it.y) / Math.max(it.w, it.d);
         if (score <= bestScore) { bestScore = score; bestItem = it; }
       }
@@ -192,12 +243,18 @@ export class Editor2D {
   }
 
   nearestWall(wx, wy, maxDist) {
-    let best = null, bestD = maxDist;
+    const cands = [];
     for (const w of this.store.project.walls) {
       const r = pointSegDist(wx, wy, w.ax, w.ay, w.bx, w.by);
-      if (r.d < bestD) { bestD = r.d; best = { wall: w, t: r.t, px: r.x, py: r.y, d: r.d }; }
+      if (r.d < maxDist) cands.push({ wall: w, t: r.t, px: r.x, py: r.y, d: r.d });
     }
-    return best;
+    if (!cands.length) return null;
+    cands.sort((a, b) => a.d - b.d);
+    // near a corner two walls are almost equidistant — prefer the one whose
+    // closest point is along its length rather than at its very end
+    const best = cands[0];
+    const mid = cands.find(c => c.d < best.d + 8 && c.t > 0.12 && c.t < 0.88);
+    return mid || best;
   }
 
   // ---- pointer handling -------------------------------------------------------
@@ -433,7 +490,7 @@ export class Editor2D {
         break;
       }
       case 'roomRect': {
-        m.cur = { x: Math.round(w.x / GRID) * GRID, y: Math.round(w.y / GRID) * GRID };
+        m.cur = this.snapPoint(w.x, w.y);
         break;
       }
       case 'dragItem': {
@@ -835,8 +892,19 @@ export class Editor2D {
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineCap = 'butt';
-      this.drawNode(ctx, start.x, start.y, px);
-      this.drawNode(ctx, preview.x, preview.y, px);
+      // dashed guide when aligning with a distant endpoint
+      if (preview.guide) {
+        ctx.strokeStyle = 'rgba(47,191,113,0.8)';
+        ctx.lineWidth = 1.2 * px;
+        ctx.setLineDash([6 * px, 5 * px]);
+        ctx.beginPath();
+        ctx.moveTo(preview.guide.x, preview.guide.y);
+        ctx.lineTo(preview.x, preview.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      this.drawNode(ctx, start.x, start.y, px, start.kind);
+      this.drawNode(ctx, preview.x, preview.y, px, preview.kind);
     }
     if (m.name === 'roomRect' && m.cur) {
       const { start: s, cur: c } = m;
@@ -873,14 +941,23 @@ export class Editor2D {
     }
   }
 
-  drawNode(ctx, x, y, px) {
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#3884ff';
-    ctx.lineWidth = 2 * px;
+  drawNode(ctx, x, y, px, kind = 'grid') {
+    // green = this end will connect (endpoint or wall edge)
+    const connecting = kind === 'endpoint' || kind === 'onwall';
+    ctx.fillStyle = connecting ? '#2fbf71' : '#ffffff';
+    ctx.strokeStyle = connecting ? '#ffffff' : '#3884ff';
+    ctx.lineWidth = 2.2 * px;
     ctx.beginPath();
-    ctx.arc(x, y, 6 * px, 0, Math.PI * 2);
+    ctx.arc(x, y, (connecting ? 8 : 6) * px, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    if (connecting) {
+      ctx.strokeStyle = 'rgba(47,191,113,0.55)';
+      ctx.lineWidth = 1.5 * px;
+      ctx.beginPath();
+      ctx.arc(x, y, 14 * px, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   drawRoomLabels(ctx) {

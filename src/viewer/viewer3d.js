@@ -416,6 +416,17 @@ export class Viewer3D {
     return null;
   }
 
+  /** Room key of the floor/wall surface under the pointer, if any. */
+  castRoom(p) {
+    this.raycaster.setFromCamera(this.toNDC(p), this.camera);
+    const hits = this.raycaster.intersectObjects(this.archGroup.children, true);
+    for (const h of hits) {
+      if (h.object.userData.roomKey) return h.object.userData.roomKey;
+      if (h.object.userData.wallId !== undefined) return null; // exterior wall face
+    }
+    return null;
+  }
+
   onDown(e) {
     const p = this.pos(e);
     this.pointers.set(e.pointerId, p);
@@ -544,7 +555,14 @@ export class Viewer3D {
       this.gesture = { kind: 'rotate', id, x: p.x, y: p.y, theta0: this.orbit.theta, phi0: this.orbit.phi, moved: true };
     } else if (g && (g.id === e.pointerId || this.pointers.size === 0)) {
       if (g.kind === 'rotate' && !g.moved && !this.walkMode) {
-        this.store.select(null); // simple tap on empty space deselects
+        // simple tap: try the architecture (select the room a floor/wall
+        // belongs to, so materials can be edited straight from 3D)
+        const roomKey = this.castRoom({ x: g.x, y: g.y });
+        if (roomKey && this.store.room(roomKey)) {
+          this.store.select({ kind: 'room', id: roomKey });
+        } else {
+          this.store.select(null);
+        }
       }
       this.gesture = null;
     }

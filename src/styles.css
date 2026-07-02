@@ -648,6 +648,11 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   align-items: center;
   gap: 10px;
   z-index: 35;
+  transition: right 0.24s ease;
+}
+/* keep the action cluster reachable when the right drawer is open */
+#studio:has(#props.open) #fabCluster {
+  right: calc(min(320px, 82vw) + 14px + var(--safe-r));
 }
 .sel-actions {
   display: flex;
@@ -676,14 +681,56 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 }
 .fab.primary svg { width: 26px; height: 26px; }
 .fab.mini {
-  width: 44px;
-  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 54px;
+  height: 52px;
+  border-radius: 15px;
   background: var(--panel-2);
   color: var(--text);
+  font-family: inherit;
+  font-size: 8.8px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
 }
+.fab.mini svg { width: 19px; height: 19px; }
 .fab.mini:hover { background: var(--accent-soft); color: var(--accent); }
 .fab.mini.danger { color: var(--danger); }
 .fab.mini.flip svg { transform: scaleX(-1); }
+
+/* confirmation toast */
+#toast {
+  position: absolute;
+  top: calc(var(--topbar-h) + var(--safe-t) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(29, 33, 41, 0.95);
+  border: 1px solid rgba(56, 132, 255, 0.5);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+  padding: 11px 20px;
+  border-radius: 24px;
+  backdrop-filter: blur(8px);
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+#toast.show { opacity: 1; }
+
+.mat-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
 
 /* ---- hint pill ---- */
 #hintPill {

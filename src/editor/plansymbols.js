@@ -216,8 +216,21 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       break;
     }
     case 'tv': {
-      outline(1);
-      line(-hw + 6, hd - 3, hw - 6, hd - 3);
+      // TVs are only a few cm deep — draw at a readable minimum depth
+      const td = Math.max(d, 16), thd = td / 2;
+      ctx.fillStyle = '#2c3038';
+      rr(ctx, -hw, -thd, w, td, 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#8a929e';
+      line(-hw + 5, thd - 4, hw - 5, thd - 4);
+      ctx.save();
+      ctx.font = `${Math.min(13, w * 0.14)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#c8cdd5';
+      ctx.fillText('TV', 0, -1);
+      ctx.restore();
       break;
     }
     case 'fireplace': {
