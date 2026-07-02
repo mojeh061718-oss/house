@@ -10,6 +10,9 @@ import { clamp, wallLength } from '../core/geometry.js';
 import { snapPose } from '../core/placement.js';
 import { localPos } from '../core/orientation.js';
 import { DEFAULTS } from '../core/state.js';
+import { detectRooms, roomKey } from '../core/geometry.js';
+
+const SLAB = 30; // structural slab between stacked floors (cm)
 
 export class Viewer3D {
   constructor(container, store) {
@@ -136,6 +139,7 @@ export class Viewer3D {
       else this.syncItems();
     });
     store.on('selection', () => this.updateSelBox());
+    store.on('level', () => { this.needsRebuild = true; });
     store.on('projectLoaded', () => {
       this.needsRebuild = true;
       this.frameAll();
@@ -222,19 +226,54 @@ export class Viewer3D {
     this.camera.lookAt(o.target);
   }
 
+  /** Y offset of a stacked level's base. */
+  levelY(i) {
+    return i * (this.store.project.settings.wallHeight + SLAB);
+  }
+
   rebuild() {
     this.needsRebuild = false;
     const { project } = this.store;
-    const rooms = this.store.rooms;
+    const active = project.activeLevel ?? 0;
     this.disposeGroup(this.archGroup);
     this.disposeGroup(this.groundGroup);
     const guard = (fn, what) => {
       try { fn(); } catch (err) { console.warn(what + ' build failed', err); }
     };
-    guard(() => this.archGroup.add(buildWalls(project, rooms)), 'walls');
-    guard(() => this.archGroup.add(buildFloors(project, rooms)), 'floors');
-    if (this.showCeilings || this.walkMode) {
-      guard(() => this.archGroup.add(buildCeilings(project, rooms)), 'ceilings');
+    // render every level up to the active one, stacked
+    for (let i = 0; i <= active; i++) {
+      const lvl = project.levels[i];
+      const shim = {
+        walls: lvl.walls, openings: lvl.openings,
+        roomStyles: lvl.roomStyles, settings: project.settings
+      };
+      const rooms = i === active ? this.store.rooms
+        : detectRooms(lvl.walls).map(r => (r.key = roomKey(r), r));
+      const g = new THREE.Group();
+      g.position.y = this.levelY(i);
+      g.userData.level = i;
+      guard(() => g.add(buildWalls(shim, rooms)), 'walls');
+      guard(() => g.add(buildFloors(shim, rooms)), 'floors');
+      if ((this.showCeilings || this.walkMode) && i === active) {
+        guard(() => g.add(buildCeilings(shim, rooms)), 'ceilings');
+      }
+      // upper levels sit on a visible structural slab
+      if (i > 0) {
+        guard(() => {
+          const slab = buildFloors(shim, rooms);
+          slab.traverse(o => {
+            if (o.isMesh) {
+              o.material = o.material.clone();
+              o.material.map = null;
+              o.material.color = new THREE.Color('#c9c3b8');
+            }
+          });
+          slab.scale.y = 1;
+          slab.position.y = -SLAB + 1;
+          g.add(slab);
+        }, 'slab');
+      }
+      this.archGroup.add(g);
     }
     guard(() => this.groundGroup.add(buildGround(project)), 'ground');
     this.rebuildItems();
@@ -251,7 +290,9 @@ export class Viewer3D {
     this.disposeGroup(this.itemsGroup);
     this.itemGroups.clear();
     const wallH = this.store.project.settings.wallHeight;
-    for (const it of this.store.project.items) {
+    const active = this.store.project.activeLevel ?? 0;
+    for (let li = 0; li <= active; li++) {
+    for (const it of this.store.project.levels[li].items) {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
       try {
@@ -260,7 +301,8 @@ export class Viewer3D {
         const outer = new THREE.Group();
         outer.add(model);
         outer.userData.itemId = it.id;
-        this.poseItem(outer, it, def, wallH);
+        outer.userData.level = li;
+        this.poseItem(outer, it, def, wallH, this.levelY(li));
         if (def.light) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
           l.position.set(0, def.mount === 'ceiling' ? wallH + def.light.y : def.light.y, 0);
@@ -273,11 +315,12 @@ export class Viewer3D {
         console.warn('item build failed', it.defId, err);
       }
     }
+    }
     this.updateSelBox();
   }
 
-  poseItem(outer, it, def, wallH) {
-    const baseY = def.mount === 'ceiling' ? wallH : (it.elevation || 0);
+  poseItem(outer, it, def, wallH, lvlY = 0) {
+    const baseY = (def.mount === 'ceiling' ? wallH : (it.elevation || 0)) + lvlY;
     outer.position.set(it.x, baseY, it.y);
     outer.rotation.y = -it.rotation;
   }
@@ -285,6 +328,8 @@ export class Viewer3D {
   /** Cheap update path for drags: reuse models, only update transforms. */
   syncItems() {
     const wallH = this.store.project.settings.wallHeight;
+    const active = this.store.project.activeLevel ?? 0;
+    const lvlY = this.levelY(active);
     const alive = new Set();
     let structuralChange = false;
     for (const it of this.store.project.items) {
@@ -296,11 +341,11 @@ export class Viewer3D {
       if (g.userData.palette !== it.palette || g.userData.w !== it.w || g.userData.d !== it.d || g.userData.h !== it.h) {
         structuralChange = true;
       }
-      this.poseItem(g, it, def, wallH);
+      this.poseItem(g, it, def, wallH, lvlY);
       if (model) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
     }
-    for (const id of this.itemGroups.keys()) {
-      if (!alive.has(id)) structuralChange = true;
+    for (const [id, g] of this.itemGroups) {
+      if (g.userData.level === active && !alive.has(id)) structuralChange = true;
     }
     if (structuralChange) this.rebuildItems();
     else this.updateSelBox();
@@ -377,21 +422,23 @@ export class Viewer3D {
   /** Frame an item up close, ready to be positioned. */
   flyToItem(it) {
     const size = Math.max(it.w, it.d, it.h, 60);
-    this.flyTo(it.x, it.y, clamp(size * 3.2, 220, 900), 0.8, Math.min(it.h * 0.5, 120));
+    const lvlY = this.levelY(this.store.project.activeLevel ?? 0);
+    this.flyTo(it.x, it.y, clamp(size * 3.2, 220, 900), 0.8, lvlY + Math.min(it.h * 0.5, 120));
   }
 
   setWalkMode(on) {
     this.walkMode = on;
     if (on) {
       const c = this.center();
-      this.walk.pos.set(this.camera.position.x, 160, this.camera.position.z);
+      const eyeY = 160 + this.levelY(this.store.project.activeLevel ?? 0);
+      this.walk.pos.set(this.camera.position.x, eyeY, this.camera.position.z);
       const dir = new THREE.Vector3().subVectors(this.orbit.target, this.camera.position);
       this.walk.yaw = Math.atan2(-dir.x, -dir.z) + Math.PI;
       this.walk.pitch = 0;
       this.walk.targetYaw = this.walk.yaw;
       this.walk.targetPitch = 0;
       if (Math.hypot(this.walk.pos.x - c.x, this.walk.pos.z - c.z) > c.span * 1.5) {
-        this.walk.pos.set(c.x, 160, c.z);
+        this.walk.pos.set(c.x, eyeY, c.z);
       }
     }
     this.needsRebuild = true;
@@ -553,21 +600,28 @@ export class Viewer3D {
   }
 
   castItems(p) {
+    const active = this.store.project.activeLevel ?? 0;
     this.raycaster.setFromCamera(this.toNDC(p), this.camera);
     const hits = this.raycaster.intersectObjects(this.itemsGroup.children, true);
     for (const h of hits) {
       let obj = h.object;
       while (obj && !obj.userData.itemId) obj = obj.parent;
-      if (obj) return { itemId: obj.userData.itemId, point: h.point };
+      if (obj && obj.userData.level === active) {
+        return { itemId: obj.userData.itemId, point: h.point };
+      }
     }
     return null;
   }
 
   /** Room key of the floor/wall surface under the pointer, if any. */
   castRoom(p) {
+    const active = this.store.project.activeLevel ?? 0;
     this.raycaster.setFromCamera(this.toNDC(p), this.camera);
     const hits = this.raycaster.intersectObjects(this.archGroup.children, true);
     for (const h of hits) {
+      let lvl = h.object;
+      while (lvl && lvl.userData.level === undefined) lvl = lvl.parent;
+      if (lvl && lvl.userData.level !== active) continue;
       if (h.object.userData.roomKey) return h.object.userData.roomKey;
       if (h.object.userData.wallId !== undefined) return null; // exterior wall face
     }
@@ -576,16 +630,18 @@ export class Viewer3D {
 
   /** Wall surface under the pointer: { wallId, point } or null. */
   castWall(p) {
+    const active = this.store.project.activeLevel ?? 0;
     this.raycaster.setFromCamera(this.toNDC(p), this.camera);
     const hits = this.raycaster.intersectObjects(this.archGroup.children, true);
     for (const h of hits) {
-      // climb ancestors: door/window models carry the wall id on their group
-      let obj = h.object;
+      let obj = h.object, wallId, level;
       while (obj) {
-        if (obj.userData.wallId !== undefined) {
-          return { wallId: obj.userData.wallId, point: h.point };
-        }
+        if (wallId === undefined && obj.userData.wallId !== undefined) wallId = obj.userData.wallId;
+        if (obj.userData.level !== undefined) level = obj.userData.level;
         obj = obj.parent;
+      }
+      if (wallId !== undefined && level === active) {
+        return { wallId, point: h.point };
       }
     }
     return null;
@@ -595,7 +651,8 @@ export class Viewer3D {
   castGround(p) {
     this.raycaster.setFromCamera(this.toNDC(p), this.camera);
     const pt = new THREE.Vector3();
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0),
+      -this.levelY(this.store.project.activeLevel ?? 0));
     if (this.raycaster.ray.intersectPlane(plane, pt)) return { x: pt.x, y: pt.z };
     return null;
   }
@@ -703,7 +760,8 @@ export class Viewer3D {
       this.store.checkpoint();
       this.drag = {
         id: hit.itemId,
-        plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -(it.elevation || 0)),
+        plane: new THREE.Plane(new THREE.Vector3(0, 1, 0),
+          -((it.elevation || 0) + this.levelY(this.store.project.activeLevel ?? 0))),
         offX: hit.point.x - it.x,
         offZ: hit.point.z - it.y,
         moved: false

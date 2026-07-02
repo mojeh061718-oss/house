@@ -36,6 +36,7 @@ export class UI {
     this.buildToolRail();
     this.buildCatalog();
     this.buildFabs();
+    this.buildLevelBar();
 
     store.on('selection', () => {
       if (store.selection?.kind === 'room') this._lastRoomKey = store.selection.id;
@@ -53,8 +54,11 @@ export class UI {
       this.closeDrawer('props');
       this.renderProps();
       this.syncFabs();
+      this.syncLevels();
       this.showHint();
     });
+    store.on('level', () => this.syncLevels());
+    store.on('history', () => this.syncLevels());
 
     this.renderProps();
     this.syncTools();
@@ -226,7 +230,7 @@ export class UI {
         f.text().then(txt => {
           try {
             const data = JSON.parse(txt);
-            if (!Array.isArray(data.walls)) throw new Error('bad file');
+            if (!Array.isArray(data.walls) && !Array.isArray(data.levels)) throw new Error('bad file');
             store.loadProject(data, store.currentProjectId);
           } catch {
             alert('This file is not a valid Home Studio project.');
@@ -364,6 +368,46 @@ export class UI {
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) $('#props').classList.add('open');
     if (!sel) this.closeDrawer('props');
+  }
+
+  // ============================ FLOORS ======================================
+
+  buildLevelBar() {
+    const bar = document.createElement('div');
+    bar.id = 'levelBar';
+    $('#viewport').appendChild(bar);
+    this.syncLevels();
+  }
+
+  syncLevels() {
+    const store = this.store;
+    const bar = $('#levelBar');
+    if (!bar) return;
+    const p = store.project;
+    const n = p.levels?.length ?? 1;
+    const names = ['G', '1', '2', '3'];
+    let html = `<span class="lvl-label">Floor</span>`;
+    for (let i = 0; i < n; i++) {
+      html += `<button class="lvl-btn${i === p.activeLevel ? ' active' : ''}" data-lvl="${i}"
+        title="${i === 0 ? 'Ground floor' : `Floor ${i}`}">${names[i]}</button>`;
+    }
+    if (n < 4) html += `<button class="lvl-btn lvl-add" id="lvlAdd" title="Add a floor">${ICONS.plus}</button>`;
+    bar.innerHTML = html;
+    bar.querySelectorAll('[data-lvl]').forEach(b => {
+      b.onclick = () => {
+        const i = +b.dataset.lvl;
+        if (i !== store.project.activeLevel) {
+          store.setActiveLevel(i);
+          this.toast(i === 0 ? 'Ground floor' : `Floor ${i}`);
+        }
+      };
+    });
+    const add = $('#lvlAdd');
+    if (add) add.onclick = () => {
+      if (store.addLevel()) {
+        this.toast(`Floor ${store.project.activeLevel} added — the floor below shows as a gray guide`);
+      }
+    };
   }
 
   // ============================ CATALOG =====================================

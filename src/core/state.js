@@ -13,14 +13,32 @@ export const DEFAULTS = {
   windowSill: 90
 };
 
-export function emptyProject(name = 'Untitled project') {
+export function emptyLevel() {
   return {
-    version: 1,
-    name,
     walls: [],       // {id, ax, ay, bx, by, thickness, height}
     openings: [],    // {id, wallId, type, t, width, height, sill, flip, swing}
     items: [],       // {id, defId, x, y, rotation, w, d, h, elevation, palette}
-    roomStyles: {},  // roomKey -> {name, floor, wall, ceiling}
+    roomStyles: {}   // roomKey -> {name, floor, wall}
+  };
+}
+
+/** Bind the active level's arrays onto the project root so all existing
+ *  editor/viewer code keeps reading project.walls etc. unchanged. */
+export function bindLevel(project) {
+  const lvl = project.levels[project.activeLevel];
+  project.walls = lvl.walls;
+  project.openings = lvl.openings;
+  project.items = lvl.items;
+  project.roomStyles = lvl.roomStyles;
+  return project;
+}
+
+export function emptyProject(name = 'Untitled project') {
+  const p = {
+    version: 2,
+    name,
+    activeLevel: 0,
+    levels: [emptyLevel()],
     settings: {
       wallHeight: DEFAULTS.wallHeight,
       defaultFloor: 'oak',
@@ -29,6 +47,39 @@ export function emptyProject(name = 'Untitled project') {
       groundType: 'grass',
       timeOfDay: 13
     }
+  };
+  return bindLevel(p);
+}
+
+/** Normalize any saved shape (v1 flat or v2 levels) into a bound v2 project. */
+export function hydrateProject(data, base = emptyProject()) {
+  const p = {
+    ...base,
+    name: data.name ?? base.name,
+    settings: { ...base.settings, ...data.settings },
+    version: 2,
+    activeLevel: Math.max(0, Math.min(data.activeLevel ?? 0, (data.levels?.length ?? 1) - 1)),
+    levels: data.levels?.length
+      ? data.levels.map(l => ({
+          walls: l.walls || [], openings: l.openings || [],
+          items: l.items || [], roomStyles: l.roomStyles || {}
+        }))
+      : [{
+          walls: data.walls || [], openings: data.openings || [],
+          items: data.items || [], roomStyles: data.roomStyles || {}
+        }]
+  };
+  return bindLevel(p);
+}
+
+/** Serializable snapshot (drops the bound pointer duplicates). */
+export function serializeProject(p) {
+  return {
+    version: 2,
+    name: p.name,
+    settings: p.settings,
+    activeLevel: p.activeLevel,
+    levels: p.levels
   };
 }
 
@@ -62,7 +113,7 @@ export class Store {
 
   /** Take an undo snapshot before a mutation (call once per user gesture). */
   checkpoint() {
-    this.undoStack.push(JSON.stringify(this.project));
+    this.undoStack.push(JSON.stringify(serializeProject(this.project)));
     if (this.undoStack.length > 100) this.undoStack.shift();
     this.redoStack.length = 0;
     this.emit('history');
@@ -100,8 +151,8 @@ export class Store {
 
   undo() {
     if (!this.undoStack.length) return;
-    this.redoStack.push(JSON.stringify(this.project));
-    this.project = JSON.parse(this.undoStack.pop());
+    this.redoStack.push(JSON.stringify(serializeProject(this.project)));
+    this.project = hydrateProject(JSON.parse(this.undoStack.pop()));
     this.selection = null;
     this.commit(true);
     this.emit('selection');
@@ -110,8 +161,8 @@ export class Store {
 
   redo() {
     if (!this.redoStack.length) return;
-    this.undoStack.push(JSON.stringify(this.project));
-    this.project = JSON.parse(this.redoStack.pop());
+    this.undoStack.push(JSON.stringify(serializeProject(this.project)));
+    this.project = hydrateProject(JSON.parse(this.redoStack.pop()));
     this.selection = null;
     this.commit(true);
     this.emit('selection');
@@ -197,13 +248,16 @@ export class Store {
     if (!sel) return false;
     this.checkpoint();
     const p = this.project;
+    const cut = (arr, pred) => {
+      for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) arr.splice(i, 1);
+    };
     if (sel.kind === 'item') {
-      p.items = p.items.filter(i => i.id !== sel.id);
+      cut(p.items, i => i.id === sel.id);
     } else if (sel.kind === 'opening') {
-      p.openings = p.openings.filter(o => o.id !== sel.id);
+      cut(p.openings, o => o.id === sel.id);
     } else if (sel.kind === 'wall') {
-      p.walls = p.walls.filter(w => w.id !== sel.id);
-      p.openings = p.openings.filter(o => o.wallId !== sel.id);
+      cut(p.walls, w => w.id === sel.id);
+      cut(p.openings, o => o.wallId === sel.id);
     } else {
       return false;
     }
@@ -222,14 +276,13 @@ export class Store {
   saveNow() {
     clearTimeout(this._dirtyTimer);
     if (this.currentProjectId) {
-      saveProject(this.currentProjectId, this.project);
+      saveProject(this.currentProjectId, serializeProject(this.project));
     }
   }
 
   loadProject(data, projectId = null) {
     this.currentProjectId = projectId;
-    const base = emptyProject();
-    this.project = { ...base, ...data, settings: { ...base.settings, ...data.settings } };
+    this.project = hydrateProject(data);
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.selection = null;
@@ -240,6 +293,27 @@ export class Store {
   }
 
   exportJSON() {
-    return JSON.stringify(this.project, null, 2);
+    return JSON.stringify(serializeProject(this.project), null, 2);
+  }
+
+  // ---- floors / levels ------------------------------------------------------
+
+  addLevel() {
+    if (this.project.levels.length >= 4) return false;
+    this.checkpoint();
+    this.project.levels.push({ walls: [], openings: [], items: [], roomStyles: {} });
+    this.setActiveLevel(this.project.levels.length - 1, false);
+    this.commit(true);
+    return true;
+  }
+
+  setActiveLevel(i, emitChange = true) {
+    if (i < 0 || i >= this.project.levels.length) return;
+    this.project.activeLevel = i;
+    bindLevel(this.project);
+    this.select(null);
+    this.refreshRooms();
+    this.emit('level');
+    if (emitChange) this.commit(true);
   }
 }

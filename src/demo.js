@@ -118,11 +118,11 @@ export function demoProject() {
   opening(left, 'window', (660 - 300) / 660, { width: 120, sill: 110, height: 110 });
 
   // ---- room styles (keys derived from room centroids) ----
-  p.roomStyles = {
+  Object.assign(p.roomStyles, {
     'r_7_8': { name: 'Living · Kitchen', floor: 'oak', wall: 'paint_warmwhite' },
     'r_19_5': { name: 'Bedroom', floor: 'carpet_beige', wall: 'paint_sage' },
     'r_19_13': { name: 'Bathroom', floor: 'tile_gray', wall: 'tile_bath' }
-  };
+  });
 
   const R = Math.PI / 2;
 

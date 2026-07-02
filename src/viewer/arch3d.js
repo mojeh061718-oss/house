@@ -3,9 +3,17 @@
 // Plan (x, y) maps to 3D (x, z).
 import * as THREE from 'three';
 import { wallLength, wallAngle, pointInPolygon } from '../core/geometry.js';
-import { getTextureCanvases, MATERIAL_MAP } from '../core/textures.js';
+import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
 
 const matCache = new Map();
+watchTextures((matId) => {
+  for (const [key, m] of matCache) {
+    if (key.startsWith(matId + '_')) {
+      m.map.needsUpdate = true;
+      m.bumpMap.needsUpdate = true;
+    }
+  }
+});
 
 /** Standard material for a registry material id; UVs are expected in repeat units. */
 export function archMat(matId, opts = {}) {

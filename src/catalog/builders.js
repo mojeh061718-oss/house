@@ -3,10 +3,18 @@
 // floor level in the middle of the footprint; the "front" of items faces +Z.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { getTextureCanvases, MATERIAL_MAP } from '../core/textures.js';
+import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
 
 const solidCache = new Map();
 const texCache = new Map();
+watchTextures((matId) => {
+  for (const [key, m] of texCache) {
+    if (key.startsWith(matId + '_')) {
+      m.map.needsUpdate = true;
+      m.bumpMap.needsUpdate = true;
+    }
+  }
+});
 const woodCache = new Map();
 
 // shared micro-surface bump so plain materials don't read as flat plastic

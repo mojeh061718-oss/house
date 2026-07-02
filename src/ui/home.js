@@ -9,7 +9,8 @@ import { demoProject, mansionProject } from '../demo.js';
 const $ = s => document.querySelector(s);
 
 /** Draw a small clean plan preview of a stored project onto a canvas. */
-function drawPreview(canvas, data, w, h) {
+function drawPreview(canvas, project, w, h) {
+  const data = project.levels ? project.levels[0] : project;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = w * dpr;
   canvas.height = h * dpr;

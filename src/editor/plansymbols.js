@@ -314,6 +314,73 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       }
       break;
     }
+    case 'stairs': {
+      outline(1);
+      // treads + an up arrow along the run
+      const treads = Math.max(6, Math.round(d / 22));
+      for (let i = 1; i < treads; i++) {
+        const y = -hd + (d / treads) * i;
+        line(-hw, y, hw, y);
+      }
+      line(0, hd - 8, 0, -hd + 10);
+      line(0, -hd + 10, -6, -hd + 20);
+      line(0, -hd + 10, 6, -hd + 20);
+      break;
+    }
+    case 'elevator': {
+      outline(2);
+      line(-hw, -hd, hw, hd);
+      line(hw, -hd, -hw, hd);
+      break;
+    }
+    case 'rings': {
+      circle(0, 0, Math.min(hw, hd) - 2);
+      circle(0, 0, Math.min(hw, hd) * 0.62);
+      break;
+    }
+    case 'hottub': {
+      outline(4);
+      circle(0, 0, Math.min(hw, hd) - 12);
+      break;
+    }
+    case 'swingset': {
+      outline(1);
+      line(-hw + 8, 0, hw - 8, 0);
+      rr(ctx, -hw * 0.5 - 9, -6, 18, 12, 2); ctx.stroke();
+      rr(ctx, hw * 0.5 - 9, -6, 18, 12, 2); ctx.stroke();
+      break;
+    }
+    case 'grill': {
+      outline(4);
+      circle(-w * 0.12, 0, Math.min(hd, hw) - 7);
+      break;
+    }
+    case 'patioset': {
+      circle(0, 0, Math.min(hw, hd) * 0.42);
+      for (const a of [0.6, 2.2, 3.8, 5.4]) {
+        rr(ctx, Math.cos(a) * hw * 0.72 - 8, Math.sin(a) * hd * 0.72 - 8, 16, 16, 3);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'hoop': {
+      line(-hw, hd * 0.2, hw, hd * 0.2);        // backboard
+      circle(0, -hd * 0.15, Math.min(hw, hd) * 0.3);
+      break;
+    }
+    case 'pergola': {
+      outline(1);
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+        rr(ctx, sx * hw - (sx > 0 ? 10 : 0), sy * hd - (sy > 0 ? 10 : 0), 10, 10, 1);
+        ctx.stroke();
+      }
+      const step = Math.max(24, w / 9);
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      for (let x = -hw + step; x < hw - 4; x += step) line(x, -hd, x, hd);
+      ctx.restore();
+      break;
+    }
     default:
       outline(2);
   }

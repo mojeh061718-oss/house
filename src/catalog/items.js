@@ -14,6 +14,7 @@ export const CATEGORIES = [
   { id: 'dining', name: 'Dining' },
   { id: 'office', name: 'Office' },
   { id: 'decor', name: 'Decor & Lighting' },
+  { id: 'structure', name: 'Stairs & Structure' },
   { id: 'outdoor', name: 'Outdoor' }
 ];
 
@@ -932,6 +933,293 @@ export const ITEMS = [
       }
       for (let i = 0; i < 3; i++) {
         box(g, wd, 138, 8.5, 3.5, 0, 52 + i * 12, -27, { r: 1, rx: -0.15 });
+      }
+      return g;
+    }
+  },
+
+  // ======================= STAIRS & STRUCTURE =======================
+  {
+    id: 'stairs', name: 'Staircase', cat: 'structure', w: 110, d: 300, h: 290,
+    palettes: WOODS, plan: { type: 'stairs' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.6);
+      const riser = solid('#ece8e0', 0.75);
+      const steps = 15, W = 104, H = 290, D = 300;
+      const rise = H / steps, run = D / steps;
+      for (let i = 0; i < steps; i++) {
+        const z = D / 2 - run * (i + 0.5);
+        box(g, riser, W - 6, rise - 3.5, 3, 0, rise * i, z + run / 2 - 1.6);
+        box(g, wd, W, 3.5, run + 4, 0, rise * (i + 1) - 3.5, z, { r: 0.8 });
+      }
+      // stringers hug the treads on both sides
+      const ang = Math.atan2(H, D);
+      const len = Math.hypot(H, D);
+      for (const sx of [-1, 1]) {
+        box(g, wd, 5, 26, len, sx * (W / 2 + 0.5), H / 2 - 24, 0, { rx: ang });
+      }
+      // handrail: posts follow the slope, rail on top
+      const iron = metal('#2e3033', 0.45);
+      for (let i = 1; i < steps; i += 3) {
+        const z = D / 2 - run * (i + 0.5);
+        cyl(g, iron, 1.6, 64, W / 2 + 3, rise * (i + 1), z);
+      }
+      box(g, wood(p.wood, 0.4), 7, 5, len + 10, W / 2 + 3, H / 2 + 66, 0, { rx: ang, r: 2 });
+      return g;
+    }
+  },
+  {
+    id: 'stairs_l', name: 'L-Shaped Stairs', cat: 'structure', w: 210, d: 210, h: 290,
+    palettes: WOODS, plan: { type: 'stairs' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.6);
+      const riser = solid('#ece8e0', 0.75);
+      const H = 290, rise = H / 16, W = 100;
+      // lower flight climbs along +z half, on the left side
+      const run1 = 110 / 7;
+      for (let i = 0; i < 7; i++) {
+        const z = 105 - run1 * (i + 0.5);
+        box(g, riser, W - 6, rise - 3.5, 3, -55, rise * i, z + run1 / 2 - 1.6);
+        box(g, wd, W, 3.5, run1 + 3, -55, rise * (i + 1) - 3.5, z);
+      }
+      // stringers under the lower flight
+      const a1 = Math.atan2(rise * 7, 110), l1 = Math.hypot(rise * 7, 110);
+      for (const sx of [-1, 1]) {
+        box(g, wd, 5, 24, l1, -55 + sx * (W / 2 + 0.5), rise * 3.5 - 22, 50, { rx: a1 });
+      }
+      // landing platform in the corner
+      box(g, wd, W + 5, 6, W + 5, -55, rise * 7, -55, { r: 1 });
+      box(g, solid('#d9d4ca', 0.8), W, rise * 7, W, -55, 0, -55);
+      // upper flight turns 90° and climbs along +x
+      const run2 = 155 / 8;
+      for (let i = 0; i < 8; i++) {
+        const x = -5 + run2 * (i + 0.5);
+        box(g, riser, 3, rise - 3.5, W - 6, x - run2 / 2 + 1.6, rise * (7 + i), -55);
+        box(g, wd, run2 + 3, 3.5, W, x, rise * (8 + i) - 3.5, -55);
+      }
+      // stringers + handrail follow the upper flight (slope runs along x)
+      const a2 = Math.atan2(rise * 8, 155), l2 = Math.hypot(rise * 8, 155);
+      for (const sz of [-1, 1]) {
+        box(g, wd, l2, 24, 5, 72, rise * 11.5 - 22, -55 + sz * (W / 2 + 0.5), { rz: a2 });
+      }
+      const iron = metal('#2e3033', 0.45);
+      for (let i = 1; i < 8; i += 2) {
+        cyl(g, iron, 1.6, 54, -5 + run2 * (i + 0.5), rise * (8 + i), -108);
+      }
+      box(g, wood(p.wood, 0.4), l2 + 8, 5, 7, 72, rise * 11.5 + 66, -108, { rz: a2, r: 2 });
+      // corner newel at the landing
+      cyl(g, iron, 2.4, rise * 7 + 96, -2, 0, -2);
+      return g;
+    }
+  },
+  {
+    id: 'elevator', name: 'Elevator', cat: 'structure', w: 170, d: 170, h: 285,
+    palettes: null, plan: { type: 'elevator' },
+    build: () => {
+      const g = G();
+      const shell = solid('#cfccc4', 0.85);
+      const steel = metal('#b9bdc4', 0.28);
+      const brushed = metal('#a7abb2', 0.4);
+      // shaft: back + sides + top
+      box(g, shell, 170, 285, 10, 0, 0, -80);
+      box(g, shell, 10, 285, 170, -80, 0, 0);
+      box(g, shell, 10, 285, 170, 80, 0, 0);
+      box(g, shell, 170, 10, 170, 0, 275, 0);
+      // front fascia with door cutout look
+      box(g, shell, 30, 285, 10, -70, 0, 80);
+      box(g, shell, 30, 285, 10, 70, 0, 80);
+      box(g, shell, 170, 55, 10, 0, 230, 80);
+      // brushed-steel double doors + frame
+      box(g, steel, 116, 218, 3, 0, 0, 78);
+      box(g, brushed, 54, 214, 3.5, -28.5, 2, 79.5);
+      box(g, brushed, 54, 214, 3.5, 28.5, 2, 79.5);
+      box(g, solid('#1e2126', 0.5), 2.5, 214, 4, 0, 2, 79.6);
+      // call panel with lit buttons
+      box(g, brushed, 13, 26, 2.5, 68, 118, 85.5);
+      const up = solid('#ffd9a0', 0.4); up.emissive.set('#ffb84d'); up.emissiveIntensity = 0.9;
+      const dn = solid('#cfe4ff', 0.4); dn.emissive.set('#7db8ff'); dn.emissiveIntensity = 0.6;
+      sphere(g, up, 2.2, 68, 133, 87);
+      sphere(g, dn, 2.2, 68, 124, 87);
+      // floor indicator strip
+      const ind = solid('#2a2d33', 0.4); ind.emissive.set('#ff7828'); ind.emissiveIntensity = 0.5;
+      box(g, ind, 40, 7, 2, 0, 236, 85.5);
+      return g;
+    }
+  },
+
+  // ======================= BACKYARD =======================
+  {
+    id: 'swing_set', name: 'Swing Set', cat: 'outdoor', w: 300, d: 190, h: 225,
+    palettes: null, plan: { type: 'swingset' },
+    build: () => {
+      const g = G();
+      const frame = wood('#8a6a4a', 0.75);
+      const chain = metal('#9aa0a6', 0.5);
+      // A-frame ends + top beam
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          box(g, frame, 9, 235, 9, sx * 140, 0, sz * 4, { rx: sz * 0.38 });
+        }
+      }
+      cyl(g, frame, 6, 296, 0, 213, 0, { rz: Math.PI / 2 });
+      // two swings
+      for (const sx of [-60, 60]) {
+        for (const c of [-16, 16]) cyl(g, chain, 0.9, 158, sx + c, 55, 0);
+        box(g, solid('#2e3440', 0.55), 44, 4.5, 17, sx, 52, 0, { r: 2 });
+      }
+      return g;
+    }
+  },
+  {
+    id: 'grill', name: 'BBQ Grill', cat: 'outdoor', w: 130, d: 65, h: 112,
+    palettes: null, plan: { type: 'grill' },
+    build: () => {
+      const g = G();
+      const body = metal('#2b2e33', 0.35);
+      const steel = metal('#b9bdc4', 0.3);
+      // cart with wheels
+      box(g, body, 90, 60, 52, -14, 28, 0, { r: 4 });
+      cyl(g, solid('#1c1c1e', 0.9), 10, 6, -50, 10, 20, { rz: Math.PI / 2 });
+      cyl(g, solid('#1c1c1e', 0.9), 10, 6, -50, 10, -20, { rz: Math.PI / 2 });
+      box(g, body, 6, 26, 6, 26, 0, 20);
+      box(g, body, 6, 26, 6, 26, 0, -20);
+      // lid with handle + thermometer
+      box(g, body, 88, 24, 50, -14, 88, 0, { r: 12, seg: 4 });
+      handleBar(g, -14, 102, 27, 46);
+      cyl(g, steel, 4, 2, -14, 99, 26, { rx: Math.PI / 2 });
+      // side shelf + knobs
+      box(g, steel, 34, 3, 46, 48, 84, 0, { r: 1 });
+      for (const kx of [-40, -22, -4]) knob(g, kx, 74, 27, 2.2);
+      return g;
+    }
+  },
+  {
+    id: 'fire_pit', name: 'Fire Pit', cat: 'outdoor', w: 110, d: 110, h: 45,
+    palettes: null, plan: { type: 'rings' },
+    light: { y: 42, color: '#ff9440', intensity: 1.5, distance: 520 },
+    build: () => {
+      const g = G();
+      // stone ring
+      let s = 91;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const rockMat = solid(rand() < 0.5 ? '#8a8478' : '#726d5f', 0.95);
+        box(g, rockMat, 22, 26 + rand() * 6, 16, Math.cos(a) * 46, 0, Math.sin(a) * 46, { r: 5, ry: -a });
+      }
+      cyl(g, solid('#242220', 0.95), 40, 8, 0, 4, 0);
+      // logs + embers + flames
+      const log = wood('#4a3a28', 0.9);
+      cyl(g, log, 6, 52, 0, 16, 0, { rz: Math.PI / 2, ry: 0.5 });
+      cyl(g, log, 6, 52, 0, 16, 0, { rz: Math.PI / 2, ry: -0.6 });
+      const ember = solid('#ff6a20', 0.6); ember.emissive.set('#ff5a10'); ember.emissiveIntensity = 1.4;
+      const flame = solid('#ffb347', 0.5); flame.emissive.set('#ff9430'); flame.emissiveIntensity = 1.8;
+      sphere(g, ember, 9, 4, 14, 2, { sy: 0.5, seg: 10 });
+      cyl(g, flame, 8, 22, 0, 18, 0, { rTop: 1.5, seg: 8 });
+      cyl(g, flame, 5, 15, 9, 17, -6, { rTop: 1, seg: 8 });
+      return g;
+    }
+  },
+  {
+    id: 'hot_tub', name: 'Hot Tub', cat: 'outdoor', w: 220, d: 220, h: 92,
+    palettes: null, plan: { type: 'hottub' },
+    build: () => {
+      const g = G();
+      // wood cabinet + acrylic rim frame around an open water basin
+      box(g, wood('#6a5138', 0.8), 220, 78, 220, 0, 0, 0, { r: 10, seg: 4 });
+      const rim = solid('#e8e6e0', 0.35);
+      box(g, rim, 208, 14, 26, 0, 78, -91, { r: 6, seg: 4 });
+      box(g, rim, 208, 14, 26, 0, 78, 91, { r: 6, seg: 4 });
+      box(g, rim, 26, 14, 156, -91, 78, 0, { r: 6, seg: 4 });
+      box(g, rim, 26, 14, 156, 91, 78, 0, { r: 6, seg: 4 });
+      box(g, solid('#3a7d9c', 0.3), 158, 6, 158, 0, 76, 0);
+      const w = box(g, water(), 156, 4, 156, 0, 82, 0);
+      w.receiveShadow = true;
+      // headrest pads + control panel on the rim
+      for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        box(g, solid('#2e3440', 0.5), 34, 5, 12,
+          Math.cos(a) * 88, 92, Math.sin(a) * 88, { r: 3, ry: -a + Math.PI / 2 });
+      }
+      box(g, solid('#1e2126', 0.4), 20, 3, 12, 74, 92, 74, { r: 2, ry: Math.PI / 4 });
+      return g;
+    }
+  },
+  {
+    id: 'trampoline', name: 'Trampoline', cat: 'outdoor', w: 300, d: 300, h: 92,
+    palettes: null, plan: { type: 'rings' },
+    build: () => {
+      const g = G();
+      const steel = metal('#7d838c', 0.4);
+      // legs + frame ring (ring approximated by a thin flat cylinder pair)
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + 0.3;
+        cyl(g, steel, 3.5, 82, Math.cos(a) * 128, 0, Math.sin(a) * 128);
+      }
+      cyl(g, solid('#2a4a7c', 0.6), 148, 6, 0, 81, 0, { seg: 32 });   // blue spring pad
+      cyl(g, solid('#1e2126', 0.75), 119, 4, 0, 84.5, 0, { seg: 32 }); // jump mat sits proud
+
+      return g;
+    }
+  },
+  {
+    id: 'patio_set', name: 'Patio Set', cat: 'outdoor', w: 230, d: 230, h: 245,
+    palettes: null, plan: { type: 'patioset' },
+    build: () => {
+      const g = G();
+      const iron = solid('#33342f', 0.6);
+      // round table + umbrella through the middle
+      cyl(g, glass(), 55, 3, 0, 70, 0, { seg: 28 });
+      cyl(g, iron, 3, 70, 0, 0, 0);
+      cyl(g, iron, 22, 3, 0, 0, 0);
+      cyl(g, iron, 2.2, 168, 0, 73, 0);
+      shade(g, '#b0483a', 108, 10, 32, 0, 210, 0);
+      // four chairs facing in
+      for (const a of [0.6, 2.2, 3.8, 5.4]) {
+        const cx = Math.cos(a) * 92, cz = Math.sin(a) * 92;
+        const face = Math.atan2(-cz, -cx);
+        box(g, iron, 42, 4, 42, cx, 42, cz, { r: 3, ry: -face });
+        box(g, iron, 4, 46, 42, cx - Math.cos(face) * 20, 44, cz - Math.sin(face) * 20, { r: 3, ry: -face });
+        for (const lx of [-1, 1]) for (const lz of [-1, 1]) {
+          box(g, iron, 3.2, 42, 3.2, cx + lx * 16, 0, cz + lz * 16);
+        }
+      }
+      return g;
+    }
+  },
+  {
+    id: 'bball_hoop', name: 'Basketball Hoop', cat: 'outdoor', w: 115, d: 120, h: 305,
+    palettes: null, plan: { type: 'hoop' },
+    build: () => {
+      const g = G();
+      const steel = metal('#3a3d42', 0.4);
+      box(g, solid('#2a2d31', 0.7), 60, 14, 70, 0, 0, 20, { r: 4 });   // base
+      cyl(g, steel, 5, 285, 0, 8, 40, { rTop: 4 });
+      box(g, steel, 5, 5, 46, 0, 275, 16, { rx: 0.12 });
+      // backboard + hoop + net
+      box(g, solid('#e8eaec', 0.4), 110, 68, 4, 0, 245, -8);
+      box(g, solid('#c8412e', 0.5), 44, 30, 4.5, 0, 252, -7.8);
+      cyl(g, solid('#d3591f', 0.4), 23, 2.5, 0, 248, -32, { seg: 20 });
+      const net = solid('#eceff2', 0.9);
+      net.transparent = true; net.opacity = 0.55;
+      cyl(g, net, 22, 34, 0, 214, -32, { rTop: 22, seg: 10 }).material.wireframe = true;
+      return g;
+    }
+  },
+  {
+    id: 'pergola', name: 'Pergola', cat: 'outdoor', w: 300, d: 300, h: 250,
+    palettes: WOODS, plan: { type: 'pergola' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.7);
+      // four posts + double beams both ways + slat roof
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        box(g, wd, 14, 228, 14, sx * 135, 0, sz * 135);
+      }
+      for (const sz of [-1, 1]) box(g, wd, 300, 14, 8, 0, 228, sz * 135);
+      for (let x = -135; x <= 135; x += 30) {
+        box(g, wd, 6, 8, 296, x, 242, 0);
       }
       return g;
     }

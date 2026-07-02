@@ -579,19 +579,68 @@ export const MATERIALS = [
   { id: 'counter_dark', name: 'Granite', use: 'internal', gen: 'concrete', scale: 120, rough: 0.25, params: { seed: 95, base: '#3d3f42' } }
 ];
 
+// Photo-scanned CC0 materials from ambientCG.com (see README attribution).
+// Loaded as image files into the same canvas pipeline as the generators.
+MATERIALS.push(
+  { id: 'real_strip_oak', group: 'Wood', name: 'Blond Strip · Photo', use: 'floor', file: 'tex/woodfloor051.jpg', scale: 260, rough: 0.5, placeholder: '#c39a63' },
+  { id: 'real_pine', group: 'Wood', name: 'Reclaimed Pine · Photo', use: 'floor', file: 'tex/woodfloor043.jpg', scale: 280, rough: 0.7, placeholder: '#8a6238' },
+  { id: 'real_checker', group: 'Stone & Tile', name: 'Vintage Checker · Photo', use: 'floor', file: 'tex/tiles074.jpg', scale: 240, rough: 0.2, placeholder: '#b9b0a4' },
+  { id: 'real_marble', group: 'Stone & Tile', name: 'Carrara · Photo', use: 'floor', file: 'tex/marble012.jpg', scale: 300, rough: 0.14, placeholder: '#dcdee2' },
+  { id: 'real_brick', group: 'Brick & Tile', name: 'Old Brick · Photo', use: 'wall', file: 'tex/bricks090.jpg', scale: 220, rough: 0.9, placeholder: '#b0714f' }
+);
+
 export const MATERIAL_MAP = new Map(MATERIALS.map(m => [m.id, m]));
+
+// Listeners re-flag GPU textures / 2D patterns when a photo texture arrives.
+const texWatchers = [];
+export function watchTextures(fn) { texWatchers.push(fn); }
+
+function loadFileTexture(def, entry) {
+  const img = new Image();
+  img.onload = () => {
+    const S = entry.color.width;
+    const cc = entry.color.getContext('2d');
+    cc.filter = 'none';
+    cc.drawImage(img, 0, 0, S, S);
+    // bump approximated from photo luminance
+    const bc = entry.bump.getContext('2d');
+    bc.filter = 'grayscale(1) contrast(0.55) brightness(1.1)';
+    bc.drawImage(img, 0, 0, S, S);
+    bc.filter = 'none';
+    entry.loaded = true;
+    for (const key of [...previewCache.keys()]) {
+      if (key.startsWith(def.id + '_')) previewCache.delete(key);
+    }
+    for (const fn of texWatchers) fn(def.id);
+  };
+  img.src = (import.meta.env?.BASE_URL || '/') + def.file;
+}
 
 /** Get (and cache) generated canvases for a material id. */
 export function getTextureCanvases(matId) {
   let entry = canvasCache.get(matId);
   if (entry) return entry;
   const def = MATERIAL_MAP.get(matId) || MATERIAL_MAP.get('paint_warmwhite');
-  const { color, bump } = canvasPair(def.res || SIZE);
-  const gen = GENERATORS[def.gen];
-  gen(color.getContext('2d'), bump.getContext('2d'), def.params);
+  const { color, bump } = canvasPair(def.file ? 1024 : (def.res || SIZE));
   entry = { color, bump, def };
+  if (def.file) {
+    const cc = color.getContext('2d');
+    cc.fillStyle = def.placeholder || '#b0a894';
+    cc.fillRect(0, 0, color.width, color.height);
+    bump.getContext('2d').fillStyle = '#808080';
+    bump.getContext('2d').fillRect(0, 0, bump.width, bump.height);
+    loadFileTexture(def, entry);
+  } else {
+    const gen = GENERATORS[def.gen];
+    gen(color.getContext('2d'), bump.getContext('2d'), def.params);
+  }
   canvasCache.set(matId, entry);
   return entry;
+}
+
+/** Kick off downloads for all photo materials (call once at startup). */
+export function preloadFileTextures() {
+  for (const m of MATERIALS) if (m.file) getTextureCanvases(m.id);
 }
 
 /** Small preview data-URL for material swatches in the UI. */

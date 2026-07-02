@@ -1,5 +1,6 @@
 // App bootstrap: splash → project home → studio (2D editor + 3D viewer).
 import { Store } from './core/state.js';
+import { preloadFileTextures } from './core/textures.js';
 import { initOrientation } from './core/orientation.js';
 import { Editor2D } from './editor/editor2d.js';
 import { Viewer3D } from './viewer/viewer3d.js';
@@ -31,6 +32,7 @@ const ui = new UI(store, editor, viewer, () => {
 });
 
 home.showSplash();
+preloadFileTextures(); // photo materials download while the splash plays
 
 window.addEventListener('resize', () => {
   editor.resize();
@@ -43,6 +45,10 @@ document.addEventListener('visibilitychange', () => {
 
 // expose for debugging in the console
 window.homestudio = { store, editor, viewer, ui, home };
+import('./catalog/items.js').then(m => {
+  window.homestudio.ITEMS = m.ITEMS;
+  window.homestudio.ITEM_MAP = m.ITEM_MAP;
+});
 
 // PWA: register the service worker in production builds
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

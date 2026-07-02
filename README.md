@@ -87,3 +87,11 @@ src/
 
 Units are centimeters throughout. The only runtime dependency is
 [three.js](https://threejs.org).
+
+## Texture attribution
+
+The photo-scanned materials in `public/tex/` (`Blond Strip`, `Reclaimed
+Pine`, `Vintage Checker`, `Carrara`, `Old Brick`) are CC0 assets from
+[ambientCG](https://ambientcg.com) (WoodFloor051, WoodFloor043, Tiles074,
+Marble012, Bricks090 · 1K JPG color maps). All other textures are generated
+procedurally at runtime.

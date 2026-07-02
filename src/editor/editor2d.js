@@ -4,7 +4,7 @@ import {
   dist, pointSegDist, wallLength, wallAngle, wallPoint, snapAngle,
   pointInPolygon, pointInItemRect, clamp, EPS
 } from '../core/geometry.js';
-import { getTextureCanvases, MATERIAL_MAP } from '../core/textures.js';
+import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
 import { ITEM_MAP } from '../catalog/items.js';
 import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
@@ -26,6 +26,10 @@ export class Editor2D {
     this.pinch = null;
     this.dirty = true;
     this.patternCache = new Map();
+    watchTextures((matId) => {
+      this.patternCache.delete(matId);
+      this.requestRender();
+    });
     // touch ergonomics: big handles + generous hit radius on coarse pointers
     this.coarse = window.matchMedia('(pointer: coarse)').matches;
     this.handleR = this.coarse ? 14 : 9;      // drawn radius (px)
@@ -675,7 +679,8 @@ export class Editor2D {
       this.patternCache.set(matId, pat);
     }
     const def = MATERIAL_MAP.get(matId);
-    const s = (def?.scale ?? 200) / 512;
+    const { color } = getTextureCanvases(matId);
+    const s = (def?.scale ?? 200) / color.width;
     pat.setTransform(new DOMMatrix().scale(s, s));
     return pat;
   }
@@ -699,6 +704,7 @@ export class Editor2D {
     ctx.translate(-this.view.x, -this.view.y);
 
     this.drawGrid(ctx, W, H, px);
+    this.drawGhostLevel(ctx, px);
 
     // room floors
     for (const r of store.rooms) {
@@ -783,6 +789,34 @@ export class Editor2D {
       { x: w.bx + ex - nx, y: w.by + ey - ny },
       { x: w.ax - ex - nx, y: w.ay - ey - ny }
     ];
+  }
+
+  /** Faint underlay of the level below, so upper floors can be traced over it. */
+  drawGhostLevel(ctx, px) {
+    const p = this.store.project;
+    if (!p.levels || p.activeLevel < 1) return;
+    const below = p.levels[p.activeLevel - 1];
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    for (const w of below.walls) {
+      const poly = this.wallPolygon(w, w.thickness / 2);
+      ctx.beginPath();
+      poly.forEach((pt, i) => i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y));
+      ctx.closePath();
+      ctx.fillStyle = '#8a919c';
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.14;
+    ctx.strokeStyle = '#5c6570';
+    ctx.lineWidth = 1.2 * px;
+    for (const it of below.items) {
+      ctx.save();
+      ctx.translate(it.x, it.y);
+      ctx.rotate(it.rotation || 0);
+      ctx.strokeRect(-(it.w || 60) / 2, -(it.d || 60) / 2, it.w || 60, it.d || 60);
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   drawWalls(ctx, px) {
