@@ -178,6 +178,51 @@ export function water() {
   return waterMat;
 }
 
+/** Organic pond built at true size: wobbled shoreline, bed, water, rocks. */
+export function buildPond(w, d) {
+  const g = G();
+  const rx = w / 2 - 14, rz = d / 2 - 14;
+  const outline = (scale) => {
+    const shape = new THREE.Shape();
+    const n = 30;
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const wob = 1 + 0.09 * Math.sin(a * 3 + 1.7) + 0.05 * Math.sin(a * 5 + 0.4) + 0.04 * Math.sin(a * 7 + 2.6);
+      const px = Math.cos(a) * rx * wob * scale;
+      const pz = Math.sin(a) * rz * wob * scale;
+      if (i === 0) shape.moveTo(px, pz); else shape.lineTo(px, pz);
+    }
+    return shape;
+  };
+  const flat = (shape, mat, y) => {
+    const geo = new THREE.ShapeGeometry(shape);
+    geo.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.y = y;
+    m.receiveShadow = true;
+    g.add(m);
+    return m;
+  };
+  flat(outline(1.08), solid('#5c5244', 0.95), 1.2);        // muddy shore rim
+  flat(outline(1.0), solid('#233b2c', 0.95), 2.2);         // dark bed
+  flat(outline(0.97), water(), 5);                          // water surface
+  // natural rock ring with size/tone jitter
+  let sd = 91;
+  const rand = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  const rocks = [solid('#8a857c', 0.95), solid('#75705f', 0.95), solid('#9a948a', 0.95)];
+  const n = Math.max(14, Math.round((rx + rz) / 22));
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + rand() * 0.2;
+    const wob = 1 + 0.09 * Math.sin(a * 3 + 1.7) + 0.05 * Math.sin(a * 5 + 0.4) + 0.04 * Math.sin(a * 7 + 2.6);
+    const r = 6 + rand() * 9;
+    const m = sphere(g, rocks[i % 3], r,
+      Math.cos(a) * rx * wob * 1.03, 2 + r * 0.25, Math.sin(a) * rz * wob * 1.03,
+      { seg: 8, sy: 0.55 + rand() * 0.2 });
+    m.rotation.y = rand() * Math.PI;
+  }
+  return g;
+}
+
 export function G() {
   return new THREE.Group();
 }

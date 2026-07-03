@@ -42,6 +42,7 @@ export function archMat(matId, opts = {}) {
  *  Geometry is built relative to the item's center so the usual item posing
  *  (and drag translation) applies unchanged. */
 export function buildPathModel(it, def) {
+  if (def.path.surface === 'fence') return buildFenceModel(it, def);
   const g = new THREE.Group();
   const width = it.pw || def.path.width;
   const isWater = def.path.surface === 'water';
@@ -97,6 +98,66 @@ export function buildPathModel(it, def) {
       mesh.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
     }
   }
+  return g;
+}
+
+/** Fence run along a drawn polyline: posts, rails and style-specific infill. */
+function buildFenceModel(it, def) {
+  const g = new THREE.Group();
+  const pal = def.palettes?.[Math.min(it.palette ?? 0, def.palettes.length - 1)] || def.palettes?.[0] || {};
+  const H = pal.h || 110;
+  const mat = new THREE.MeshStandardMaterial({ color: pal.color || '#e8e6e0', roughness: 0.8 });
+  const postMat = new THREE.MeshStandardMaterial({ color: pal.post || pal.color || '#dedbd2', roughness: 0.85 });
+  const rel = it.path.map(p => ({ x: p.x - it.x, y: p.y - it.y }));
+  const bar = (w, h, d, x, y, z, ry) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    m.rotation.y = ry;
+    m.castShadow = true;
+    g.add(m);
+  };
+  const post = (x, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(11, H + 6, 11), postMat);
+    m.position.set(x, (H + 6) / 2, z);
+    m.castShadow = true;
+    g.add(m);
+  };
+  for (let i = 1; i < rel.length; i++) {
+    const a = rel[i - 1], b = rel[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 2) continue;
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const ry = -ang;
+    const mx = (a.x + b.x) / 2, mz = (a.y + b.y) / 2;
+    // rails / slats spanning the whole segment
+    if (pal.style === 'ranch') {
+      for (const f of [0.25, 0.55, 0.85]) bar(len, 10, 4.5, mx, H * f, mz, ry);
+    } else if (pal.style === 'slat') {
+      for (let k = 0; k < 7; k++) bar(len, 9, 3, mx, 12 + k * (H - 16) / 6 + 4, mz, ry);
+    } else {
+      for (const f of [0.28, 0.8]) bar(len, 6, 4, mx, H * f, mz, ry);
+      // pickets / boards via one instanced mesh per segment
+      const gap = pal.style === 'privacy' ? 15 : 16;
+      const wdt = pal.style === 'privacy' ? 14.4 : 8;
+      const count = Math.max(1, Math.floor(len / gap));
+      const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(wdt, H, 2.6), mat, count);
+      const m4 = new THREE.Matrix4();
+      const rot = new THREE.Matrix4().makeRotationY(ry);
+      const ux = Math.cos(ang), uz = Math.sin(ang);
+      for (let k = 0; k < count; k++) {
+        const t = (k + 0.5) * (len / count);
+        m4.copy(rot).setPosition(a.x + ux * t, H / 2 + 2, a.y + uz * t);
+        inst.setMatrixAt(k, m4);
+      }
+      inst.castShadow = true;
+      g.add(inst);
+    }
+    // intermediate posts every ~180cm along long segments
+    for (let dl = 180; dl < len - 40; dl += 180) {
+      post(a.x + Math.cos(ang) * dl, a.y + Math.sin(ang) * dl);
+    }
+  }
+  for (const p of rel) post(p.x, p.y);
   return g;
 }
 

@@ -16,7 +16,12 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.14.0** — 19 more CC0 photo textures (round 3 in
+- Current version: **2.14.1** — drawable fences (`path_fence`: path item w/
+  `surface:'fence'` → `buildFenceModel` in arch3d — posts/rails/instanced
+  pickets per FENCE_STYLES palette; 2D = line+post dots in strokePath; old
+  'fence' item hidden) and organic ponds (`buildPond` in builders: wobbled
+  ShapeGeometry shoreline + rock ring; plan.type 'pond' symbol).
+- Previous: **2.14.0** — 19 more CC0 photo textures (round 3 in
   textures.js/README); vegetation overhaul (`blob()` in builders.js:
   noise-displaced icosphere w/ dappled vertex colors; foliage() uses it;
   new tree_birch/bush_cloud); realistic water (MeshPhysical + ripple bump,

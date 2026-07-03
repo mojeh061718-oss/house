@@ -1253,9 +1253,35 @@ export class Editor2D {
     ctx.restore();
   }
 
-  /** Render a laid path (sidewalk/driveway/gravel/water) along its stroke. */
+  /** Render a laid path (sidewalk/driveway/gravel/water/fence) along its stroke. */
   strokePath(ctx, pts, width, def, px, selected = false, alpha = 1) {
     if (pts.length < 2) return;
+    if (def.path?.surface === 'fence') {
+      // architectural fence symbol: line with post dots
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = selected ? '#3884ff' : '#4a4640';
+      ctx.lineWidth = 2.4 * px;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.fillStyle = selected ? '#3884ff' : '#4a4640';
+      let carry = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const len = dist(a.x, a.y, b.x, b.y);
+        const ang = Math.atan2(b.y - a.y, b.x - a.x);
+        for (let dl = carry; dl <= len; dl += 90) {
+          ctx.beginPath();
+          ctx.arc(a.x + Math.cos(ang) * dl, a.y + Math.sin(ang) * dl, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        carry = (len - carry) % 90;
+      }
+      ctx.restore();
+      return;
+    }
     const isWater = def.path?.surface === 'water';
     ctx.save();
     ctx.globalAlpha = alpha;

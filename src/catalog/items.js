@@ -3,7 +3,7 @@
 // symbols and selectable finish palettes.
 import {
   G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel, prism, pyramid,
-  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob
+  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond
 } from './builders.js';
 
 export const CATEGORIES = [
@@ -42,6 +42,14 @@ const ROOFS = [
   { name: 'Metal', chip: '#5b6166', roof: 'roof_metal' },
   { name: 'Scale Slate', chip: '#3f4448', roof: 'real_roof_slate' },
   { name: 'Aged Clay', chip: '#9a5a40', roof: 'real_roof_clay' }
+];
+
+// drawable fence styles: geometry recipe + colors + height
+const FENCE_STYLES = [
+  { name: 'White Picket', chip: '#e8e6e0', style: 'picket', color: '#e8e6e0', post: '#dedbd2', h: 105 },
+  { name: 'Cedar Privacy', chip: '#9c7a56', style: 'privacy', color: '#9c7a56', post: '#8a6a48', h: 180 },
+  { name: 'Ranch Rail', chip: '#6a4f36', style: 'ranch', color: '#6a4f36', post: '#5a4230', h: 120 },
+  { name: 'Modern Slat', chip: '#3a3c3e', style: 'slat', color: '#4a4438', post: '#2f3134', h: 140 }
 ];
 
 // deck/pad finishes: mat id + how many cm one texture tile covers
@@ -86,18 +94,10 @@ function buildSurfacePad(p, w, d, h) {
   return g;
 }
 
-/** Rectangular pond: dark bed, stone edging and rippled water at true size. */
+/** Natural pond: an organic wobbled outline inside the drawn area, with a
+ *  mud bed, rippled water and a jittered ring of rocks around the shore. */
 function buildWaterArea(w, d) {
-  const g = G();
-  box(g, solid('#22394a', 0.95), w, 3, d, 0, 0, 0);
-  const edge = tex('stone_veneer', w / 180, 0.2);
-  box(g, edge, w + 14, 9, 10, 0, 0, -d / 2 - 4, { r: 3 });
-  box(g, edge, w + 14, 9, 10, 0, 0, d / 2 + 4, { r: 3 });
-  box(g, tex('stone_veneer', 0.2, d / 180), 10, 9, d + 2, -w / 2 - 4, 0, 0, { r: 3 });
-  box(g, tex('stone_veneer', 0.2, d / 180), 10, 9, d + 2, w / 2 + 4, 0, 0, { r: 3 });
-  const wt = box(g, water(), w - 4, 6, d - 4, 0, 1, 0);
-  wt.receiveShadow = true;
-  return g;
+  return buildPond(w, d);
 }
 
 function sofaBuilder(seats, W, D, H) {
@@ -910,8 +910,8 @@ export const ITEMS = [
     buildSized: (p, w, d) => buildSurfacePad(p, w, d, 6)
   },
   {
-    id: 'water_area', name: 'Pond / Water Area', cat: 'outdoor', w: 400, d: 300, h: 10, noShadow: true,
-    areaDraw: true, palettes: null, plan: { type: 'pool' },
+    id: 'water_area', name: 'Pond', cat: 'outdoor', w: 400, d: 300, h: 10, noShadow: true,
+    areaDraw: true, palettes: null, plan: { type: 'pond' },
     build: () => buildWaterArea(400, 300),
     buildSized: (p, w, d) => buildWaterArea(w, d)
   },
@@ -981,7 +981,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'fence', name: 'Fence Section', cat: 'outdoor', w: 240, d: 8, h: 110,
+    id: 'fence', name: 'Fence Section', cat: 'outdoor', hidden: true, w: 240, d: 8, h: 110,
     palettes: [
       { name: 'White', chip: '#e6e2d8', wood: '#e6e2d8' },
       { name: 'Cedar', chip: '#8a6a4a', wood: '#8a6a4a' }
@@ -1480,6 +1480,31 @@ export const ITEMS = [
     }
   },
   // --- draggable paths: drag on the plan and the surface is laid along the stroke ---
+  {
+    id: 'path_fence', name: 'Fence', cat: 'outdoor', w: 240, d: 12, h: 110, noShadow: true,
+    palettes: FENCE_STYLES, plan: { type: 'path' },
+    path: { mat: 'pavement', width: 12, surface: 'fence' },
+    build: (p) => {
+      // catalog thumbnail: a short section in the chosen style
+      const g = G();
+      const c = solid(p.color || '#e8e6e0', 0.8);
+      const pc = solid(p.post || p.color || '#e8e6e0', 0.85);
+      const H = p.h || 105;
+      box(g, pc, 10, H + 4, 10, -110, 0, 0);
+      box(g, pc, 10, H + 4, 10, 110, 0, 0);
+      if (p.style === 'ranch') {
+        for (const y of [H * 0.25, H * 0.55, H * 0.85]) box(g, c, 220, 10, 4, 0, y, 0);
+      } else if (p.style === 'slat') {
+        for (let i = 0; i < 7; i++) box(g, c, 220, 9, 3, 0, 12 + i * (H - 16) / 6, 0);
+      } else {
+        for (const y of [H * 0.28, H * 0.8]) box(g, c, 220, 6, 4, 0, y, 0);
+        const gap = p.style === 'privacy' ? 15 : 16;
+        const wdt = p.style === 'privacy' ? 14.4 : 8;
+        for (let x = -105; x <= 105; x += gap) box(g, c, wdt, H, 2.5, x, 2, 2.5);
+      }
+      return g;
+    }
+  },
   {
     id: 'path_sidewalk', name: 'Sidewalk', cat: 'outdoor', w: 240, d: 120, h: 5, noShadow: true,
     palettes: null, plan: { type: 'path' }, path: { mat: 'pavement', width: 120 },

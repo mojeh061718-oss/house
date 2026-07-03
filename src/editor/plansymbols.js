@@ -401,6 +401,33 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       ctx.restore();
       break;
     }
+    case 'pond': {
+      // organic wobbled outline with water fill + shore stones
+      ctx.save();
+      const rx = hw - 6, ry2 = hd - 6;
+      ctx.beginPath();
+      for (let i = 0; i <= 30; i++) {
+        const a = (i / 30) * Math.PI * 2;
+        const wob = 1 + 0.09 * Math.sin(a * 3 + 1.7) + 0.05 * Math.sin(a * 5 + 0.4);
+        const x = Math.cos(a) * rx * wob, y = Math.sin(a) * ry2 * wob;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(126,182,208,0.85)';
+      ctx.fill();
+      ctx.strokeStyle = '#6d8577';
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(120,114,102,0.9)';
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + 0.2;
+        const wob = 1 + 0.09 * Math.sin(a * 3 + 1.7) + 0.05 * Math.sin(a * 5 + 0.4);
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * rx * wob * 1.04, Math.sin(a) * ry2 * wob * 1.04, 3 + (i % 3), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
     case 'path': {
       // gentle S-curve stroke — placed paths are drawn from their real points
       ctx.save();
