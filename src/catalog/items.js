@@ -773,6 +773,7 @@ export const ITEMS = [
   },
   {
     id: 'sidewalk', name: 'Sidewalk', cat: 'outdoor', w: 300, d: 120, h: 5, noShadow: true,
+    hidden: true, // superseded by the drawable path_sidewalk (kept for old saves)
     palettes: null, plan: { type: 'slab' },
     build: () => {
       const g = G();
@@ -782,6 +783,7 @@ export const ITEMS = [
   },
   {
     id: 'driveway', name: 'Driveway', cat: 'outdoor', w: 550, d: 300, h: 4, noShadow: true,
+    hidden: true, // superseded by the drawable path_driveway (kept for old saves)
     palettes: null, plan: { type: 'slab' },
     build: () => {
       const g = G();
@@ -793,7 +795,7 @@ export const ITEMS = [
   },
   {
     id: 'patio', name: 'Patio Deck', cat: 'outdoor', w: 360, d: 240, h: 12, noShadow: true,
-    palettes: null, plan: { type: 'slab' },
+    areaDraw: true, palettes: null, plan: { type: 'slab' },
     build: () => {
       const g = G();
       box(g, tex('deck_wood', 1.5, 1), 360, 12, 240, 0, 0, 0, { r: 1 });
@@ -913,7 +915,7 @@ export const ITEMS = [
   },
   {
     id: 'pool', name: 'Swimming Pool', cat: 'outdoor', w: 500, d: 300, h: 24, noShadow: true,
-    palettes: null, plan: { type: 'pool' },
+    areaDraw: true, palettes: null, plan: { type: 'pool' },
     build: () => {
       const g = G();
       box(g, tex('tile_white', 2.4, 1.5), 500, 12, 300, 0, 0, 0, { r: 3 });   // deck rim
@@ -1305,7 +1307,7 @@ export const ITEMS = [
   },
   // --- draggable paths: drag on the plan and the surface is laid along the stroke ---
   {
-    id: 'path_sidewalk', name: 'Sidewalk Path', cat: 'outdoor', w: 240, d: 120, h: 5, noShadow: true,
+    id: 'path_sidewalk', name: 'Sidewalk', cat: 'outdoor', w: 240, d: 120, h: 5, noShadow: true,
     palettes: null, plan: { type: 'path' }, path: { mat: 'pavement', width: 120 },
     build: () => {
       const g = G();
@@ -1314,7 +1316,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'path_driveway', name: 'Driveway Path', cat: 'outdoor', w: 300, d: 280, h: 4, noShadow: true,
+    id: 'path_driveway', name: 'Driveway', cat: 'outdoor', w: 300, d: 280, h: 4, noShadow: true,
     palettes: null, plan: { type: 'path' }, path: { mat: 'counter_dark', width: 280 },
     build: () => {
       const g = G();

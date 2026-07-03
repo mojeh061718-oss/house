@@ -16,7 +16,14 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.13.0** — improvement round:
+- Current version: **2.13.1** — patios/pools drag-to-size (`areaDraw: true`
+  on item defs → 'areaDraw' mode in editor2d + gesture in viewer3d with a
+  flat preview box); old fixed-rect sidewalk/driveway slabs are
+  `hidden: true` (kept for old saves, filtered from the catalog) and the
+  drawable path items took their plain names; paths & area items never
+  auto-drop via placeInRoom in 3D; the floor switcher moved to a small
+  top-left chip (no longer covers the hint pill)
+- Previous: **2.13.0** — improvement round:
   stairs/elevators cut real floor & ceiling openings (`viewer3d.stairHoles`
   → `buildFloors/buildCeilings(project, rooms, holes)`; earcut handles hole
   winding); walk mode follows walkable surfaces (`walkSurfaceY` raycast vs

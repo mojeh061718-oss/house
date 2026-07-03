@@ -445,6 +445,37 @@ export class Viewer3D {
     this.pathPreview = null;
   }
 
+  // ---- live 3D area-draw preview (patios, pools) ----------------------------
+
+  startAreaPreview(def) {
+    this.endAreaPreview();
+    const color = def.plan?.type === 'pool' ? '#4d9fc4' : '#c9a877';
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 3, 1),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 })
+    );
+    m.visible = false;
+    this.scene.add(m);
+    this.areaPreview = m;
+  }
+
+  updateAreaPreview(s, c) {
+    if (!this.areaPreview) return;
+    const w = Math.abs(c.x - s.x), d = Math.abs(c.y - s.y);
+    if (w < 4 || d < 4) { this.areaPreview.visible = false; return; }
+    const lvlY = this.levelY(this.store.project.activeLevel ?? 0);
+    this.areaPreview.visible = true;
+    this.areaPreview.scale.set(w, 1, d);
+    this.areaPreview.position.set((s.x + c.x) / 2, lvlY + 2.5, (s.y + c.y) / 2);
+  }
+
+  endAreaPreview() {
+    if (!this.areaPreview) return;
+    this.areaPreview.geometry.dispose();
+    this.scene.remove(this.areaPreview);
+    this.areaPreview = null;
+  }
+
   // ---- walk joystick visual + camera flight --------------------------------
 
   showJoystick(x, y) {
@@ -870,6 +901,7 @@ export class Viewer3D {
     if (this.pointers.size === 2) {
       // pinch takes over: cancel single-pointer gestures (keep item drag)
       if (this.gesture?.kind === 'pathDraw') this.endPathPreview();
+      if (this.gesture?.kind === 'areaDraw') this.endAreaPreview();
       const pts = [...this.pointers.values()];
       this.gesture = {
         kind: 'pinch',
@@ -894,8 +926,8 @@ export class Viewer3D {
       return;
     }
 
-    // paths are drawn, not tapped: finger down on the ground starts the
-    // stroke immediately and it follows until the finger lifts
+    // paths and area surfaces are drawn, not tapped: finger down on the
+    // ground starts drawing immediately and follows until the finger lifts
     if (this.store.tool === 'place') {
       const def = ITEM_MAP.get(this.store.placeDefId);
       if (def?.path) {
@@ -905,6 +937,15 @@ export class Viewer3D {
           this.gesture = { kind: 'pathDraw', id: e.pointerId, def, pts: [gpt] };
           this.startPathPreview(def);
           this.addPathPreviewDot(gpt.x, gpt.y, def.path.width);
+          return;
+        }
+      }
+      if (def?.areaDraw) {
+        const gpt = this.castGround(p);
+        if (gpt) {
+          this.flight = null;
+          this.gesture = { kind: 'areaDraw', id: e.pointerId, def, start: gpt, cur: gpt };
+          this.startAreaPreview(def);
           return;
         }
       }
@@ -966,6 +1007,15 @@ export class Viewer3D {
           g.pts.push(gpt);
           this.addPathPreviewDot(gpt.x, gpt.y, g.def.path.width);
         }
+      }
+      return;
+    }
+
+    if (g?.kind === 'areaDraw' && g.id === e.pointerId) {
+      const gpt = this.castGround(p);
+      if (gpt) {
+        g.cur = gpt;
+        this.updateAreaPreview(g.start, g.cur);
       }
       return;
     }
@@ -1037,6 +1087,24 @@ export class Viewer3D {
       const [id, p] = [...this.pointers.entries()][0];
       this.gesture = { kind: 'rotate', id, x: p.x, y: p.y, theta0: this.orbit.theta, phi0: this.orbit.phi, moved: true };
     } else if (g && (g.id === e.pointerId || this.pointers.size === 0)) {
+      if (g.kind === 'areaDraw') {
+        this.endAreaPreview();
+        const store = this.store;
+        const { start: s, cur: c, def } = g;
+        store.checkpoint();
+        let it;
+        if (c && Math.abs(c.x - s.x) > 40 && Math.abs(c.y - s.y) > 40) {
+          it = store.addItem(def.id, Math.round((s.x + c.x) / 2), Math.round((s.y + c.y) / 2), 0, def);
+          it.w = Math.round(Math.abs(c.x - s.x));
+          it.d = Math.round(Math.abs(c.y - s.y));
+        } else {
+          it = store.addItem(def.id, Math.round(s.x), Math.round(s.y), 0, def);
+        }
+        store.commit(false);
+        store.setTool('select');
+        store.select({ kind: 'item', id: it.id });
+        this.flyToItem(it);
+      }
       if (g.kind === 'pathDraw') {
         this.endPathPreview();
         let len = 0;

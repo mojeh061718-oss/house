@@ -468,6 +468,11 @@ export class Editor2D {
       this.mode = { name: 'pathDraw', def, pts: [{ x: w.x, y: w.y }], cur: null, dragging: true };
       return;
     }
+    if (def.areaDraw) {
+      // patios/pools are drawn as an area: drag corner to corner
+      this.mode = { name: 'areaDraw', def, start: { x: w.x, y: w.y }, cur: null, dragging: true };
+      return;
+    }
     const pos = this.placePose(w, def);
     store.checkpoint();
     const it = store.addItem(def.id, pos.x, pos.y, pos.rot, def);
@@ -689,6 +694,10 @@ export class Editor2D {
         m.cur = { x: w.x, y: w.y };
         break;
       }
+      case 'areaDraw': {
+        m.cur = { x: w.x, y: w.y };
+        break;
+      }
       case 'dragItem': {
         const it = store.item(m.id);
         if (!it) break;
@@ -810,6 +819,22 @@ export class Editor2D {
       let len = 0;
       for (let i = 1; i < pts.length; i++) len += dist(pts[i].x, pts[i].y, pts[i - 1].x, pts[i - 1].y);
       if (pts.length >= 2 && len > 50) this.commitPath(m.def, pts);
+    }
+    if (m.name === 'areaDraw') {
+      const { def, start: s, cur: c } = m;
+      store.checkpoint();
+      let it;
+      if (c && Math.abs(c.x - s.x) > 40 && Math.abs(c.y - s.y) > 40) {
+        it = store.addItem(def.id, Math.round((s.x + c.x) / 2), Math.round((s.y + c.y) / 2), 0, def);
+        it.w = Math.round(Math.abs(c.x - s.x));
+        it.d = Math.round(Math.abs(c.y - s.y));
+      } else {
+        // a plain tap drops the default size there
+        it = store.addItem(def.id, Math.round(s.x), Math.round(s.y), 0, def);
+      }
+      store.commit(false);
+      store.setTool('select');
+      store.select({ kind: 'item', id: it.id });
     }
     if (m.name === 'roomRect' && m.start && m.cur) {
       const { start: s, cur: c } = m;
@@ -1333,6 +1358,22 @@ export class Editor2D {
       const pts = m.cur ? [...m.pts, m.cur] : m.pts;
       this.strokePath(ctx, pts, m.def.path.width, m.def, px, false, 0.65);
     }
+    if (m.name === 'areaDraw' && m.cur) {
+      const { start: s, cur: c } = m;
+      const w = Math.abs(c.x - s.x), d = Math.abs(c.y - s.y);
+      if (w > 4 && d > 4) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.translate((s.x + c.x) / 2, (s.y + c.y) / 2);
+        drawPlanSymbol(ctx, m.def, w, d, px);
+        ctx.restore();
+      }
+      ctx.strokeStyle = '#3884ff';
+      ctx.lineWidth = 1.6 * px;
+      ctx.setLineDash([7 * px, 5 * px]);
+      ctx.strokeRect(Math.min(s.x, c.x), Math.min(s.y, c.y), w, d);
+      ctx.setLineDash([]);
+    }
     if (m.name === 'roomRect' && m.cur) {
       const { start: s, cur: c } = m;
       ctx.strokeStyle = '#3884ff';
@@ -1564,8 +1605,8 @@ export class Editor2D {
         ctx.fillText(fmtFtIn(len), s.x, s.y - 14);
       }
     }
-    // live dimensions while dragging out a room
-    if (this.mode.name === 'roomRect' && this.mode.cur) {
+    // live dimensions while dragging out a room or an area surface
+    if ((this.mode.name === 'roomRect' || this.mode.name === 'areaDraw') && this.mode.cur) {
       const { start: rs, cur: rc } = this.mode;
       const w = Math.abs(rc.x - rs.x), d = Math.abs(rc.y - rs.y);
       if (w > 20 && d > 20) {

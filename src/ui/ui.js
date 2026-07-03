@@ -675,7 +675,7 @@ export class UI {
       }
       return;
     }
-    for (const def of ITEMS.filter(i => this.activeCat === 'all' || i.cat === this.activeCat)) {
+    for (const def of ITEMS.filter(i => !i.hidden && (this.activeCat === 'all' || i.cat === this.activeCat))) {
       const card = el('button', 'cat-card');
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
@@ -695,8 +695,9 @@ export class UI {
           // no walls yet — fall through to normal placement
         }
         // build mode: in 3D with a room chosen, drop it right in that room
-        // and fly the camera to a working close-up
-        if (store.viewMode === '3d') {
+        // and fly the camera to a working close-up — but paths and area
+        // surfaces are always drawn with the finger, never auto-dropped
+        if (store.viewMode === '3d' && !def.path && !def.areaDraw) {
           const key = store.selection?.kind === 'room' ? store.selection.id : this._lastRoomKey;
           const room = key && store.room(key);
           if (room && this.viewer.placeInRoom(def.id, room)) {
@@ -1255,7 +1256,9 @@ export class UI {
       const def = ITEM_MAP.get(store.placeDefId);
       text = def?.path
         ? `Draw on the ground with your finger to lay the ${def.name.toLowerCase()}`
-        : `${tap} the ground or a floor to place ${def?.name ?? 'the item'}`;
+        : def?.areaDraw
+          ? `Drag out the ${def.name.toLowerCase()} area on the ground`
+          : `${tap} the ground or a floor to place ${def?.name ?? 'the item'}`;
     } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
       text = `${tap} a wall to place the ${store.tool}`;
     } else if (store.viewMode === '3d') {
@@ -1272,7 +1275,9 @@ export class UI {
         multi: `Drag a box around items, or ${tap.toLowerCase()} items to add them — then Copy or Delete`,
         place: ITEM_MAP.get(store.placeDefId)?.path
           ? `Drag along the plan to lay the ${ITEM_MAP.get(store.placeDefId).name.toLowerCase()}`
-          : `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
+          : ITEM_MAP.get(store.placeDefId)?.areaDraw
+            ? `Drag out the ${ITEM_MAP.get(store.placeDefId).name.toLowerCase()} area on the plan`
+            : `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
       };
       text = hints[store.tool] || '';
     }

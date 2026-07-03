@@ -754,16 +754,17 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---- floor switcher ---- */
 #levelBar {
+  /* tucked below the top bar so it never covers hints or the plan */
   position: absolute;
-  left: calc(12px + var(--safe-l));
-  bottom: calc(14px + var(--safe-b));
+  left: calc(34px + var(--safe-l));
+  top: calc(var(--topbar-h) + var(--safe-t) + 26px);
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: rgba(29, 33, 41, 0.9);
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(29, 33, 41, 0.72);
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: 20px;
   backdrop-filter: blur(8px);
   z-index: 34;
 }
@@ -778,8 +779,8 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .lvl-btn {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: 50%;
   background: var(--panel-2);
