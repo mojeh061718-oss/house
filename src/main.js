@@ -49,6 +49,12 @@ import('./catalog/items.js').then(m => {
   window.homestudio.ITEMS = m.ITEMS;
   window.homestudio.ITEM_MAP = m.ITEM_MAP;
 });
+import('./core/openings.js').then(m => {
+  window.homestudio.OPENING_TYPES = m.OPENING_TYPES;
+});
+import('./core/autoroof.js').then(m => {
+  window.homestudio.autoRoof = m.autoRoof;
+});
 
 // PWA: register the service worker in production builds
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

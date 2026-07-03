@@ -1,5 +1,6 @@
 // Central application state: project data, selection, tools, undo/redo, persistence.
 import { detectRooms, roomKey, uid } from './geometry.js';
+import { openingDefaults, isDoorType } from './openings.js';
 import { saveProject } from './projects.js';
 
 export const DEFAULTS = {
@@ -88,9 +89,11 @@ export class Store {
     this.project = emptyProject();
     this.currentProjectId = null;
     this.rooms = [];
-    this.selection = null;     // {kind:'item'|'wall'|'opening'|'room', id}
-    this.tool = 'select';      // select | wall | room | door | window | place | paint
+    this.selection = null;     // {kind:'item'|'wall'|'opening'|'room', id} | {kind:'multi', ids:[]}
+    this.tool = 'select';      // select | wall | room | door | window | multi | place | paint
     this.placeDefId = null;    // catalog item being placed
+    this.doorType = 'door';    // last-used opening types stay armed
+    this.windowType = 'window';
     this.viewMode = '2d';      // 2d | 3d | split
     this.undoStack = [];
     this.redoStack = [];
@@ -219,12 +222,12 @@ export class Store {
   }
 
   addOpening(wallId, type, t, opts = {}) {
-    const isDoor = type === 'door' || type === 'doorway' || type === 'slidingDoor';
+    const def = openingDefaults(type);
     const o = {
       id: uid('o'), wallId, type, t,
-      width: opts.width ?? (isDoor ? DEFAULTS.doorWidth : DEFAULTS.windowWidth),
-      height: opts.height ?? (isDoor ? DEFAULTS.doorHeight : DEFAULTS.windowHeight),
-      sill: isDoor ? 0 : (opts.sill ?? DEFAULTS.windowSill),
+      width: opts.width ?? def.width,
+      height: opts.height ?? def.height,
+      sill: isDoorType(type) ? 0 : (opts.sill ?? def.sill),
       flip: false,
       swing: false
     };
@@ -243,6 +246,17 @@ export class Store {
     return it;
   }
 
+  /** Clone an item (including a drawn path stroke), offset by (dx, dy). */
+  cloneItem(it, def, dx = 40, dy = 40) {
+    const created = this.addItem(it.defId, it.x + dx, it.y + dy, it.rotation, def);
+    Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
+    if (it.path) {
+      created.path = it.path.map(p => ({ x: p.x + dx, y: p.y + dy }));
+      created.pw = it.pw;
+    }
+    return created;
+  }
+
   deleteSelection() {
     const sel = this.selection;
     if (!sel) return false;
@@ -253,6 +267,9 @@ export class Store {
     };
     if (sel.kind === 'item') {
       cut(p.items, i => i.id === sel.id);
+    } else if (sel.kind === 'multi') {
+      const ids = new Set(sel.ids);
+      cut(p.items, i => ids.has(i.id));
     } else if (sel.kind === 'opening') {
       cut(p.openings, o => o.id === sel.id);
     } else if (sel.kind === 'wall') {

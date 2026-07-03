@@ -1026,14 +1026,15 @@ export const ITEMS = [
   //     and can be resized/rotated like any item to cover the footprint ---
   {
     id: 'roof_gable', name: 'Gable Roof', cat: 'structure', w: 700, d: 560, h: 200,
-    elevation: 260, palettes: ROOFS, plan: { type: 'roof' },
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true,
     build: (p) => {
       const g = G();
       const shingle = tex(p.roof, 1, 1);
       const gableEnd = tex('siding_white', 1, 1);
       prism(g, shingle, 700, 190, 560, 0, 8, 0, gableEnd);
-      // eave fascia + soffit slab under the roof edge
-      box(g, solid('#e8e3d8', 0.7), 700, 9, 576, 0, 0, 0);
+      // eave fascia + soffit slab, dropped below the base so it overlaps
+      // the wall top (hides the roof/wall seam)
+      box(g, solid('#e8e3d8', 0.7), 700, 15, 576, 0, -6, 0);
       // ridge cap
       box(g, solid('#3c3e42', 0.8), 704, 7, 16, 0, 194, 0, { r: 2 });
       return g;
@@ -1041,17 +1042,17 @@ export const ITEMS = [
   },
   {
     id: 'roof_hip', name: 'Hip Roof', cat: 'structure', w: 700, d: 560, h: 190,
-    elevation: 260, palettes: ROOFS, plan: { type: 'roof' },
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true,
     build: (p) => {
       const g = G();
       pyramid(g, tex(p.roof, 5, 3), 740, 182, 600, 0, 8, 0);
-      box(g, solid('#e8e3d8', 0.7), 740, 9, 600, 0, 0, 0);
+      box(g, solid('#e8e3d8', 0.7), 740, 15, 600, 0, -6, 0);
       return g;
     }
   },
   {
     id: 'roof_shed', name: 'Shed Roof', cat: 'structure', w: 500, d: 420, h: 130,
-    elevation: 260, palettes: ROOFS, plan: { type: 'roof' },
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true,
     build: (p) => {
       const g = G();
       const ang = Math.atan2(110, 420);
@@ -1060,16 +1061,20 @@ export const ITEMS = [
       panel.castShadow = true;
       box(g, solid('#e8e3d8', 0.7), 520, 9, 14, 0, 104, -206, { rx: ang });
       box(g, solid('#e8e3d8', 0.7), 520, 9, 14, 0, -4, 206, { rx: ang });
+      // soffit slab below the base hides the roof/wall seam
+      box(g, solid('#e8e3d8', 0.7), 500, 15, 424, 0, -6, 0);
       return g;
     }
   },
   {
     id: 'roof_flat', name: 'Flat Roof', cat: 'structure', w: 600, d: 500, h: 45,
-    elevation: 260, palettes: null, plan: { type: 'roof' },
+    elevation: 260, palettes: null, plan: { type: 'roof' }, autoFit: true,
     build: () => {
       const g = G();
       box(g, tex('gravel', 3, 2.5), 600, 14, 500, 0, 0, 0);
       const parapet = solid('#d8d2c6', 0.8);
+      // skirt below the base hides the roof/wall seam
+      box(g, parapet, 600, 15, 500, 0, -6, 0);
       box(g, parapet, 600, 40, 16, 0, 0, -242);
       box(g, parapet, 600, 40, 16, 0, 0, 242);
       box(g, parapet, 16, 40, 468, -292, 0, 0);

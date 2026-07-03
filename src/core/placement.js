@@ -31,6 +31,27 @@ function poseAgainstWall(near, x, y, depth, gap = 0.5) {
   };
 }
 
+/** Create a path item (sidewalk/driveway/water) from a drawn stroke.
+ *  Takes a checkpoint and commits; returns the created item. */
+export function createPathItem(store, def, pts) {
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const p of pts) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  const width = def.path.width;
+  store.checkpoint();
+  const it = store.addItem(def.id, (minX + maxX) / 2, (minY + maxY) / 2, 0, def);
+  it.path = pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+  it.pw = width;
+  it.w = Math.max(maxX - minX + width, width);
+  it.d = Math.max(maxY - minY + width, width);
+  store.commit(false);
+  store.setTool('select');
+  store.select({ kind: 'item', id: it.id });
+  return it;
+}
+
 /**
  * Compute the pose for an item at cursor position (x, y).
  * @param walls   project walls

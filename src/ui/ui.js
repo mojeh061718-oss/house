@@ -10,6 +10,8 @@ import { fmtFtIn, fmtArea, inValue, inToCm } from '../core/units.js';
 import { THEMES, applyTheme } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
+import { OPENING_TYPES, OPENING_MAP } from '../core/openings.js';
+import { autoRoof } from '../core/autoroof.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -257,7 +259,7 @@ export class UI {
     // rail stays in 3D too (doors/windows placeable there); drawing tools
     // switch back to the plan where drawing happens
     document.querySelectorAll('#toolrail .tool').forEach(b => {
-      const drawTool = b.dataset.tool === 'wall' || b.dataset.tool === 'room';
+      const drawTool = ['wall', 'room', 'multi'].includes(b.dataset.tool);
       b.style.opacity = (mode === '3d' && drawTool) ? 0.45 : '';
     });
     requestAnimationFrame(() => {
@@ -278,17 +280,30 @@ export class UI {
       ${tool('select', 'Select', 'Select & move things')}
       ${tool('wall', 'Wall', 'Draw walls point to point')}
       ${tool('room', 'Room', 'Drag out a rectangular room')}
-      ${tool('door', 'Door', 'Place a door on a wall')}
-      ${tool('window', 'Window', 'Place a window on a wall')}
+      ${tool('door', 'Door', 'Choose a door style & place it')}
+      ${tool('window', 'Window', 'Choose a window style & place it')}
+      ${tool('multi', 'Multi', 'Select several items at once')}
       <span class="rail-spacer"></span>
       <button class="rail-btn" id="btnFit" title="Fit plan to screen">${ICONS.fit}<span>Fit view</span></button>`;
     rail.querySelectorAll('.tool').forEach(b => {
       b.onclick = () => {
         const t = b.dataset.tool;
         // drawing happens on the plan — jump back when a draw tool is picked in 3D
-        if ((t === 'wall' || t === 'room') && store.viewMode === '3d') {
+        if ((t === 'wall' || t === 'room' || t === 'multi') && store.viewMode === '3d') {
           store.setViewMode('2d');
         }
+        if (t === 'door' || t === 'window') {
+          // second tap on the active tool closes the picker & disarms
+          if (store.tool === t && this._typePop) {
+            this.closeTypePop();
+            store.setTool('select');
+            return;
+          }
+          store.setTool(t); // last-used style stays armed for instant placing
+          this.openTypePop(t, b);
+          return;
+        }
+        this.closeTypePop();
         store.setTool(t === store.tool ? 'select' : t);
       };
     });
@@ -296,6 +311,142 @@ export class UI {
       this.editor.fitToContent();
       this.viewer.frameAll();
     };
+    document.addEventListener('pointerdown', (e) => {
+      if (this._typePop && !this._typePop.contains(e.target) && !e.target.closest('#toolrail')) {
+        this.closeTypePop();
+      }
+    });
+  }
+
+  // ---- door / window style picker -----------------------------------------
+
+  openTypePop(kind, btn) {
+    this.closeTypePop();
+    const store = this.store;
+    const pop = el('div', 'type-pop');
+    const current = kind === 'door' ? store.doorType : store.windowType;
+    for (const t of OPENING_TYPES.filter(t => t.kind === kind)) {
+      const card = el('button', 'type-card' + (t.id === current ? ' active' : ''));
+      const cv = document.createElement('canvas');
+      cv.width = 96; cv.height = 56;
+      card.appendChild(cv);
+      const name = el('span', '', t.name);
+      card.appendChild(name);
+      this.drawOpeningGlyph(cv, t.id);
+      card.onclick = () => {
+        if (kind === 'door') store.doorType = t.id;
+        else store.windowType = t.id;
+        this.closeTypePop();
+        store.setTool(kind); // re-arm (also refreshes the hint)
+        this.showHint();
+        this.toast(`${t.name} ${kind} — tap a wall to place it`);
+      };
+      pop.appendChild(card);
+    }
+    const rail = $('#toolrail');
+    pop.style.left = rail.offsetLeft + rail.offsetWidth + 8 + 'px';
+    pop.style.top = Math.max(8, rail.offsetTop + btn.offsetTop - 30) + 'px';
+    $('#workspace').appendChild(pop);
+    this._typePop = pop;
+  }
+
+  closeTypePop() {
+    if (this._typePop) {
+      this._typePop.remove();
+      this._typePop = null;
+    }
+  }
+
+  /** Small architectural plan glyph for an opening type (picker cards). */
+  drawOpeningGlyph(cv, typeId) {
+    const g = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    const th = 5;                   // wall half-thickness in glyph px
+    const cy = H * 0.62;
+    const hw = W * 0.3;             // opening half-width
+    g.clearRect(0, 0, W, H);
+    // wall band with a gap
+    g.fillStyle = '#aab3c0';
+    g.fillRect(4, cy - th, W / 2 - hw - 4, th * 2);
+    g.fillRect(W / 2 + hw, cy - th, W / 2 - hw - 4, th * 2);
+    g.strokeStyle = '#dfe5ee';
+    g.lineWidth = 1.6;
+    const line = (x1, y1, x2, y2) => {
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    };
+    const jambs = () => { line(W / 2 - hw, cy - th, W / 2 - hw, cy + th); line(W / 2 + hw, cy - th, W / 2 + hw, cy + th); };
+    const arc = (hx, r, a0, a1) => {
+      g.beginPath();
+      g.setLineDash([3, 3]);
+      g.arc(hx, cy - th, r, a0, a1);
+      g.stroke();
+      g.setLineDash([]);
+    };
+    const rect = () => { g.strokeRect(W / 2 - hw, cy - th, hw * 2, th * 2); };
+    switch (typeId) {
+      case 'door':
+        jambs();
+        line(W / 2 - hw, cy - th, W / 2 - hw, cy - th - hw * 2);
+        arc(W / 2 - hw, hw * 2, -Math.PI / 2, 0);
+        break;
+      case 'double_door':
+      case 'french_door':
+        jambs();
+        line(W / 2 - hw, cy - th, W / 2 - hw, cy - th - hw);
+        line(W / 2 + hw, cy - th, W / 2 + hw, cy - th - hw);
+        arc(W / 2 - hw, hw, -Math.PI / 2, 0);
+        arc(W / 2 + hw, hw, Math.PI, Math.PI * 1.5);
+        if (typeId === 'french_door') {
+          g.fillStyle = 'rgba(150,200,230,0.5)';
+          g.fillRect(W / 2 - hw + 2, cy - 2, hw * 2 - 4, 4);
+        }
+        break;
+      case 'slidingDoor':
+        rect();
+        line(W / 2 - hw, cy - 2, W / 2 + hw * 0.15, cy - 2);
+        line(W / 2 - hw * 0.15, cy + 2, W / 2 + hw, cy + 2);
+        break;
+      case 'pocket_door':
+        jambs();
+        line(W / 2 - hw, cy, W / 2, cy);
+        g.setLineDash([3, 3]);
+        line(W / 2 - hw, cy, W / 2 - hw * 1.9, cy);
+        g.setLineDash([]);
+        break;
+      case 'doorway':
+        g.setLineDash([3, 3]);
+        jambs();
+        g.setLineDash([]);
+        break;
+      case 'garage_door':
+        rect();
+        for (let i = 1; i < 4; i++) line(W / 2 - hw + (hw / 2) * i, cy - th, W / 2 - hw + (hw / 2) * i, cy + th);
+        break;
+      case 'window_picture':
+        rect();
+        g.fillStyle = 'rgba(150,200,230,0.5)';
+        g.fillRect(W / 2 - hw + 2, cy - 2, hw * 2 - 4, 4);
+        break;
+      case 'window_sliding':
+        rect();
+        line(W / 2 - hw, cy - 2, W / 2 + hw * 0.15, cy - 2);
+        line(W / 2 - hw * 0.15, cy + 2, W / 2 + hw, cy + 2);
+        break;
+      case 'window_casement':
+        rect();
+        line(W / 2 - hw, cy - th, W / 2 - hw + hw * 1.4, cy - th - hw * 1.2);
+        arc(W / 2 - hw, hw * 1.8, -Math.PI / 2.6, 0);
+        break;
+      case 'window_bay':
+        rect();
+        line(W / 2 - hw, cy - th, W / 2 - hw * 0.5, cy - th - 9);
+        line(W / 2 - hw * 0.5, cy - th - 9, W / 2 + hw * 0.5, cy - th - 9);
+        line(W / 2 + hw * 0.5, cy - th - 9, W / 2 + hw, cy - th);
+        break;
+      default: // standard window
+        rect();
+        line(W / 2 - hw, cy, W / 2 + hw, cy);
+    }
   }
 
   syncTools() {
@@ -342,25 +493,37 @@ export class UI {
       it.d = Math.max(10, Math.round(it.d / 1.1));
       it.h = Math.max(10, Math.round(it.h / 1.1));
     });
-    $('#selDup').onclick = () => {
-      const sel = store.selection;
-      if (sel?.kind === 'room') { this.duplicateRoom(sel.id); return; }
-      if (sel?.kind !== 'item') return;
-      const it = store.item(sel.id);
-      const def = ITEM_MAP.get(it.defId);
-      store.checkpoint();
-      const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
-      Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
-      if (it.path) {
-        created.path = it.path.map(p => ({ x: p.x + 40, y: p.y + 40 }));
-        created.pw = it.pw;
-      }
-      store.commit(false);
-      store.select({ kind: 'item', id: created.id });
-      this.toast('Duplicated');
-    };
+    $('#selDup').onclick = () => this.duplicateSelection();
     $('#selEdit').onclick = () => this.toggleDrawer('props');
     $('#selDel').onclick = () => store.deleteSelection();
+  }
+
+  /** Duplicate the current selection: an item, a whole room, or a multi group. */
+  duplicateSelection() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind === 'room') { this.duplicateRoom(sel.id); return; }
+    if (sel?.kind === 'multi') {
+      store.checkpoint();
+      const ids = [];
+      for (const id of sel.ids) {
+        const it = store.item(id);
+        const def = it && ITEM_MAP.get(it.defId);
+        if (def) ids.push(store.cloneItem(it, def).id);
+      }
+      store.commit(false);
+      if (ids.length) store.select({ kind: 'multi', ids });
+      this.toast(`${ids.length} item${ids.length === 1 ? '' : 's'} duplicated`);
+      return;
+    }
+    if (sel?.kind !== 'item') return;
+    const it = store.item(sel.id);
+    const def = ITEM_MAP.get(it.defId);
+    store.checkpoint();
+    const created = store.cloneItem(it, def);
+    store.commit(false);
+    store.select({ kind: 'item', id: created.id });
+    this.toast('Duplicated');
   }
 
   syncFabs() {
@@ -371,8 +534,8 @@ export class UI {
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
     });
-    // Copy applies to items and whole rooms
-    $('#selDup').style.display = (isItem || sel?.kind === 'room') ? '' : 'none';
+    // Copy applies to items, whole rooms, and multi groups
+    $('#selDup').style.display = (isItem || sel?.kind === 'room' || sel?.kind === 'multi') ? '' : 'none';
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) $('#props').classList.add('open');
     if (!sel) this.closeDrawer('props');
@@ -473,6 +636,17 @@ export class UI {
         <span class="cat-card-dims">${fmtFtIn(def.w)} × ${fmtFtIn(def.d)} × ${fmtFtIn(def.h)}</span>`;
       card.onclick = () => {
         this.closeDrawer('catalog');
+        // roofs fit themselves to the house — no hand-sizing
+        if (def.autoFit && def.plan?.type === 'roof') {
+          const roof = autoRoof(store, def.id);
+          if (roof) {
+            if (store.viewMode === '2d') store.setViewMode('3d');
+            this.viewer.frameAll();
+            this.toast(`${def.name} fitted over the whole house`);
+            return;
+          }
+          // no walls yet — fall through to normal placement
+        }
         // build mode: in 3D with a room chosen, drop it right in that room
         // and fly the camera to a working close-up
         if (store.viewMode === '3d') {
@@ -552,12 +726,7 @@ export class UI {
       if (!pointInPolygon(it.x, it.y, poly)) continue;
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
-      const ni = store.addItem(it.defId, it.x + dx, it.y + dy, it.rotation, def);
-      Object.assign(ni, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
-      if (it.path) {
-        ni.path = it.path.map(p => ({ x: p.x + dx, y: p.y + dy }));
-        ni.pw = it.pw;
-      }
+      store.cloneItem(it, def, dx, dy);
     }
     const oldStyle = store.project.roomStyles[key];
     store.commit(true);
@@ -687,27 +856,35 @@ export class UI {
           row.appendChild(chip);
         });
       }
-      $('#pDup').onclick = () => {
-        store.checkpoint();
-        const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
-        Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
-        if (it.path) {
-          created.path = it.path.map(p => ({ x: p.x + 40, y: p.y + 40 }));
-          created.pw = it.pw;
-        }
-        store.commit(false);
-        store.select({ kind: 'item', id: created.id });
-      };
+      $('#pDup').onclick = () => this.duplicateSelection();
+      $('#pDel').onclick = () => store.deleteSelection();
+    } else if (sel.kind === 'multi') {
+      const n = sel.ids.length;
+      panel.innerHTML = `${head(`${n} item${n === 1 ? '' : 's'} selected`)}
+        <div class="props-body">
+          <div class="props-section-title">Drag any selected item to move the whole group.
+            With the Multi tool, tap items to add or remove them, or sweep another box.</div>
+          <div class="btn-row">
+            <button class="action" id="pDup">${icon('copy')} Duplicate all</button>
+            <button class="action danger" id="pDel">${icon('trash')} Delete all</button>
+          </div>
+        </div>`;
+      $('#pDup').onclick = () => this.duplicateSelection();
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) { store.select(null); return; }
-      panel.innerHTML = `${head('Wall')}
+      panel.innerHTML = `${head(sel.exterior ? 'Exterior wall' : 'Wall')}
         <div class="props-body">
           <div class="props-grid2">
             ${this.lenRow('pLen', 'Length', wallLength(w), true)}
             ${this.lenRow('pThick', 'Thickness', w.thickness)}
             ${this.lenRow('pWH', 'Height', w.height)}
+          </div>
+          <div class="props-section-title">Exterior siding — the outside face of this wall</div>
+          <div class="mat-grid" id="matWallExt"></div>
+          <div class="btn-row">
+            <button class="action" id="pExtAll">${icon('paint')} Use on the whole exterior</button>
           </div>
           <div class="btn-row">
             <button class="action danger" id="pDel">${icon('trash')} Delete wall</button>
@@ -719,48 +896,67 @@ export class UI {
       this.bindLen('pWH', v => {
         store.checkpoint(); w.height = Math.max(120, Math.min(400, Math.round(v))); store.commit(true);
       });
+      this.matGrid('#matWallExt', 'wall', w.extMat || store.project.settings.exteriorWall, id => {
+        store.checkpoint(); w.extMat = id; store.commit(true);
+      }, ['Exterior Siding', 'Plaster & Concrete', 'Brick & Tile']);
+      $('#pExtAll').onclick = () => {
+        store.checkpoint();
+        store.project.settings.exteriorWall = w.extMat || store.project.settings.exteriorWall;
+        for (const wall of store.project.walls) delete wall.extMat;
+        store.commit(true);
+        this.toast('Whole exterior updated');
+        this.renderProps();
+      };
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'opening') {
       const o = store.opening(sel.id);
       if (!o) { store.select(null); return; }
-      const isWin = o.type === 'window';
-      panel.innerHTML = `${head(isWin ? 'Window' : 'Door')}
+      const tdef = OPENING_MAP.get(o.type);
+      const isWin = tdef ? tdef.kind === 'window' : o.type === 'window';
+      const types = OPENING_TYPES.filter(t => t.kind === (isWin ? 'window' : 'door'));
+      const hasFlip = ['door', 'double_door', 'french_door', 'window_casement', 'window_bay', 'garage_door'].includes(o.type);
+      const hasSwing = ['door', 'window_casement'].includes(o.type);
+      panel.innerHTML = `${head(tdef ? `${tdef.name} ${isWin ? 'window' : 'door'}` : (isWin ? 'Window' : 'Door'))}
         <div class="props-body">
-          ${isWin ? '' : `
-          <div class="props-section-title">Type</div>
-          <div class="seg-row" id="doorType">
-            <button data-t="door">Hinged</button>
-            <button data-t="doorway">Opening</button>
-            <button data-t="slidingDoor">Sliding</button>
-          </div>`}
+          <div class="props-section-title">Style</div>
+          <div class="type-row" id="oType">
+            ${types.map(t => `<button data-t="${t.id}"${t.id === o.type ? ' class="active"' : ''}>${t.name}</button>`).join('')}
+          </div>
           <div class="props-grid2">
             ${this.lenRow('pOW', 'Width', o.width)}
             ${this.lenRow('pOH', 'Height', o.height)}
             ${isWin ? this.lenRow('pOS', 'Sill height', o.sill) : ''}
           </div>
-          ${o.type === 'door' ? `
+          <div class="props-section-title">Drag the round handles on the plan to resize it in place.</div>
+          ${hasFlip || hasSwing ? `
           <div class="btn-row">
-            <button class="action" id="pFlip">${icon('rotate')} Flip side</button>
-            <button class="action" id="pSwing">${icon('rotate')} Flip hinge</button>
+            ${hasFlip ? `<button class="action" id="pFlip">${icon('rotate')} Flip side</button>` : ''}
+            ${hasSwing ? `<button class="action" id="pSwing">${icon('rotate')} Flip hinge</button>` : ''}
           </div>` : ''}
           <div class="btn-row">
             <button class="action danger" id="pDel">${icon('trash')} Delete</button>
           </div>
         </div>`;
       const structural = fn => { store.checkpoint(); fn(); store.commit(true); };
-      this.bindLen('pOW', v => structural(() => o.width = Math.max(40, Math.min(300, Math.round(v)))));
+      this.bindLen('pOW', v => structural(() => o.width = Math.max(40, Math.min(400, Math.round(v)))));
       this.bindLen('pOH', v => structural(() => o.height = Math.max(60, Math.min(280, Math.round(v)))));
       if (isWin) this.bindLen('pOS', v => structural(() => o.sill = Math.max(0, Math.min(200, Math.round(v)))));
-      if (!isWin) {
-        document.querySelectorAll('#doorType button').forEach(b => {
-          b.classList.toggle('active', b.dataset.t === o.type);
-          b.onclick = () => { structural(() => o.type = b.dataset.t); this.renderProps(); };
-        });
-      }
-      if (o.type === 'door') {
-        $('#pFlip').onclick = () => structural(() => o.flip = !o.flip);
-        $('#pSwing').onclick = () => structural(() => o.swing = !o.swing);
-      }
+      document.querySelectorAll('#oType button').forEach(b => {
+        b.onclick = () => {
+          structural(() => {
+            o.type = b.dataset.t;
+            if (isWin && o.type !== 'window' && OPENING_MAP.get(o.type)) {
+              o.sill = OPENING_MAP.get(o.type).sill;
+            }
+          });
+          // remember it as the armed style for the next placement too
+          if (isWin) store.windowType = o.type;
+          else store.doorType = o.type;
+          this.renderProps();
+        };
+      });
+      if (hasFlip) $('#pFlip').onclick = () => structural(() => o.flip = !o.flip);
+      if (hasSwing) $('#pSwing').onclick = () => structural(() => o.swing = !o.swing);
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'room') {
       const room = store.room(sel.id);
@@ -851,6 +1047,12 @@ export class UI {
       const w = store.wall(sel.id);
       if (!w) return;
       this.setVal('pLen', inValue(wallLength(w)));
+    } else if (sel?.kind === 'opening') {
+      const o = store.opening(sel.id);
+      if (!o) return;
+      this.setVal('pOW', inValue(o.width));
+      this.setVal('pOH', inValue(o.height));
+      this.setVal('pOS', inValue(o.sill || 0));
     }
   }
 
@@ -922,10 +1124,11 @@ export class UI {
     this.bindNum(id, v => fn(inToCm(v)));
   }
 
-  matGrid(sel, use, current, onPick) {
+  matGrid(sel, use, current, onPick, onlyGroups = null) {
     const grid = $(sel);
     if (!grid) return;
-    const list = MATERIALS.filter(m => m.use === use);
+    const list = MATERIALS.filter(m => m.use === use &&
+      (!onlyGroups || onlyGroups.includes(m.group || '')));
     const groups = [...new Set(list.map(m => m.group || ''))];
     for (const g of groups) {
       if (g && groups.length > 1) grid.appendChild(el('div', 'mat-group-title', g));
@@ -978,9 +1181,12 @@ export class UI {
         ? 'Walk mode — left side: drag to walk · right side: drag to look'
         : 'Walk mode — WASD / arrows to move · drag to look';
     } else if (store.viewMode === '3d' && store.tool === 'place') {
-      text = `${tap} the ground or a floor to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`;
+      const def = ITEM_MAP.get(store.placeDefId);
+      text = def?.path
+        ? `Draw on the ground with your finger to lay the ${def.name.toLowerCase()}`
+        : `${tap} the ground or a floor to place ${def?.name ?? 'the item'}`;
     } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
-      text = `${tap} a wall to place a ${store.tool}`;
+      text = `${tap} a wall to place the ${store.tool}`;
     } else if (store.viewMode === '3d') {
       text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select & move it`;
     } else {
@@ -990,8 +1196,9 @@ export class UI {
           : 'Start with the Wall or Room tool on the left',
         wall: 'Drag to draw a wall · start at the end of another to connect',
         room: 'Drag to draw a rectangular room',
-        door: `${tap} a wall to place a door`,
-        window: `${tap} a wall to place a window`,
+        door: `${tap} a wall to place the door`,
+        window: `${tap} a wall to place the window`,
+        multi: `Drag a box around items, or ${tap.toLowerCase()} items to add them — then Copy or Delete`,
         place: ITEM_MAP.get(store.placeDefId)?.path
           ? `Drag along the plan to lay the ${ITEM_MAP.get(store.placeDefId).name.toLowerCase()}`
           : `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`

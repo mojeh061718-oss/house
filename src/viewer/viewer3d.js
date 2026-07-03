@@ -7,9 +7,9 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp, wallLength } from '../core/geometry.js';
-import { snapPose } from '../core/placement.js';
+import { snapPose, createPathItem } from '../core/placement.js';
+import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
-import { DEFAULTS } from '../core/state.js';
 import { detectRooms, roomKey } from '../core/geometry.js';
 
 const SLAB = 30; // structural slab between stacked floors (cm)
@@ -365,6 +365,19 @@ export class Viewer3D {
 
   updateSelBox() {
     const sel = this.store.selection;
+    if (sel?.kind === 'multi') {
+      const box = new THREE.Box3();
+      let any = false;
+      for (const id of sel.ids) {
+        const g = this.itemGroups.get(id);
+        if (g) { box.expandByObject(g); any = true; }
+      }
+      if (any) {
+        this.selBox.box.copy(box);
+        this.selBox.visible = true;
+        return;
+      }
+    }
     if (sel?.kind === 'item') {
       const g = this.itemGroups.get(sel.id);
       if (g) {
@@ -379,6 +392,35 @@ export class Viewer3D {
       }
     }
     this.selBox.visible = false;
+  }
+
+  // ---- live 3D path-draw preview --------------------------------------------
+
+  startPathPreview(def) {
+    this.endPathPreview();
+    const g = new THREE.Group();
+    const color = def.path.surface === 'water' ? '#5aa8c8' : '#cfc9bd';
+    g.userData.mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.72 });
+    this.scene.add(g);
+    this.pathPreview = g;
+  }
+
+  addPathPreviewDot(x, y, width) {
+    if (!this.pathPreview) return;
+    const lvlY = this.levelY(this.store.project.activeLevel ?? 0);
+    const m = new THREE.Mesh(
+      new THREE.CylinderGeometry(width / 2, width / 2, 2, 16),
+      this.pathPreview.userData.mat
+    );
+    m.position.set(x, lvlY + 2.5, y);
+    this.pathPreview.add(m);
+  }
+
+  endPathPreview() {
+    if (!this.pathPreview) return;
+    this.disposeGroup(this.pathPreview);
+    this.scene.remove(this.pathPreview);
+    this.pathPreview = null;
   }
 
   // ---- walk joystick visual + camera flight --------------------------------
@@ -648,17 +690,24 @@ export class Viewer3D {
     return null;
   }
 
-  /** Room key of the floor/wall surface under the pointer, if any. */
-  castRoom(p) {
+  /** Architecture under the pointer: a door/window model, a room surface,
+   *  or the outside face of a wall. */
+  castArch(p) {
     const active = this.store.project.activeLevel ?? 0;
     this.raycaster.setFromCamera(this.toNDC(p), this.camera);
     const hits = this.raycaster.intersectObjects(this.archGroup.children, true);
     for (const h of hits) {
-      let lvl = h.object;
-      while (lvl && lvl.userData.level === undefined) lvl = lvl.parent;
-      if (lvl && lvl.userData.level !== active) continue;
-      if (h.object.userData.roomKey) return h.object.userData.roomKey;
-      if (h.object.userData.wallId !== undefined) return null; // exterior wall face
+      let obj = h.object, openingId, level;
+      while (obj) {
+        if (openingId === undefined && obj.userData.openingId !== undefined) openingId = obj.userData.openingId;
+        if (obj.userData.level !== undefined) level = obj.userData.level;
+        obj = obj.parent;
+      }
+      if (level !== active) continue;
+      if (openingId !== undefined) return { openingId };
+      if (h.object.userData.roomKey) return { roomKey: h.object.userData.roomKey };
+      if (h.object.userData.exterior) return { exteriorWallId: h.object.userData.wallId };
+      if (h.object.userData.wallId !== undefined) return null;
     }
     return null;
   }
@@ -753,7 +802,7 @@ export class Viewer3D {
     const wall = store.wall(hit.wallId);
     if (!wall) return false;
     const len = wallLength(wall);
-    const width = type === 'door' ? DEFAULTS.doorWidth : DEFAULTS.windowWidth;
+    const width = openingDefaults(type).width;
     if (len < width + 12) return false;
     // parametric position of the tap along the wall
     const dx = wall.bx - wall.ax, dy = wall.by - wall.ay;
@@ -774,6 +823,7 @@ export class Viewer3D {
 
     if (this.pointers.size === 2) {
       // pinch takes over: cancel single-pointer gestures (keep item drag)
+      if (this.gesture?.kind === 'pathDraw') this.endPathPreview();
       const pts = [...this.pointers.values()];
       this.gesture = {
         kind: 'pinch',
@@ -796,6 +846,22 @@ export class Viewer3D {
         this.gesture = { kind: 'look', id: e.pointerId, x: p.x, y: p.y, yaw: this.walk.yaw, pitch: this.walk.pitch };
       }
       return;
+    }
+
+    // paths are drawn, not tapped: finger down on the ground starts the
+    // stroke immediately and it follows until the finger lifts
+    if (this.store.tool === 'place') {
+      const def = ITEM_MAP.get(this.store.placeDefId);
+      if (def?.path) {
+        const gpt = this.castGround(p);
+        if (gpt) {
+          this.flight = null;
+          this.gesture = { kind: 'pathDraw', id: e.pointerId, def, pts: [gpt] };
+          this.startPathPreview(def);
+          this.addPathPreviewDot(gpt.x, gpt.y, def.path.width);
+          return;
+        }
+      }
     }
 
     // placement tools claim the tap; only the select tool grabs items
@@ -842,6 +908,19 @@ export class Viewer3D {
       this.orbit.target.copy(g.target0)
         .addScaledVector(right, -dx * panScale)
         .addScaledVector(up, dy * panScale);
+      return;
+    }
+
+    if (g?.kind === 'pathDraw' && g.id === e.pointerId) {
+      const gpt = this.castGround(p);
+      if (gpt) {
+        const last = g.pts[g.pts.length - 1];
+        const step = Math.max(24, g.def.path.width / 4);
+        if (Math.hypot(gpt.x - last.x, gpt.y - last.y) >= step) {
+          g.pts.push(gpt);
+          this.addPathPreviewDot(gpt.x, gpt.y, g.def.path.width);
+        }
+      }
       return;
     }
 
@@ -912,19 +991,44 @@ export class Viewer3D {
       const [id, p] = [...this.pointers.entries()][0];
       this.gesture = { kind: 'rotate', id, x: p.x, y: p.y, theta0: this.orbit.theta, phi0: this.orbit.phi, moved: true };
     } else if (g && (g.id === e.pointerId || this.pointers.size === 0)) {
+      if (g.kind === 'pathDraw') {
+        this.endPathPreview();
+        let len = 0;
+        for (let i = 1; i < g.pts.length; i++) {
+          len += Math.hypot(g.pts[i].x - g.pts[i - 1].x, g.pts[i].y - g.pts[i - 1].y);
+        }
+        if (g.pts.length >= 2 && len > 50) {
+          const it = createPathItem(this.store, g.def, g.pts);
+          this.flyToItem(it);
+        } else {
+          // a plain tap: drop a short straight starter run there
+          const store = this.store;
+          store.checkpoint();
+          const it = store.addItem(g.def.id, Math.round(g.pts[0].x), Math.round(g.pts[0].y), 0, g.def);
+          this.seedDefaultPath(it, g.def);
+          store.commit(false);
+          store.setTool('select');
+          store.select({ kind: 'item', id: it.id });
+          this.flyToItem(it);
+        }
+      }
       if (g.kind === 'rotate' && !g.moved && !this.walkMode) {
         const tap = { x: g.x, y: g.y };
         const tool = this.store.tool;
         if (tool === 'place' && this.store.placeDefId) {
           this.placeItemAt(tap);
         } else if (tool === 'door' || tool === 'window') {
-          this.placeOpeningAt(tap, tool);
+          this.placeOpeningAt(tap, tool === 'door' ? this.store.doorType : this.store.windowType);
         } else {
-          // simple tap: try the architecture (select the room a floor/wall
-          // belongs to, so materials can be edited straight from 3D)
-          const roomKey = this.castRoom(tap);
-          if (roomKey && this.store.room(roomKey)) {
-            this.store.select({ kind: 'room', id: roomKey });
+          // simple tap: select what the finger landed on — a door/window,
+          // the room a floor/wall belongs to, or an exterior wall face
+          const arch = this.castArch(tap);
+          if (arch?.openingId && this.store.opening(arch.openingId)) {
+            this.store.select({ kind: 'opening', id: arch.openingId });
+          } else if (arch?.roomKey && this.store.room(arch.roomKey)) {
+            this.store.select({ kind: 'room', id: arch.roomKey });
+          } else if (arch?.exteriorWallId && this.store.wall(arch.exteriorWallId)) {
+            this.store.select({ kind: 'wall', id: arch.exteriorWallId, exterior: true });
           } else {
             this.store.select(null);
           }

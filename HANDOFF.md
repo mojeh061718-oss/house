@@ -13,8 +13,10 @@ push to this branch. Vite + vanilla JS + three.js. No frameworks, no binary
 assets except five CC0 JPGs in `public/tex/` (ambientCG, attributed in
 README).
 
-- Branch: `claude/mobile-home-design-app-l2mc9l` (never push elsewhere)
-- Current version: **2.10.0**, last commit `a9efcef`, live and verified
+- Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
+  v2.11.0 was developed on `claude/handoff-md-completion-8vnjdh` — merge it
+  into the app branch to deploy.
+- Current version: **2.11.0** (tasks 2-8 below all shipped in it)
 - Deploy: `.github/workflows/deploy.yml` builds and force-pushes `dist/`
   to `gh-pages` on push. Verify by polling
   `git fetch origin gh-pages && git log -1 --format=%s origin/gh-pages`
@@ -110,6 +112,43 @@ The user's latest request, verbatim numbering:
    duplication, Home Shells presets incl. 3 barndominiums + 2 container
    homes + hillside home, shipping-container & grass-hill items).
 
+**Tasks 2-8 below are all DONE in v2.11.0.** Implementation notes:
+- `src/core/openings.js` — NEW: `OPENING_TYPES` registry (7 doors, 5
+  windows), `OPENING_MAP`, `isDoorType`, `openingDefaults`. Store keeps
+  `doorType`/`windowType` armed (last-used). Rail Door/Window buttons open
+  a `.type-pop` picker (glyphs drawn by `ui.drawOpeningGlyph`); the opening
+  props panel has a style row that also re-arms the type.
+- Opening resize: `editor2d.openingHandles/openingHandleAt` + mode
+  `resizeOpening` (grabbed jamb follows pointer, other jamb fixed, width
+  clamped 40..wall−12). 3D taps on a door/window model select the opening.
+- Exterior: exterior wall slabs get `userData.exterior`; `viewer.castArch`
+  returns `{openingId}|{roomKey}|{exteriorWallId}`; selecting an exterior
+  wall opens the wall panel with a siding grid → `wall.extMat` override
+  (consumed in `buildWalls` + top cap), plus "use on whole exterior".
+- Paths: 3D `pathDraw` gesture (pointer-down on ground draws until lift,
+  cylinder-dot preview, tap falls back to `seedDefaultPath`); shared
+  `createPathItem` in `core/placement.js`. Texture follows the stroke: 3D
+  `pathBoxUV`/`cylinderRunUV` carry cumulative run length u0; 2D
+  `strokePath` fills each segment with a rotated pattern + oriented joint
+  circles (water keeps the flat stroke).
+- Multi-select: `{kind:'multi', ids:[]}` selection; rail "Multi" tool =
+  marquee drag + tap-to-toggle; dragging any member moves the group
+  (`dragMulti`); FAB/props Copy & Delete loop the ids;
+  `store.cloneItem` is the shared duplicator; 3D selBox unions the group.
+- Rulers: `editor2d.drawRulers` — top/left strips, ft-in labels at clean
+  cm steps (>=56px apart), scale chip above the floor pills.
+- Auto-roof: `src/core/autoroof.js` `autoRoof(store, defId)` — footprint
+  bbox (+40cm overhang, +wall half-thickness), deletes all autoFit roofs
+  on every level, places on the ACTIVE level with elevation = top of the
+  highest level minus levelY(active), ridge along the long axis,
+  h = clamp(0.28·short, 140, 330). The four `roof_*` defs have
+  `autoFit: true` (dormer excluded) and skirts dropped 6cm below base so
+  no wall seam shows. Catalog roof cards auto-fit when walls exist.
+- Debug handle additions: `homestudio.OPENING_TYPES`, `homestudio.autoRoof`.
+- Scratchpad suites from this round: `features-test.js` (27 checks),
+  `all-items.js`, `floors-shells-test.js` — recreate from repo history of
+  this file if the container died.
+
 2. **Resizable doors & windows.** When a door/window is selected, let the
    user resize it. The opening props panel (`ui.js`, `sel.kind ===
    'opening'`) already edits width/height/sill numerically — add drag
@@ -186,8 +225,8 @@ The user's latest request, verbatim numbering:
    while top level active).
 
 Also on the longer wishlist (approved earlier, not started): interior
-second-floor connections for stairs (cut ceiling openings), garage door as
-an opening type (pairs with task 3).
+second-floor connections for stairs (cut ceiling openings). (Garage door
+shipped as an opening type in v2.11.0.)
 
 ## User preferences worth remembering
 
