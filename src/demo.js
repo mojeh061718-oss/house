@@ -347,6 +347,15 @@ export function mansionProject() {
   item('hedge', 300, -80, 0);
   item('hedge', 520, -80, 0);
   item('plant_large', 1780, 1480);
+  // gardens: flower beds flanking the walk, tulips by the porch,
+  // roses at the corner and a sunflower row against the east fence
+  item('flower_bed', 1080, 1560, 0);
+  item('tulip_bed', 760, 1470, 0);
+  item('rose_bush', 2060, 1500, 0, { palette: 1 });
+  item('rose_bush', 1440, -90, 0);
+  item('raised_bed', 1800, -120, 0);
+  item('sunflower_row', 2320, 1360, R);
+  item('sunflower_mammoth', 2300, 1580, 0);
 
   return b.finish();
 }

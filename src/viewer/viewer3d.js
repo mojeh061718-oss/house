@@ -478,8 +478,8 @@ export class Viewer3D {
         exposure: 1.0, envI: 0.4
       },
       day: {
-        zenith: '#5b9bdf', horizon: '#d6e6f2', below: '#adbfcc',
-        sun: '#fff0d6', sunI: 2.6, hemiSky: '#d8e4ee', hemiGround: '#7d7361', hemiI: 0.48,
+        zenith: '#1c5ecf', horizon: '#8ec2ec', below: '#93b0c4',
+        sun: '#fff0d6', sunI: 2.6, hemiSky: '#cfe0ee', hemiGround: '#7d7361', hemiI: 0.48,
         exposure: 1.0, envI: 0.34
       }
     };
@@ -526,8 +526,9 @@ export class Viewer3D {
     const W = 1024, H = 512;
     const grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#' + s.zenith.getHexString());
-    grad.addColorStop(0.52, '#' + s.horizon.getHexString());
-    grad.addColorStop(0.62, '#' + s.below.getHexString());
+    grad.addColorStop(0.34, '#' + s.zenith.clone().lerp(s.horizon, 0.45).getHexString());
+    grad.addColorStop(0.56, '#' + s.horizon.getHexString());
+    grad.addColorStop(0.63, '#' + s.below.getHexString());
     grad.addColorStop(1, '#' + s.below.getHexString());
     g.fillStyle = grad;
     g.fillRect(0, 0, W, H);
@@ -538,26 +539,55 @@ export class Viewer3D {
     const nightness = clamp(-elev / 0.05, 0, 1);
 
     if (dayness > 0.05) {
-      // soft cumulus bands
-      g.save();
-      g.globalAlpha = 0.5 * dayness;
-      for (let i = 0; i < 22; i++) {
-        const cx = rand() * W, cy = 60 + rand() * 180;
-        const rw = 52 + rand() * 92, rh = 12 + rand() * 18;
-        const cloud = g.createRadialGradient(cx, cy, 1, cx, cy, rw);
-        cloud.addColorStop(0, 'rgba(255,255,255,0.85)');
-        cloud.addColorStop(0.6, 'rgba(255,255,255,0.35)');
-        cloud.addColorStop(1, 'rgba(255,255,255,0)');
-        g.fillStyle = cloud;
-        g.save();
-        g.translate(cx, cy);
-        g.scale(1, rh / rw);
-        g.beginPath();
-        g.arc(0, 0, rw, 0, Math.PI * 2);
-        g.fill();
-        g.restore();
+      // puffy cumulus: clusters of shaded lobes with a flat gray base,
+      // drawn thrice so clouds crossing the dome seam wrap cleanly
+      const goldT = 1 - clamp((elev - 0.12) / 0.35, 0, 1);
+      const lit = [255 - goldT * 8, 255 - goldT * 26, 255 - goldT * 62];
+      const shade = [186 + goldT * 30, 198 + goldT * 4, 216 - goldT * 52];
+      const puffCloud = (cx, cy, sc, alpha) => {
+        // one cloud = flat shaded underside + a random row of bright lobes
+        const lobes = [];
+        const n = 4 + Math.floor(rand() * 3);
+        let lx = -n * 14;
+        for (let i = 0; i < n; i++) {
+          lobes.push([lx, -6 - rand() * 16, 20 + rand() * 16]);
+          lx += 22 + rand() * 12;
+        }
+        lobes.push([0, 4, 30 + rand() * 10]); // full-width belly lobe
+        for (const off of [-W, 0, W]) {
+          const bx = cx + off;
+          if (bx < -220 * sc || bx > W + 220 * sc) continue;
+          g.save();
+          g.translate(bx, cy);
+          g.scale(sc, sc * 0.6);
+          let grd = g.createRadialGradient(0, 12, 2, 0, 12, 64);
+          grd.addColorStop(0, `rgba(${shade[0]},${shade[1]},${shade[2]},${0.55 * alpha})`);
+          grd.addColorStop(1, `rgba(${shade[0]},${shade[1]},${shade[2]},0)`);
+          g.fillStyle = grd;
+          g.beginPath();
+          g.ellipse(0, 12, 66, 26, 0, 0, Math.PI * 2);
+          g.fill();
+          for (const [px, py, pr] of lobes) {
+            grd = g.createRadialGradient(px - pr * 0.3, py - pr * 0.4, pr * 0.1, px, py, pr);
+            grd.addColorStop(0, `rgba(${lit[0]},${lit[1]},${lit[2]},${0.96 * alpha})`);
+            grd.addColorStop(0.72, `rgba(${lit[0]},${lit[1]},${lit[2]},${0.5 * alpha})`);
+            grd.addColorStop(1, `rgba(${lit[0]},${lit[1]},${lit[2]},0)`);
+            g.fillStyle = grd;
+            g.beginPath();
+            g.arc(px, py, pr, 0, Math.PI * 2);
+            g.fill();
+          }
+          g.restore();
+        }
+      };
+      // big cumulus through the band the camera actually sees...
+      for (let i = 0; i < 8; i++) {
+        puffCloud(rand() * W, 128 + rand() * 128, 1.15 + rand() * 0.95, (0.85 + rand() * 0.15) * dayness);
       }
-      g.restore();
+      // ...and smaller, fainter ones stacked near the horizon for depth
+      for (let i = 0; i < 6; i++) {
+        puffCloud(rand() * W, 252 + rand() * 36, 0.45 + rand() * 0.3, (0.5 + rand() * 0.2) * dayness);
+      }
     }
 
     if (nightness > 0.05) {

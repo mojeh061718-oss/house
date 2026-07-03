@@ -1848,8 +1848,168 @@ export const ITEMS = [
       box(g, solid('#e0a33c', 0.5), 4, 2, 26, -26, 21, -12, { ry: 0.6 });
       return g;
     }
+  },
+
+  // ======================= GARDEN & FLOWERS =======================
+  {
+    id: 'sunflower', name: 'Sunflower', cat: 'outdoor', w: 60, d: 60, h: 180,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      buildSunflower(g, 0, 0, 165, 17, 5);
+      return g;
+    }
+  },
+  {
+    id: 'sunflower_mammoth', name: 'Mammoth Sunflower', cat: 'outdoor', w: 120, d: 120, h: 380,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      buildSunflower(g, 0, 0, 355, 34, 11);
+      return g;
+    }
+  },
+  {
+    id: 'sunflower_row', name: 'Sunflower Row', cat: 'outdoor', w: 200, d: 70, h: 230,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      box(g, solid('#4a3a28', 0.98), 196, 10, 54, 0, 0, 0, { r: 4 });
+      buildSunflower(g, -70, -8, 172, 17, 21);
+      buildSunflower(g, -22, 10, 210, 20, 22);
+      buildSunflower(g, 28, -6, 150, 15, 23);
+      buildSunflower(g, 74, 8, 192, 18, 24);
+      return g;
+    }
+  },
+  {
+    id: 'rose_bush', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100,
+    palettes: [
+      { name: 'Red', chip: '#b3273a', bloom: '#b3273a' },
+      { name: 'Pink', chip: '#d87d9c', bloom: '#d87d9c' },
+      { name: 'White', chip: '#ece7dc', bloom: '#ece7dc' },
+      { name: 'Yellow', chip: '#e0b23c', bloom: '#e0b23c' }
+    ],
+    plan: { type: 'plant' },
+    build: (p) => {
+      const g = G();
+      cyl(g, solid('#4e3a26', 0.95), 3.5, 18, 0, 0, 0);
+      foliage(g, '#33571f', '#4a7030', 0, 100, 0, 40, 12, 51);
+      let s = 61;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const bloomMat = solid(p.bloom, 0.65);
+      const heartMat = solid('#3a2b1a', 0.8);
+      for (let i = 0; i < 12; i++) {
+        const a = rand() * Math.PI * 2;
+        const r = 18 + rand() * 24;
+        const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
+        const by = 82 + rand() * 42 - r * 0.3;
+        sphere(g, bloomMat, 5.5 + rand() * 3, bx, by, bz, { sy: 0.82, seg: 10 });
+        sphere(g, heartMat, 1.6, bx, by + 4, bz, { seg: 6 });
+      }
+      return g;
+    }
+  },
+  {
+    id: 'tulip_bed', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      box(g, solid('#4a3a28', 0.98), 126, 10, 70, 0, 0, 0, { r: 4 });
+      let s = 41;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const colors = ['#c8283c', '#e0a33c', '#9c50b8', '#e05a7c', '#ece7dc'];
+      for (let ix = 0; ix < 6; ix++) {
+        for (let iz = 0; iz < 3; iz++) {
+          const tx = -50 + ix * 20 + (rand() - 0.5) * 8;
+          const tz = -22 + iz * 22 + (rand() - 0.5) * 8;
+          const th = 26 + rand() * 12;
+          cyl(g, solid('#3f6b28', 0.9), 1.1, th, tx, 8, tz);
+          // leaf blade
+          const leaf = sphere(g, solid('#4a7a30', 0.9), 5, tx + 3, 14, tz, { sy: 1.6, seg: 6 });
+          leaf.scale.x = 0.25;
+          // cupped bloom
+          sphere(g, solid(colors[Math.floor(rand() * colors.length)], 0.6),
+            4.6, tx, 8 + th + 3, tz, { sy: 1.3, seg: 10 });
+        }
+      }
+      return g;
+    }
+  },
+  {
+    id: 'raised_bed', name: 'Raised Garden Bed', cat: 'outdoor', w: 220, d: 110, h: 75,
+    palettes: WOODS, plan: { type: 'hedge' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.8);
+      box(g, wd, 220, 42, 14, 0, 0, -48);
+      box(g, wd, 220, 42, 14, 0, 0, 48);
+      box(g, wd, 14, 42, 82, -103, 0, 0);
+      box(g, wd, 14, 42, 82, 103, 0, 0);
+      box(g, solid('#463522', 0.98), 196, 36, 82, 0, 0, 0);
+      let s = 87;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      // three planted rows: leafy greens, tomatoes on stakes, carrots' tops
+      for (let i = 0; i < 5; i++) {
+        const x = -80 + i * 40;
+        foliage(g, '#4e7a2e', '#68954a', x, 44, -26, 11, 4, 60 + i);
+        cyl(g, wood('#8a6a4a', 0.9), 1.2, 46, x + 2, 36, 4);
+        foliage(g, '#3f6b28', '#548a3c', x, 62, 4, 8, 3, 70 + i);
+        sphere(g, solid('#c8412e', 0.5), 3.4, x - 3, 56, 6, { seg: 8 });
+        sphere(g, solid('#e05a30', 0.5), 2.8, x + 4, 48, 2, { seg: 8 });
+        foliage(g, '#55842e', '#6da03c', x + (rand() - 0.5) * 10, 42, 30, 7, 3, 80 + i);
+      }
+      return g;
+    }
   }
 ];
+
+/** Shared sunflower builder: stalk with leaves, seed disk, two petal rings. */
+function buildSunflower(g, x, z, h, headR, seed) {
+  let s = seed * 7919 + 13;
+  const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const lean = (rand() - 0.5) * 0.14;
+  const stalk = cyl(g, solid('#4e7a2e', 0.9), headR * 0.16, h, x, 0, z, { rTop: headR * 0.1 });
+  stalk.rotation.z = lean;
+  // large heart-shaped leaves alternating up the stalk
+  for (let i = 0; i < 4; i++) {
+    const ly = h * (0.22 + i * 0.16);
+    const side = i % 2 ? 1 : -1;
+    const leaf = sphere(g, solid(i % 2 ? '#47732a' : '#528434', 0.9),
+      headR * 0.85, x + side * headR * 0.75 + ly * lean, ly, z + (rand() - 0.5) * 6, { seg: 10 });
+    leaf.scale.set(1.15, 0.16, 0.7);
+    leaf.rotation.z = side * 0.5;
+    leaf.rotation.y = (rand() - 0.5) * 0.8;
+  }
+  // flower head faces slightly forward and toward the sun
+  const head = G();
+  head.position.set(x + h * lean * 0.8, h, z);
+  head.rotation.x = 0.42;
+  head.rotation.y = (rand() - 0.5) * 0.5;
+  g.add(head);
+  const petalA = solid('#f4b81e', 0.6);
+  const petalB = solid('#e29b12', 0.65);
+  const petals = Math.max(14, Math.round(headR * 1.1));
+  for (let ring = 0; ring < 2; ring++) {
+    const rr = headR * (ring ? 0.94 : 1.12);
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * Math.PI * 2 + ring * (Math.PI / petals);
+      const pm = sphere(head, ring ? petalB : petalA, headR * 0.34,
+        Math.cos(a) * rr, Math.sin(a) * rr, ring ? 1.5 : 0, { seg: 8 });
+      pm.scale.set(1.5, 0.5, 0.12);
+      pm.rotation.z = a;
+    }
+  }
+  // seed disk: dark center with a lighter rim
+  const disk = cyl(head, solid('#4a331c', 0.95), headR * 0.72, headR * 0.16, 0, 0, 0, { seg: 24 });
+  disk.rotation.x = Math.PI / 2;
+  const core = cyl(head, solid('#2e1f10', 0.98), headR * 0.45, headR * 0.18, 0, 0, 0, { seg: 20 });
+  core.rotation.x = Math.PI / 2;
+  // green sepals behind the head
+  const sepal = cyl(head, solid('#3f6b28', 0.9), headR * 0.8, headR * 0.1, 0, 0, 0, { seg: 12 });
+  sepal.rotation.x = Math.PI / 2;
+  sepal.position.z = -headR * 0.12;
+}
 
 export const ITEM_MAP = new Map(ITEMS.map(i => [i.id, i]));
 
