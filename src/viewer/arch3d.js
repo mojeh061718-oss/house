@@ -491,18 +491,36 @@ export function buildWalls(project, rooms) {
   return group;
 }
 
-export function buildFloors(project, rooms) {
+/** Room polygon → THREE.Shape in plan coords (x, -y), with cut-out holes
+ *  (stairwell openings) whose centers fall inside that polygon. */
+function roomShape(polygon, holes) {
+  const shape = new THREE.Shape();
+  polygon.forEach((p, i) => {
+    if (i === 0) shape.moveTo(p.x, -p.y);
+    else shape.lineTo(p.x, -p.y);
+  });
+  for (const hole of holes || []) {
+    let cx = 0, cy = 0;
+    for (const p of hole) { cx += p.x; cy += p.y; }
+    cx /= hole.length; cy /= hole.length;
+    if (!pointInPolygon(cx, cy, polygon)) continue;
+    const path = new THREE.Path();
+    hole.forEach((p, i) => {
+      if (i === 0) path.moveTo(p.x, -p.y);
+      else path.lineTo(p.x, -p.y);
+    });
+    shape.holes.push(path);
+  }
+  return shape;
+}
+
+export function buildFloors(project, rooms, holes = []) {
   const group = new THREE.Group();
   for (const r of rooms) {
     const style = project.roomStyles[r.key];
     const matId = style?.floor || project.settings.defaultFloor;
     const def = MATERIAL_MAP.get(matId);
-    const shape = new THREE.Shape();
-    r.polygon.forEach((p, i) => {
-      if (i === 0) shape.moveTo(p.x, -p.y);
-      else shape.lineTo(p.x, -p.y);
-    });
-    const geo = new THREE.ShapeGeometry(shape);
+    const geo = new THREE.ShapeGeometry(roomShape(r.polygon, holes));
     // scale UVs (which equal shape coords) into texture repeats
     const uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) {
@@ -513,21 +531,17 @@ export function buildFloors(project, rooms) {
     mesh.position.y = 0.6;
     mesh.receiveShadow = true;
     mesh.userData.roomKey = r.key;
+    mesh.userData.walkable = true;
     group.add(mesh);
   }
   return group;
 }
 
-export function buildCeilings(project, rooms) {
+export function buildCeilings(project, rooms, holes = []) {
   const group = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({ color: '#f0ede6', roughness: 0.95, side: THREE.DoubleSide });
   for (const r of rooms) {
-    const shape = new THREE.Shape();
-    r.polygon.forEach((p, i) => {
-      if (i === 0) shape.moveTo(p.x, -p.y);
-      else shape.lineTo(p.x, -p.y);
-    });
-    const geo = new THREE.ShapeGeometry(shape);
+    const geo = new THREE.ShapeGeometry(roomShape(r.polygon, holes));
     geo.rotateX(-Math.PI / 2);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = project.settings.wallHeight - 0.5;
@@ -550,6 +564,7 @@ export function buildGround(project) {
   const mesh = new THREE.Mesh(geo, archMat(matId));
   mesh.position.y = -1;
   mesh.receiveShadow = true;
+  mesh.userData.walkable = true;
   group.add(mesh);
   return group;
 }

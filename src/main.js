@@ -1,6 +1,5 @@
 // App bootstrap: splash → project home → studio (2D editor + 3D viewer).
 import { Store } from './core/state.js';
-import { preloadFileTextures } from './core/textures.js';
 import { initOrientation } from './core/orientation.js';
 import { Editor2D } from './editor/editor2d.js';
 import { Viewer3D } from './viewer/viewer3d.js';
@@ -32,7 +31,9 @@ const ui = new UI(store, editor, viewer, () => {
 });
 
 home.showSplash();
-preloadFileTextures(); // photo materials download while the splash plays
+// photo textures load lazily on first use (cellular-friendly); ask the
+// browser to keep our saved projects out of storage eviction
+navigator.storage?.persist?.().catch(() => { /* best effort */ });
 
 window.addEventListener('resize', () => {
   editor.resize();

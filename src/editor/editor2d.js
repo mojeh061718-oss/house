@@ -486,6 +486,60 @@ export class Editor2D {
     return snapPose(this.store.project.walls, def, w.x, w.y, opts);
   }
 
+  /** While dragging: snap into center-alignment with other items and measure
+   *  live gaps to the nearest wall in each direction (drawn as guides). */
+  updateDragGuides(it, m) {
+    m.alignV = m.alignH = null;
+    m.gaps = null;
+    const tol = 10 / this.view.scale;
+    let bestX = tol, bestY = tol;
+    for (const o of this.store.project.items) {
+      if (o.id === it.id || o.path) continue;
+      const dx = Math.abs(o.x - it.x), dy = Math.abs(o.y - it.y);
+      if (dx < bestX) { bestX = dx; m.alignV = o; }
+      if (dy < bestY) { bestY = dy; m.alignH = o; }
+    }
+    if (m.alignV) it.x = m.alignV.x;
+    if (m.alignH) it.y = m.alignH.y;
+    m.gaps = this.wallGaps(it);
+  }
+
+  /** Clear gap from each side of an item to the nearest facing wall. */
+  wallGaps(it) {
+    const cos = Math.cos(it.rotation), sin = Math.sin(it.rotation);
+    const hx = (Math.abs(it.w * cos) + Math.abs(it.d * sin)) / 2;
+    const hy = (Math.abs(it.w * sin) + Math.abs(it.d * cos)) / 2;
+    const walls = this.store.project.walls;
+    const probe = (dx, dy) => {
+      let best = null;
+      for (const w of walls) {
+        let hit, d;
+        if (dx) {
+          if ((w.ay - it.y) * (w.by - it.y) > 0 || Math.abs(w.ay - w.by) < EPS) continue;
+          const t = (it.y - w.ay) / (w.by - w.ay);
+          hit = { x: w.ax + (w.bx - w.ax) * t, y: it.y };
+          d = (hit.x - it.x) * dx;
+        } else {
+          if ((w.ax - it.x) * (w.bx - it.x) > 0 || Math.abs(w.ax - w.bx) < EPS) continue;
+          const t = (it.x - w.ax) / (w.bx - w.ax);
+          hit = { x: it.x, y: w.ay + (w.by - w.ay) * t };
+          d = (hit.y - it.y) * dy;
+        }
+        if (d > 0 && (!best || d < best.d)) best = { d, hit, th: w.thickness };
+      }
+      if (!best) return null;
+      const half = dx ? hx : hy;
+      const gap = best.d - half - best.th / 2;
+      if (gap < 2 || gap > 900) return null;
+      return {
+        x1: it.x + dx * half, y1: it.y + dy * half,
+        x2: best.hit.x - dx * best.th / 2, y2: best.hit.y - dy * best.th / 2,
+        gap
+      };
+    };
+    return [probe(1, 0), probe(-1, 0), probe(0, 1), probe(0, -1)].filter(Boolean);
+  }
+
   itemHandleAt(it, sx, sy) {
     const handles = this.itemHandles(it);
     let best = null, bestD = this.handleHit;
@@ -656,6 +710,7 @@ export class Editor2D {
         it.x = pose.x;
         it.y = pose.y;
         if (pose.snapped) it.rotation = pose.rot;
+        this.updateDragGuides(it, m);
         store.commit(false);
         break;
       }
@@ -1286,6 +1341,39 @@ export class Editor2D {
       ctx.strokeRect(Math.min(s.x, c.x), Math.min(s.y, c.y), Math.abs(c.x - s.x), Math.abs(c.y - s.y));
       ctx.globalAlpha = 1;
     }
+    if (m.name === 'dragItem' && m.moved) {
+      const it = store.item(m.id);
+      if (it) {
+        // green alignment guides through matching item centers
+        ctx.strokeStyle = 'rgba(47,191,113,0.85)';
+        ctx.lineWidth = 1.4 * px;
+        ctx.setLineDash([7 * px, 5 * px]);
+        for (const [o, vert] of [[m.alignV, true], [m.alignH, false]]) {
+          if (!o) continue;
+          ctx.beginPath();
+          if (vert) {
+            ctx.moveTo(it.x, Math.min(it.y, o.y) - 40);
+            ctx.lineTo(it.x, Math.max(it.y, o.y) + 40);
+          } else {
+            ctx.moveTo(Math.min(it.x, o.x) - 40, it.y);
+            ctx.lineTo(Math.max(it.x, o.x) + 40, it.y);
+          }
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        // blue gap lines from the item's sides to the facing walls
+        ctx.strokeStyle = 'rgba(56,132,255,0.85)';
+        ctx.lineWidth = 1.3 * px;
+        for (const g of m.gaps || []) {
+          const tx = g.y1 === g.y2 ? 0 : 6, ty = g.x1 === g.x2 ? 0 : 6; // tick dir
+          ctx.beginPath();
+          ctx.moveTo(g.x1, g.y1); ctx.lineTo(g.x2, g.y2);
+          ctx.moveTo(g.x1 - tx, g.y1 - ty); ctx.lineTo(g.x1 + tx, g.y1 + ty);
+          ctx.moveTo(g.x2 - tx, g.y2 - ty); ctx.lineTo(g.x2 + tx, g.y2 + ty);
+          ctx.stroke();
+        }
+      }
+    }
     if (m.name === 'marquee' && m.cur) {
       const { start: s, cur: c } = m;
       ctx.fillStyle = 'rgba(56,132,255,0.12)';
@@ -1486,6 +1574,23 @@ export class Editor2D {
         ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
         ctx.fillText(`${fmtFtIn(w)} × ${fmtFtIn(d)}`, s.x, s.y);
+      }
+    }
+    // live wall-gap labels while dragging an item
+    if (this.mode.name === 'dragItem' && this.mode.moved && this.mode.gaps?.length) {
+      ctx.font = '600 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      for (const g of this.mode.gaps) {
+        const s = this.toScreen((g.x1 + g.x2) / 2, (g.y1 + g.y2) / 2);
+        const text = fmtFtIn(g.gap);
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(s.x - tw / 2 - 6, s.y - 9, tw + 12, 17, 8.5);
+        else ctx.rect(s.x - tw / 2 - 6, s.y - 9, tw + 12, 17);
+        ctx.fill();
+        ctx.fillStyle = '#2b6fe0';
+        ctx.fillText(text, s.x, s.y + 4);
       }
     }
     // selected item dims

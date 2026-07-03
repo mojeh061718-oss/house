@@ -16,7 +16,25 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.12.1** (room delete: unique walls + inside items go,
+- Current version: **2.13.0** — improvement round:
+  stairs/elevators cut real floor & ceiling openings (`viewer3d.stairHoles`
+  → `buildFloors/buildCeilings(project, rooms, holes)`; earcut handles hole
+  winding); walk mode follows walkable surfaces (`walkSurfaceY` raycast vs
+  meshes tagged `userData.walkable` — floors, ground, stairs) so you can
+  climb to the next floor; autoRoof decomposes L/T/U footprints into ≤3
+  rect sections (occupancy grid over room-vertex lines, greedy largest-rect;
+  shared ridge height, 0.5cm elevation stagger kills fascia z-fighting; flat
+  roofs & non-rectilinear plans fall back to bbox); photo textures now load
+  LAZILY (no startup preload — `getMaterialPreview` returns placeholder
+  without fetching; `ensureTexture` fires when a drawer with swatches opens
+  via `ui.loadSwatchTextures`); backup/restore in `core/projects.js`
+  (`exportBackup/importBackup/backupToFile` — iOS share sheet, merge-by-id
+  with newer-local-wins; Back up/Restore on home screen + studio menu +
+  14-day reminder banner; `navigator.storage.persist()` at boot); 2D drag
+  shows green center-alignment guides (snaps) + blue wall-gap dimension
+  lines (`updateDragGuides/wallGaps`); catalog is a full-screen bottom sheet
+  on compact phones with one-row scrollable tabs
+- Previous: **2.12.1** (room delete: unique walls + inside items go,
   shared partitions & roof-level items stay — see `deleteSelection`; rulers
   label whole feet from the plan's min corner, no negatives; ALL length
   fields display/parse ft-in via `fmtFtIn`/`parseFtIn` in units.js — bare

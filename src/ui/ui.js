@@ -4,7 +4,7 @@ import { ICONS, icon } from './icons.js';
 import { thumbnail } from './thumbs.js';
 import pkg from '../../package.json';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
-import { MATERIALS, getMaterialPreview } from '../core/textures.js';
+import { MATERIALS, getMaterialPreview, watchTextures, ensureTexture } from '../core/textures.js';
 import { wallLength, pointInPolygon } from '../core/geometry.js';
 import { fmtFtIn, fmtArea, parseFtIn } from '../core/units.js';
 import { THEMES, applyTheme } from '../core/themes.js';
@@ -13,6 +13,7 @@ import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
 import { OPENING_TYPES, OPENING_MAP } from '../core/openings.js';
 import { autoRoof } from '../core/autoroof.js';
 import { onRotationChange } from '../core/orientation.js';
+import { backupToFile, importBackup, isBackup } from '../core/projects.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -47,6 +48,13 @@ export class UI {
     this.syncCompact();
     window.addEventListener('resize', () => this.syncCompact());
     onRotationChange(() => setTimeout(() => this.syncCompact(), 50));
+
+    // photo textures load lazily; refresh any visible swatches on arrival
+    watchTextures((matId) => {
+      document.querySelectorAll(`.mat-swatch img[data-mat="${matId}"]`).forEach(img => {
+        img.src = getMaterialPreview(matId);
+      });
+    });
 
     store.on('selection', () => {
       if (store.selection?.kind === 'room') this._lastRoomKey = store.selection.id;
@@ -112,6 +120,7 @@ export class UI {
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
         <button id="mSave">${icon('download')} Download project file</button>
         <button id="mOpen">${icon('open')} Open project file</button>
+        <button id="mBackup">${icon('save')} Back up all projects</button>
         <div class="menu-version">Honeycutt Home Studio v${pkg.version}
           <span id="vpDiag"></span></div>
       </div>`;
@@ -230,6 +239,14 @@ export class UI {
       a.click();
       URL.revokeObjectURL(a.href);
     };
+    $('#mBackup').onclick = async () => {
+      store.saveNow();
+      try {
+        if (await backupToFile()) this.toast('All projects backed up');
+      } catch {
+        this.toast('Backup failed — please try again');
+      }
+    };
     $('#mOpen').onclick = () => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -240,6 +257,13 @@ export class UI {
         f.text().then(txt => {
           try {
             const data = JSON.parse(txt);
+            if (isBackup(data)) {
+              const n = importBackup(data);
+              this.toast(n > 0
+                ? `${n} project${n === 1 ? '' : 's'} restored — see Back to projects`
+                : 'That backup is already fully on this device');
+              return;
+            }
             if (!Array.isArray(data.walls) && !Array.isArray(data.levels)) throw new Error('bad file');
             store.loadProject(data, store.currentProjectId);
           } catch {
@@ -557,7 +581,10 @@ export class UI {
     // Copy applies to items, whole rooms, and multi groups
     $('#selDup').style.display = (isItem || sel?.kind === 'room' || sel?.kind === 'multi') ? '' : 'none';
     // wide screens: surface the details drawer automatically
-    if (sel && this.wide.matches) $('#props').classList.add('open');
+    if (sel && this.wide.matches) {
+      $('#props').classList.add('open');
+      this.loadSwatchTextures('props');
+    }
     if (!sel) this.closeDrawer('props');
   }
 
@@ -1052,6 +1079,7 @@ export class UI {
     }
     const closeBtn = panel.querySelector('[data-close]');
     if (closeBtn) closeBtn.onclick = () => this.closeDrawer('props');
+    this.loadSwatchTextures('props'); // grids were rebuilt — fetch visible photos
   }
 
   fillPropValues() {
@@ -1168,7 +1196,7 @@ export class UI {
       for (const m of list.filter(m => (m.group || '') === g)) {
         const b = el('button', 'mat-swatch' + (m.id === current ? ' active' : ''));
         b.title = m.name;
-        b.innerHTML = `<img src="${getMaterialPreview(m.id)}" alt="${m.name}"/><span>${m.name}</span>`;
+        b.innerHTML = `<img src="${getMaterialPreview(m.id)}" data-mat="${m.id}" alt="${m.name}"/><span>${m.name}</span>`;
         b.onclick = () => {
           grid.querySelectorAll('.mat-swatch').forEach(s => s.classList.remove('active'));
           b.classList.add('active');
@@ -1186,7 +1214,17 @@ export class UI {
     const willOpen = !d.classList.contains('open');
     this.closeDrawer('catalog');
     this.closeDrawer('props');
-    if (willOpen) d.classList.add('open');
+    if (willOpen) {
+      d.classList.add('open');
+      this.loadSwatchTextures(which);
+    }
+  }
+
+  /** Photo swatches download lazily — fetch the ones now on screen. */
+  loadSwatchTextures(which) {
+    const panel = $('#' + which);
+    if (!panel?.classList.contains('open')) return;
+    panel.querySelectorAll('.mat-swatch img[data-mat]').forEach(img => ensureTexture(img.dataset.mat));
   }
 
   closeDrawer(which) {

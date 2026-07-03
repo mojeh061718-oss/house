@@ -821,19 +821,30 @@ export function getTextureCanvases(matId) {
   return entry;
 }
 
-/** Kick off downloads for all photo materials (call once at startup). */
-export function preloadFileTextures() {
-  for (const m of MATERIALS) if (m.file) getTextureCanvases(m.id);
+/** Kick off the download of a photo material (no-op for procedural ones).
+ *  Call when its swatch actually becomes visible. */
+export function ensureTexture(matId) {
+  getTextureCanvases(matId);
 }
 
-/** Small preview data-URL for material swatches in the UI. */
+/** Small preview data-URL for material swatches in the UI. Photo materials
+ *  that haven't been downloaded yet get a flat placeholder WITHOUT starting
+ *  the download — panels are built eagerly but often never shown, and the
+ *  fetch would pull every texture over cellular at startup. */
 const previewCache = new Map();
 export function getMaterialPreview(matId, size = 72) {
   const key = `${matId}_${size}`;
   if (previewCache.has(key)) return previewCache.get(key);
-  const { color } = getTextureCanvases(matId);
+  const def = MATERIAL_MAP.get(matId);
   const c = document.createElement('canvas');
   c.width = size; c.height = size;
+  if (def?.file && !canvasCache.has(matId)) {
+    const g = c.getContext('2d');
+    g.fillStyle = def.placeholder || '#b0a894';
+    g.fillRect(0, 0, size, size);
+    return c.toDataURL(); // not cached: the real preview replaces it on load
+  }
+  const { color } = getTextureCanvases(matId);
   c.getContext('2d').drawImage(color, 0, 0, size, size);
   const url = c.toDataURL();
   previewCache.set(key, url);

@@ -1,7 +1,10 @@
 // Splash screen and project home screen ("Honeycutt Home Studio").
 import { ICONS } from './icons.js';
 import { isStandalone } from '../core/orientation.js';
-import { listProjects, deleteProject, newProjectId, migrateLegacy } from '../core/projects.js';
+import {
+  listProjects, deleteProject, newProjectId, migrateLegacy,
+  backupToFile, importBackup, isBackup, daysSinceBackup
+} from '../core/projects.js';
 import { emptyProject } from '../core/state.js';
 import { detectRooms } from '../core/geometry.js';
 import { demoProject, mansionProject } from '../demo.js';
@@ -122,7 +125,17 @@ export class Home {
             <h1>Honeycutt <b>Home Studio</b></h1>
             <p>Design your space in 2D &amp; 3D</p>
           </div>
+          <span class="home-head-actions">
+            <button class="home-action" id="homeBackup" title="Save all projects to a file">${ICONS.download}<span>Back up</span></button>
+            <button class="home-action" id="homeRestore" title="Restore projects from a backup file">${ICONS.open}<span>Restore</span></button>
+          </span>
         </header>
+        ${projects.length && daysSinceBackup() > 14 ? `
+        <div class="install-tip" id="backupTip">
+          <span>${ICONS.download}</span>
+          <p>Your designs live only on this device. Tap <b>Back up</b> to save
+          them all to a file in case the app is ever removed.</p>
+        </div>` : ''}
         <div class="home-grid">
           <button class="proj-card new" id="homeNew">
             <span class="new-plus">${ICONS.plus}</span>
@@ -156,6 +169,35 @@ export class Home {
         $('#installTip').remove();
       };
     }
+    $('#homeBackup').onclick = async () => {
+      try {
+        if (await backupToFile()) this.render();
+      } catch {
+        alert('Backup failed — please try again.');
+      }
+    };
+    $('#homeRestore').onclick = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = () => {
+        const f = input.files[0];
+        if (!f) return;
+        f.text().then(txt => {
+          try {
+            const data = JSON.parse(txt);
+            if (!isBackup(data)) throw new Error('not a backup');
+            const n = importBackup(data);
+            alert(n > 0 ? `${n} project${n === 1 ? '' : 's'} restored.`
+              : 'Nothing to restore — everything in that backup is already here.');
+            this.render();
+          } catch {
+            alert('That file is not a Home Studio backup.');
+          }
+        });
+      };
+      input.click();
+    };
     $('#homeNew').onclick = () => {
       this.hide();
       this.openFn(emptyProject('My home'), newProjectId());

@@ -70,3 +70,71 @@ export function deleteProject(id) {
   delete map[id];
   writeAll(map);
 }
+
+// ---- backup & restore -------------------------------------------------------
+
+const BACKUP_AT_KEY = 'honeycutt.lastBackupAt';
+
+/** Every saved project bundled into one portable JSON blob. */
+export function exportBackup() {
+  return JSON.stringify({
+    app: 'honeycutt-home-studio',
+    kind: 'backup',
+    version: 1,
+    exportedAt: Date.now(),
+    projects: readAll()
+  }, null, 2);
+}
+
+/** Is this parsed JSON one of our backup files? */
+export function isBackup(data) {
+  return !!(data && data.kind === 'backup' && data.projects && typeof data.projects === 'object');
+}
+
+/** Merge a backup into local storage (newer local edits win). Returns count. */
+export function importBackup(data) {
+  if (!isBackup(data)) return -1;
+  const map = readAll();
+  let n = 0;
+  for (const [id, entry] of Object.entries(data.projects)) {
+    if (!entry || typeof entry !== 'object' || !entry.data) continue;
+    if (map[id] && (map[id].updatedAt || 0) >= (entry.updatedAt || 0)) continue;
+    map[id] = { ...entry, id };
+    n++;
+  }
+  writeAll(map);
+  return n;
+}
+
+/** Days since the last backup, or Infinity if never backed up. */
+export function daysSinceBackup() {
+  const at = parseInt(localStorage.getItem(BACKUP_AT_KEY) || '0', 10);
+  return at ? (Date.now() - at) / 86400000 : Infinity;
+}
+
+/**
+ * Save all projects to a file. Uses the iOS share sheet when available
+ * (→ Files, AirDrop, Messages...), otherwise a plain download.
+ */
+export async function backupToFile() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const name = `home-studio-backup-${stamp}.json`;
+  const json = exportBackup();
+  const file = new File([json], name, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Home Studio backup' });
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') return false; // user closed the sheet
+    throw err;
+  }
+  localStorage.setItem(BACKUP_AT_KEY, String(Date.now()));
+  return true;
+}

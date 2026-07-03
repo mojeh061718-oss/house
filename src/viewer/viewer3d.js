@@ -231,6 +231,23 @@ export class Viewer3D {
     return i * (this.store.project.settings.wallHeight + SLAB);
   }
 
+  /** Stairwell cut-outs cast by a level's stairs/elevators (world rects). */
+  stairHoles(lvl) {
+    const holes = [];
+    for (const it of lvl.items) {
+      const def = ITEM_MAP.get(it.defId);
+      const t = def?.plan?.type;
+      if (t !== 'stairs' && t !== 'elevator') continue;
+      const cos = Math.cos(it.rotation || 0), sin = Math.sin(it.rotation || 0);
+      const hw = it.w / 2, hd = it.d / 2;
+      holes.push([[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([lx, ly]) => ({
+        x: it.x + lx * cos - ly * sin,
+        y: it.y + lx * sin + ly * cos
+      })));
+    }
+    return holes;
+  }
+
   rebuild() {
     this.needsRebuild = false;
     const { project } = this.store;
@@ -249,18 +266,22 @@ export class Viewer3D {
       };
       const rooms = i === active ? this.store.rooms
         : detectRooms(lvl.walls).map(r => (r.key = roomKey(r), r));
+      // stairs on the level below cut an opening in this level's floor;
+      // stairs on this level cut its ceiling (when a floor exists above)
+      const floorHoles = i > 0 ? this.stairHoles(project.levels[i - 1]) : [];
       const g = new THREE.Group();
       g.position.y = this.levelY(i);
       g.userData.level = i;
       guard(() => g.add(buildWalls(shim, rooms)), 'walls');
-      guard(() => g.add(buildFloors(shim, rooms)), 'floors');
+      guard(() => g.add(buildFloors(shim, rooms, floorHoles)), 'floors');
       if ((this.showCeilings || this.walkMode) && i === active) {
-        guard(() => g.add(buildCeilings(shim, rooms)), 'ceilings');
+        const ceilHoles = i < project.levels.length - 1 ? this.stairHoles(lvl) : [];
+        guard(() => g.add(buildCeilings(shim, rooms, ceilHoles)), 'ceilings');
       }
       // upper levels sit on a visible structural slab
       if (i > 0) {
         guard(() => {
-          const slab = buildFloors(shim, rooms);
+          const slab = buildFloors(shim, rooms, floorHoles);
           slab.traverse(o => {
             if (o.isMesh) {
               o.material = o.material.clone();
@@ -304,6 +325,7 @@ export class Viewer3D {
         outer.userData.itemId = it.id;
         outer.userData.level = li;
         outer.userData.palette = it.palette;
+        if (def.plan?.type === 'stairs') outer.userData.walkable = true;
         outer.userData.w = it.w; outer.userData.d = it.d; outer.userData.h = it.h;
         outer.userData.pw = it.pw;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
@@ -731,6 +753,30 @@ export class Viewer3D {
     return null;
   }
 
+  /** Walkable surface height under a walk-mode position: floors, ground and
+   *  stair treads. Casts down from just above knee height so the next tread
+   *  up is caught, but the storey above is not. Returns null when nothing
+   *  walkable is below. */
+  walkSurfaceY(x, z, eyeY) {
+    if (!this._downRay) this._downRay = new THREE.Raycaster();
+    const feet = eyeY - 160;
+    this._downRay.set(new THREE.Vector3(x, feet + 80, z), new THREE.Vector3(0, -1, 0));
+    this._downRay.far = 3000;
+    const stairs = [];
+    for (const g of this.itemsGroup.children) {
+      if (g.userData.walkable) stairs.push(g);
+    }
+    const hits = this._downRay.intersectObjects([this.archGroup, this.groundGroup, ...stairs], true);
+    for (const h of hits) {
+      let o = h.object;
+      while (o) {
+        if (o.userData.walkable) return h.point.y;
+        o = o.parent;
+      }
+    }
+    return null;
+  }
+
   /** Ground-plane point under the pointer (world cm in plan coords). */
   castGround(p) {
     this.raycaster.setFromCamera(this.toNDC(p), this.camera);
@@ -1075,6 +1121,12 @@ export class Viewer3D {
         const rx = Math.cos(yaw), rz = -Math.sin(yaw);
         this.walk.pos.x += (fx * -mz + rx * mx) * speed;
         this.walk.pos.z += (fz * -mz + rz * mx) * speed;
+      }
+      // follow walkable surfaces: climbing stairs raises the eye onto the
+      // floor above through its stairwell opening
+      const surf = this.walkSurfaceY(this.walk.pos.x, this.walk.pos.z, this.walk.pos.y);
+      if (surf !== null) {
+        this.walk.pos.y += (surf + 160 - this.walk.pos.y) * Math.min(1, dt * 9);
       }
       // eased look for comfortable navigation
       if (this.walk.targetYaw !== undefined) {
