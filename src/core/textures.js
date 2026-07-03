@@ -743,7 +743,33 @@ MATERIALS.push(
   { id: 'real_pine', group: 'Wood', name: 'Reclaimed Pine · Photo', use: 'floor', file: 'tex/woodfloor043.jpg', scale: 280, rough: 0.7, placeholder: '#8a6238' },
   { id: 'real_checker', group: 'Stone & Tile', name: 'Vintage Checker · Photo', use: 'floor', file: 'tex/tiles074.jpg', scale: 240, rough: 0.2, placeholder: '#b9b0a4' },
   { id: 'real_marble', group: 'Stone & Tile', name: 'Carrara · Photo', use: 'floor', file: 'tex/marble012.jpg', scale: 300, rough: 0.14, placeholder: '#dcdee2' },
-  { id: 'real_brick', group: 'Brick & Tile', name: 'Old Brick · Photo', use: 'wall', file: 'tex/bricks090.jpg', scale: 220, rough: 0.9, placeholder: '#b0714f' }
+  { id: 'real_brick', group: 'Brick & Tile', name: 'Old Brick · Photo', use: 'wall', file: 'tex/bricks090.jpg', scale: 220, rough: 0.9, placeholder: '#b0714f' },
+
+  // photo pack round 2 — all CC0 from ambientCG (see README attribution)
+  { id: 'real_honey_strip', group: 'Wood', name: 'Honey Strip · Photo', use: 'floor', file: 'tex/woodfloor040.jpg', scale: 250, rough: 0.5, placeholder: '#b98a52' },
+  { id: 'real_blond_wide', group: 'Wood', name: 'Blond Wide Plank · Photo', use: 'floor', file: 'tex/woodfloor039.jpg', scale: 300, rough: 0.55, placeholder: '#d3b285' },
+  { id: 'real_amber_bamboo', group: 'Wood', name: 'Amber Bamboo · Photo', use: 'floor', file: 'tex/woodfloor062.jpg', scale: 260, rough: 0.5, placeholder: '#c08a4a' },
+  { id: 'real_walnut_strip', group: 'Wood', name: 'Walnut Strip · Photo', use: 'floor', file: 'tex/woodfloor007.jpg', scale: 250, rough: 0.5, placeholder: '#7a5433' },
+  { id: 'real_nero', group: 'Stone & Tile', name: 'Nero Marquina · Photo', use: 'floor', file: 'tex/marble006.jpg', scale: 280, rough: 0.15, placeholder: '#26282b' },
+  { id: 'real_travertine', group: 'Stone & Tile', name: 'Roman Travertine · Photo', use: 'floor', file: 'tex/travertine009.jpg', scale: 260, rough: 0.35, placeholder: '#d8c8a8' },
+  { id: 'real_terrazzo', group: 'Stone & Tile', name: 'Terrazzo · Photo', use: 'floor', file: 'tex/terrazzo013.jpg', scale: 220, rough: 0.25, placeholder: '#e8e2da' },
+  { id: 'real_white_tile', group: 'Stone & Tile', name: 'White Ceramic · Photo', use: 'floor', file: 'tex/tiles107.jpg', scale: 180, rough: 0.2, placeholder: '#e9eaea' },
+  { id: 'real_carpet_oat', group: 'Carpet', name: 'Oat Weave · Photo', use: 'floor', file: 'tex/carpet016.jpg', scale: 120, rough: 0.95, placeholder: '#cfc2a8' },
+  { id: 'real_carpet_berry', group: 'Carpet', name: 'Berry Plush · Photo', use: 'floor', file: 'tex/carpet013.jpg', scale: 120, rough: 0.95, placeholder: '#a84a52' },
+  { id: 'real_plaster_soft', group: 'Plaster & Concrete', name: 'Soft Plaster · Photo', use: 'wall', file: 'tex/plaster001.jpg', scale: 260, rough: 0.85, placeholder: '#d9d6cf' },
+  { id: 'real_plaster_ivory', group: 'Plaster & Concrete', name: 'Ivory Plaster · Photo', use: 'wall', file: 'tex/paintedplaster017.jpg', scale: 260, rough: 0.9, placeholder: '#ddd6c6' },
+  { id: 'real_mosaic_blue', group: 'Brick & Tile', name: 'Blue Glass Mosaic · Photo', use: 'wall', file: 'tex/tiles133a.jpg', scale: 120, rough: 0.15, placeholder: '#cfe2e8' },
+  { id: 'real_brick_red', group: 'Brick & Tile', name: 'Classic Red Brick · Photo', use: 'wall', file: 'tex/bricks059.jpg', scale: 200, rough: 0.9, placeholder: '#96513c' },
+  { id: 'real_brick_gray', group: 'Brick & Tile', name: 'Urban Grey Brick · Photo', use: 'wall', file: 'tex/bricks066.jpg', scale: 200, rough: 0.9, placeholder: '#8d9195' },
+  { id: 'real_siding_stained', group: 'Exterior Siding', name: 'Stained Cedar · Photo', use: 'wall', file: 'tex/woodsiding008.jpg', scale: 200, rough: 0.7, placeholder: '#5a4632' },
+  { id: 'real_barnwood_siding', group: 'Exterior Siding', name: 'Rustic Barnwood · Photo', use: 'wall', file: 'tex/planks037a.jpg', scale: 240, rough: 0.8, placeholder: '#5f4a38' },
+  { id: 'real_lawn', name: 'Real Lawn · Photo', use: 'ground', file: 'tex/grass004.jpg', scale: 380, rough: 1.0, placeholder: '#5c7a3a' },
+  { id: 'real_meadow', name: 'Wild Yard · Photo', use: 'ground', file: 'tex/ground037.jpg', scale: 420, rough: 1.0, placeholder: '#7a7a4a' },
+  { id: 'real_gravel_white', name: 'White Gravel · Photo', use: 'ground', file: 'tex/gravel023.jpg', scale: 240, rough: 0.95, placeholder: '#cfccc4' },
+  { id: 'real_cobblestone', name: 'Cobblestone · Photo', use: 'ground', file: 'tex/pavingstones070.jpg', scale: 320, rough: 0.9, placeholder: '#8d8d88' },
+  { id: 'real_plank_pavers', name: 'Plank Pavers · Photo', use: 'ground', file: 'tex/pavingstones128.jpg', scale: 300, rough: 0.8, placeholder: '#a89880' },
+  { id: 'real_roof_slate', name: 'Scale Slate · Photo', use: 'internal', file: 'tex/roofingtiles001.jpg', scale: 200, rough: 0.85, placeholder: '#3f4448' },
+  { id: 'real_roof_clay', name: 'Aged Clay · Photo', use: 'internal', file: 'tex/roofingtiles007.jpg', scale: 200, rough: 0.8, placeholder: '#9a5a40' }
 );
 
 export const MATERIAL_MAP = new Map(MATERIALS.map(m => [m.id, m]));

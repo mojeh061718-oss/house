@@ -39,7 +39,9 @@ const ROOFS = [
   { name: 'Timber', chip: '#6a5442', roof: 'shingle_brown' },
   { name: 'Clay', chip: '#8d4a34', roof: 'shingle_red' },
   { name: 'Slate', chip: '#4e5a5e', roof: 'shingle_slate' },
-  { name: 'Metal', chip: '#5b6166', roof: 'roof_metal' }
+  { name: 'Metal', chip: '#5b6166', roof: 'roof_metal' },
+  { name: 'Scale Slate', chip: '#3f4448', roof: 'real_roof_slate' },
+  { name: 'Aged Clay', chip: '#9a5a40', roof: 'real_roof_clay' }
 ];
 
 function sofaBuilder(seats, W, D, H) {

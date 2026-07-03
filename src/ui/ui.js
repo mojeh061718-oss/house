@@ -12,6 +12,7 @@ import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
 import { OPENING_TYPES, OPENING_MAP } from '../core/openings.js';
 import { autoRoof } from '../core/autoroof.js';
+import { onRotationChange } from '../core/orientation.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -40,6 +41,12 @@ export class UI {
     this.buildCatalog();
     this.buildFabs();
     this.buildLevelBar();
+
+    // compact chrome on short screens (phones, incl. the rotated-portrait
+    // mode where CSS media queries see the wrong axis)
+    this.syncCompact();
+    window.addEventListener('resize', () => this.syncCompact());
+    onRotationChange(() => setTimeout(() => this.syncCompact(), 50));
 
     store.on('selection', () => {
       if (store.selection?.kind === 'room') this._lastRoomKey = store.selection.id;
@@ -318,6 +325,12 @@ export class UI {
     });
   }
 
+  /** Toggle compact chrome when the app's effective height is phone-sized. */
+  syncCompact() {
+    const app = document.getElementById('app');
+    if (app) app.classList.toggle('compact', app.offsetHeight < 500);
+  }
+
   // ---- door / window style picker -----------------------------------------
 
   openTypePop(kind, btn) {
@@ -328,7 +341,7 @@ export class UI {
     for (const t of OPENING_TYPES.filter(t => t.kind === kind)) {
       const card = el('button', 'type-card' + (t.id === current ? ' active' : ''));
       const cv = document.createElement('canvas');
-      cv.width = 96; cv.height = 56;
+      cv.width = 192; cv.height = 112; // 2x for crisp lines on retina
       card.appendChild(cv);
       const name = el('span', '', t.name);
       card.appendChild(name);
@@ -344,9 +357,14 @@ export class UI {
       pop.appendChild(card);
     }
     const rail = $('#toolrail');
+    const ws = $('#workspace');
     pop.style.left = rail.offsetLeft + rail.offsetWidth + 8 + 'px';
-    pop.style.top = Math.max(8, rail.offsetTop + btn.offsetTop - 30) + 'px';
-    $('#workspace').appendChild(pop);
+    // never taller than the workspace — it scrolls instead of clipping
+    pop.style.maxHeight = ws.offsetHeight - 16 + 'px';
+    ws.appendChild(pop);
+    // clamp so the whole popover stays on screen (phones are short)
+    const desired = rail.offsetTop + btn.offsetTop - 30;
+    pop.style.top = Math.max(8, Math.min(desired, ws.offsetHeight - pop.offsetHeight - 8)) + 'px';
     this._typePop = pop;
   }
 
@@ -360,7 +378,9 @@ export class UI {
   /** Small architectural plan glyph for an opening type (picker cards). */
   drawOpeningGlyph(cv, typeId) {
     const g = cv.getContext('2d');
-    const W = cv.width, H = cv.height;
+    // canvas is 2x the CSS size; draw in 96x56 logical space
+    const W = cv.width / 2, H = cv.height / 2;
+    g.setTransform(2, 0, 0, 2, 0, 0);
     const th = 5;                   // wall half-thickness in glyph px
     const cy = H * 0.62;
     const hw = W * 0.3;             // opening half-width

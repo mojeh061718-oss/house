@@ -14,9 +14,15 @@ assets except five CC0 JPGs in `public/tex/` (ambientCG, attributed in
 README).
 
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
-  v2.11.0 was developed on `claude/handoff-md-completion-8vnjdh` — merge it
-  into the app branch to deploy.
-- Current version: **2.11.0** (tasks 2-8 below all shipped in it)
+  Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
+  and merged across to deploy.
+- Current version: **2.12.0** (tasks 2-8 shipped in 2.11.0; 2.12.0 added a
+  24-texture CC0 photo pack from ambientCG — floors/walls/siding/ground +
+  2 photo roof palette entries (`real_roof_slate/clay` in ROOFS), all
+  attributed in README — plus compact phone chrome: `ui.syncCompact()`
+  toggles `#app.compact` when app height < 500px (CSS media queries see the
+  wrong axis in rotated-portrait mode), the type-pop popover clamps inside
+  #workspace, and picker glyph canvases render at 2x for retina)
 - Deploy: `.github/workflows/deploy.yml` builds and force-pushes `dist/`
   to `gh-pages` on push. Verify by polling
   `git fetch origin gh-pages && git log -1 --format=%s origin/gh-pages`

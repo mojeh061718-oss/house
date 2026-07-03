@@ -90,8 +90,12 @@ Units are centimeters throughout. The only runtime dependency is
 
 ## Texture attribution
 
-The photo-scanned materials in `public/tex/` (`Blond Strip`, `Reclaimed
-Pine`, `Vintage Checker`, `Carrara`, `Old Brick`) are CC0 assets from
-[ambientCG](https://ambientcg.com) (WoodFloor051, WoodFloor043, Tiles074,
-Marble012, Bricks090 · 1K JPG color maps). All other textures are generated
-procedurally at runtime.
+All photo-scanned materials in `public/tex/` are CC0 assets from
+[ambientCG](https://ambientcg.com) (1K JPG color maps, resized/recompressed):
+WoodFloor051, WoodFloor043, WoodFloor040, WoodFloor039, WoodFloor062,
+WoodFloor007, Tiles074, Tiles107, Tiles133A, Marble012, Marble006,
+Travertine009, Terrazzo013, Carpet016, Carpet013, Plaster001,
+PaintedPlaster017, Bricks090, Bricks059, Bricks066, WoodSiding008,
+Planks037A, Grass004, Ground037, Gravel023, PavingStones070,
+PavingStones128, RoofingTiles001, RoofingTiles007. All other textures are
+generated procedurally at runtime.
