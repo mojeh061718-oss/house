@@ -16,7 +16,12 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.12.0** (tasks 2-8 shipped in 2.11.0; 2.12.0 added a
+- Current version: **2.12.1** (room delete: unique walls + inside items go,
+  shared partitions & roof-level items stay — see `deleteSelection`; rulers
+  label whole feet from the plan's min corner, no negatives; ALL length
+  fields display/parse ft-in via `fmtFtIn`/`parseFtIn` in units.js — bare
+  numbers mean feet, `"`/`in` means inches)
+- Previous: **2.12.0** (tasks 2-8 shipped in 2.11.0; 2.12.0 added a
   24-texture CC0 photo pack from ambientCG — floors/walls/siding/ground +
   2 photo roof palette entries (`real_roof_slate/clay` in ROOFS), all
   attributed in README — plus compact phone chrome: `ui.syncCompact()`

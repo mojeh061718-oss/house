@@ -1347,12 +1347,25 @@ export class Editor2D {
   drawRulers(ctx, W, H) {
     const view = this.view;
     const px = 1 / view.scale;
-    // pick a label spacing that keeps ticks ~60px apart on screen
-    const steps = [100, 200, 500, 1000, 2000, 5000, 10000];
-    const step = steps.find(s => s * view.scale >= 56) ?? 20000;
+    // whole-feet label spacing, ticks kept ~60px apart on screen
+    const FT = 30.48;
+    const steps = [1, 2, 5, 10, 20, 50, 100, 200].map(f => f * FT);
+    const step = steps.find(s => s * view.scale >= 56) ?? 500 * FT;
     const left = view.x - (W / 2) * px, right = view.x + (W / 2) * px;
     const top = view.y - (H / 2) * px, bottom = view.y + (H / 2) * px;
-    const label = v => v === 0 ? '0' : (v < 0 ? '-' : '') + fmtFtIn(Math.abs(v));
+    // measure from the plan's top-left corner so the numbers read as
+    // distance across the house, starting at 0 at its corner
+    let ox = 0, oy = 0;
+    const walls = this.store.project.walls;
+    if (walls.length) {
+      ox = 1e9; oy = 1e9;
+      for (const w of walls) {
+        ox = Math.min(ox, w.ax, w.bx);
+        oy = Math.min(oy, w.ay, w.by);
+      }
+    }
+    // labels land on whole feet (5', 10', …) measured from the house corner
+    const label = v => `${Math.round(v / FT)}'`;
 
     ctx.fillStyle = 'rgba(238,240,242,0.9)';
     ctx.fillRect(0, 0, W, 18);
@@ -1367,22 +1380,24 @@ export class Editor2D {
     ctx.font = '9.5px system-ui, sans-serif';
     ctx.strokeStyle = 'rgba(90,98,110,0.55)';
     ctx.textAlign = 'center';
-    for (let x = Math.ceil(left / step) * step; x <= right; x += step) {
+    for (let x = ox + Math.ceil((left - ox) / step) * step; x <= right; x += step) {
       const s = this.toScreen(x, 0).x;
       if (s < 40) continue;
       ctx.beginPath(); ctx.moveTo(s, 13); ctx.lineTo(s, 18); ctx.stroke();
+      if (x - ox < -0.5) continue; // empty space before the house: tick only
       ctx.fillStyle = 'rgba(70,77,88,0.85)';
-      ctx.fillText(label(x), s, 10.5);
+      ctx.fillText(label(x - ox), s, 10.5);
     }
-    for (let y = Math.ceil(top / step) * step; y <= bottom; y += step) {
+    for (let y = oy + Math.ceil((top - oy) / step) * step; y <= bottom; y += step) {
       const s = this.toScreen(0, y).y;
       if (s < 30) continue;
       ctx.beginPath(); ctx.moveTo(19, s); ctx.lineTo(24, s); ctx.stroke();
+      if (y - oy < -0.5) continue;
       ctx.save();
       ctx.translate(10.5, s);
       ctx.rotate(-Math.PI / 2);
       ctx.fillStyle = 'rgba(70,77,88,0.85)';
-      ctx.fillText(label(y), 0, 3.5);
+      ctx.fillText(label(y - oy), 0, 3.5);
       ctx.restore();
     }
 

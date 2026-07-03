@@ -24,3 +24,25 @@ export function inValue(cm) {
 export function fmtArea(cm2) {
   return `${(cm2 / 929.0304).toFixed(1)} sq ft`;
 }
+
+/**
+ * Parse a typed length into cm. Accepts what fmtFtIn prints and what people
+ * naturally type:  9'4"  ·  9' 4  ·  9.5'  ·  30"  ·  30in  ·  9.5 (feet).
+ * A bare number means feet; a trailing " or "in" means inches.
+ */
+export function parseFtIn(input) {
+  const s = String(input).trim()
+    .replace(/[“”″]/g, '"')
+    .replace(/[‘’′]/g, "'")
+    .replace(/\s*(ft|feet)\s*$/i, "'")
+    .toLowerCase();
+  if (!s) return NaN;
+  const m = s.match(/^(?:(\d+(?:\.\d+)?)\s*')?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/);
+  if (!m || (m[1] === undefined && m[2] === undefined)) return NaN;
+  if (m[1] === undefined && !/["]|in/.test(s)) {
+    return parseFloat(m[2]) * 12 * CM_PER_IN; // bare number = feet
+  }
+  const ft = parseFloat(m[1] || '0');
+  const inch = parseFloat(m[2] || '0');
+  return (ft * 12 + inch) * CM_PER_IN;
+}

@@ -6,7 +6,7 @@ import pkg from '../../package.json';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview } from '../core/textures.js';
 import { wallLength, pointInPolygon } from '../core/geometry.js';
-import { fmtFtIn, fmtArea, inValue, inToCm } from '../core/units.js';
+import { fmtFtIn, fmtArea, parseFtIn } from '../core/units.js';
 import { THEMES, applyTheme } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
@@ -1060,23 +1060,27 @@ export class UI {
     if (sel?.kind === 'item') {
       const it = store.item(sel.id);
       if (!it) return;
-      this.setVal('pW', inValue(it.w)); this.setVal('pD', inValue(it.d)); this.setVal('pH', inValue(it.h));
+      this.setVal('pW', fmtFtIn(it.w)); this.setVal('pD', fmtFtIn(it.d)); this.setVal('pH', fmtFtIn(it.h));
       this.setVal('pRot', deg(it.rotation));
-      this.setVal('pElev', inValue(it.elevation || 0));
+      this.setVal('pElev', fmtFtIn(it.elevation || 0));
+      this.setVal('pPW', it.pw !== undefined ? fmtFtIn(it.pw) : undefined);
     } else if (sel?.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) return;
-      this.setVal('pLen', inValue(wallLength(w)));
+      this.setVal('pLen', fmtFtIn(wallLength(w)));
+      this.setVal('pThick', fmtFtIn(w.thickness));
+      this.setVal('pWH', fmtFtIn(w.height));
     } else if (sel?.kind === 'opening') {
       const o = store.opening(sel.id);
       if (!o) return;
-      this.setVal('pOW', inValue(o.width));
-      this.setVal('pOH', inValue(o.height));
-      this.setVal('pOS', inValue(o.sill || 0));
+      this.setVal('pOW', fmtFtIn(o.width));
+      this.setVal('pOH', fmtFtIn(o.height));
+      this.setVal('pOS', fmtFtIn(o.sill || 0));
     }
   }
 
   setVal(id, v) {
+    if (v === undefined) return;
     const inp = document.getElementById(id);
     if (inp && document.activeElement !== inp) inp.value = v;
   }
@@ -1125,9 +1129,12 @@ export class UI {
     </label>`;
   }
 
-  /** Length row: stored in cm, displayed/edited in inches. */
+  /** Length row: stored in cm, shown and edited as feet/inches (9'4"). */
   lenRow(id, label, cmValue, readonly = false) {
-    return this.numRow(id, label, inValue(cmValue), 'in', readonly);
+    return `<label class="field"><span>${label}</span>
+      <span class="num-wrap"><input id="${id}" type="text" inputmode="text" autocapitalize="off"
+        value="${fmtFtIn(cmValue).replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''}/></span>
+    </label>`;
   }
 
   bindNum(id, fn) {
@@ -1139,9 +1146,15 @@ export class UI {
     });
   }
 
-  /** Change handler for length rows: input inches -> handler gets cm. */
+  /** Change handler for length rows: parses 9'4" / 9.5 / 30" → handler gets cm. */
   bindLen(id, fn) {
-    this.bindNum(id, v => fn(inToCm(v)));
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    inp.addEventListener('change', () => {
+      const cm = parseFtIn(inp.value);
+      if (!Number.isNaN(cm) && cm >= 0) fn(cm);
+      this.fillPropValues();
+    });
   }
 
   matGrid(sel, use, current, onPick, onlyGroups = null) {

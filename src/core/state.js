@@ -1,5 +1,5 @@
 // Central application state: project data, selection, tools, undo/redo, persistence.
-import { detectRooms, roomKey, uid } from './geometry.js';
+import { detectRooms, roomKey, uid, pointInPolygon } from './geometry.js';
 import { openingDefaults, isDoorType } from './openings.js';
 import { saveProject } from './projects.js';
 
@@ -260,8 +260,11 @@ export class Store {
   deleteSelection() {
     const sel = this.selection;
     if (!sel) return false;
-    this.checkpoint();
     const p = this.project;
+    const room = sel.kind === 'room' ? this.room(sel.id) : null;
+    if (sel.kind === 'room' && !room) return false;
+    if (!['item', 'multi', 'opening', 'wall', 'room'].includes(sel.kind)) return false;
+    this.checkpoint();
     const cut = (arr, pred) => {
       for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) arr.splice(i, 1);
     };
@@ -275,8 +278,22 @@ export class Store {
     } else if (sel.kind === 'wall') {
       cut(p.walls, w => w.id === sel.id);
       cut(p.openings, o => o.wallId === sel.id);
-    } else {
-      return false;
+    } else if (sel.kind === 'room') {
+      // walls unique to this room go; walls shared with a neighbor stay so
+      // the neighbor keeps its shape — unless every wall is shared (a fully
+      // interior room), then its partitions go and the spaces merge
+      const others = this.rooms.filter(r => r !== room);
+      const shared = id => others.some(r => r.wallIds.has(id));
+      let ids = [...room.wallIds].filter(id => !shared(id));
+      if (!ids.length) ids = [...room.wallIds];
+      const idSet = new Set(ids);
+      cut(p.walls, w => idSet.has(w.id));
+      cut(p.openings, o => idSet.has(o.wallId));
+      // furniture inside goes too; roof-level pieces (roofs, dormers,
+      // chimneys — elevation at/above the wall top) belong to the whole
+      // house, not this room
+      cut(p.items, i => (i.elevation || 0) < 200 && pointInPolygon(i.x, i.y, room.polygon));
+      delete p.roomStyles[sel.id];
     }
     this.select(null);
     this.commit(true);
