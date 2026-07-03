@@ -530,17 +530,14 @@ canvas { display: block; }
 
 /* ---- catalog ---- */
 .cat-tabs {
+  /* every category visible at once — they wrap onto extra rows */
   display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  flex-wrap: wrap;
   gap: 5px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   flex: none;
 }
-.cat-tabs::-webkit-scrollbar { display: none; }
 .cat-tab { flex: none; white-space: nowrap; }
 .cat-tab {
   background: var(--panel-2);
@@ -754,19 +751,15 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---- floor switcher ---- */
 #levelBar {
-  /* tucked below the top bar so it never covers hints or the plan */
-  position: absolute;
-  left: calc(34px + var(--safe-l));
-  top: calc(var(--topbar-h) + var(--safe-t) + 26px);
+  /* sits in the top bar next to the Plan/3D toggle */
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 6px;
-  background: rgba(29, 33, 41, 0.72);
+  margin-left: 6px;
+  background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 20px;
-  backdrop-filter: blur(8px);
-  z-index: 34;
 }
 .lvl-label {
   font-size: 10px;
@@ -1022,3 +1015,42 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 }
 .home-action svg { width: 17px; height: 17px; }
 .home-action:hover { border-color: #3a4356; }
+
+.lvl-btn.lvl-all {
+  width: auto;
+  padding: 0 10px;
+  border-radius: 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+
+#app.compact #levelBar { padding: 3px 5px; margin-left: 4px; }
+#app.compact #levelBar .lvl-label { display: none; }
+#app.compact #levelBar .lvl-btn { width: 24px; height: 24px; font-size: 11px; }
+#app.compact #levelBar .lvl-btn.lvl-all { width: auto; padding: 0 8px; font-size: 9.5px; }
+
+
+#app.compact .cat-tab { font-size: 10.5px; padding: 6px 9px; }
+
+
+/* floating fit-view button, top-right of the view window */
+.view-fit {
+  position: absolute;
+  top: 12px;
+  right: calc(12px + var(--safe-r));
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(29, 33, 41, 0.82);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  z-index: 30;
+  backdrop-filter: blur(8px);
+}
+.view-fit svg { width: 19px; height: 19px; }
+.view-fit:active { transform: scale(0.94); color: var(--text); }

@@ -103,9 +103,29 @@ export function buildPathModel(it, def) {
 let _waterMat = null;
 function waterMat() {
   if (!_waterMat) {
-    _waterMat = new THREE.MeshStandardMaterial({
-      color: '#2e6a86', roughness: 0.06, metalness: 0.45,
-      transparent: true, opacity: 0.92
+    // same rippled surface the pools use, so all water reads consistently
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#808080';
+    g.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 2) {
+      for (let x = 0; x < 256; x += 2) {
+        const v = 128 +
+          Math.sin(x * 0.09 + Math.sin(y * 0.06) * 3) * 30 +
+          Math.sin((x + y) * 0.045) * 22;
+        g.fillStyle = `rgb(${v | 0},${v | 0},${v | 0})`;
+        g.fillRect(x, y, 2, 2);
+      }
+    }
+    const ripples = new THREE.CanvasTexture(c);
+    ripples.wrapS = ripples.wrapT = THREE.RepeatWrapping;
+    ripples.repeat.set(4, 4);
+    _waterMat = new THREE.MeshPhysicalMaterial({
+      color: '#2e7a9c', roughness: 0.05, metalness: 0.1,
+      transparent: true, opacity: 0.82,
+      clearcoat: 1, clearcoatRoughness: 0.08,
+      bumpMap: ripples, bumpScale: 1.4
     });
   }
   return _waterMat;

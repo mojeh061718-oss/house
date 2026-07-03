@@ -5,7 +5,7 @@ import { thumbnail } from './thumbs.js';
 import pkg from '../../package.json';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview, watchTextures, ensureTexture } from '../core/textures.js';
-import { wallLength, pointInPolygon } from '../core/geometry.js';
+import { wallLength, wallAngle, pointInPolygon } from '../core/geometry.js';
 import { fmtFtIn, fmtArea, parseFtIn } from '../core/units.js';
 import { THEMES, applyTheme } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
@@ -314,8 +314,7 @@ export class UI {
       ${tool('door', 'Door', 'Choose a door style & place it')}
       ${tool('window', 'Window', 'Choose a window style & place it')}
       ${tool('multi', 'Multi', 'Select several items at once')}
-      <span class="rail-spacer"></span>
-      <button class="rail-btn" id="btnFit" title="Fit plan to screen">${ICONS.fit}<span>Fit view</span></button>`;
+      <span class="rail-spacer"></span>`;
     rail.querySelectorAll('.tool').forEach(b => {
       b.onclick = () => {
         const t = b.dataset.tool;
@@ -338,10 +337,15 @@ export class UI {
         store.setTool(t === store.tool ? 'select' : t);
       };
     });
-    $('#btnFit').onclick = () => {
+    // fit-view floats in the viewport's top-right corner, easy to reach
+    const fit = el('button', 'view-fit', ICONS.fit);
+    fit.id = 'btnFit';
+    fit.title = 'Reset & fit the view';
+    fit.onclick = () => {
       this.editor.fitToContent();
       this.viewer.frameAll();
     };
+    $('#viewport').appendChild(fit);
     document.addEventListener('pointerdown', (e) => {
       if (this._typePop && !this._typePop.contains(e.target) && !e.target.closest('#toolrail')) {
         this.closeTypePop();
@@ -542,11 +546,44 @@ export class UI {
     $('#selDel').onclick = () => store.deleteSelection();
   }
 
-  /** Duplicate the current selection: an item, a whole room, or a multi group. */
+  /** Duplicate the current selection: item, room, multi group, opening or wall. */
   duplicateSelection() {
     const store = this.store;
     const sel = store.selection;
     if (sel?.kind === 'room') { this.duplicateRoom(sel.id); return; }
+    if (sel?.kind === 'opening') {
+      const o = store.opening(sel.id);
+      const wall = o && store.wall(o.wallId);
+      if (!wall) return;
+      const len = wallLength(wall);
+      if (len < o.width * 2 + 24) { this.toast('No room on this wall for a copy'); return; }
+      store.checkpoint();
+      // drop the copy next to the original, clamped inside the wall
+      const shift = (o.width + 20) / len;
+      let t = o.t + shift;
+      if (t > 1 - (o.width / 2 + 6) / len) t = o.t - shift;
+      const no = store.addOpening(o.wallId, o.type, t, { width: o.width, height: o.height, sill: o.sill });
+      no.flip = o.flip;
+      no.swing = o.swing;
+      store.commit(true);
+      store.select({ kind: 'opening', id: no.id });
+      this.toast('Duplicated');
+      return;
+    }
+    if (sel?.kind === 'wall') {
+      const w = store.wall(sel.id);
+      if (!w) return;
+      store.checkpoint();
+      // parallel copy one meter to the side
+      const ang = wallAngle(w);
+      const nx = Math.sin(ang) * 100, ny = -Math.cos(ang) * 100;
+      const nw = store.addWall(w.ax + nx, w.ay + ny, w.bx + nx, w.by + ny, w.thickness);
+      nw.height = w.height;
+      store.commit(true);
+      store.select({ kind: 'wall', id: nw.id });
+      this.toast('Wall duplicated alongside');
+      return;
+    }
     if (sel?.kind === 'multi') {
       store.checkpoint();
       const ids = [];
@@ -578,8 +615,8 @@ export class UI {
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
     });
-    // Copy applies to items, whole rooms, and multi groups
-    $('#selDup').style.display = (isItem || sel?.kind === 'room' || sel?.kind === 'multi') ? '' : 'none';
+    // Copy sits next to Edit and Delete for everything selectable
+    $('#selDup').style.display = sel ? '' : 'none';
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) {
       $('#props').classList.add('open');
@@ -593,7 +630,8 @@ export class UI {
   buildLevelBar() {
     const bar = document.createElement('div');
     bar.id = 'levelBar';
-    $('#viewport').appendChild(bar);
+    // lives in the top bar right beside the Plan/3D toggle
+    $('#viewToggle').after(bar);
     this.syncLevels();
   }
 
@@ -609,6 +647,10 @@ export class UI {
       html += `<button class="lvl-btn${i === p.activeLevel ? ' active' : ''}" data-lvl="${i}"
         title="${i === 0 ? 'Ground floor' : `Floor ${i}`}">${names[i]}</button>`;
     }
+    if (n > 1) {
+      html += `<button class="lvl-btn lvl-all${this.viewer.viewAll ? ' active' : ''}" id="lvlAll"
+        title="Show the whole house in 3D">All</button>`;
+    }
     if (n < 4) html += `<button class="lvl-btn lvl-add" id="lvlAdd" title="Add a floor">${ICONS.plus}</button>`;
     bar.innerHTML = html;
     bar.querySelectorAll('[data-lvl]').forEach(b => {
@@ -620,6 +662,14 @@ export class UI {
         }
       };
     });
+    const all = $('#lvlAll');
+    if (all) all.onclick = () => {
+      this.viewer.setViewAll(!this.viewer.viewAll);
+      this.syncLevels();
+      this.toast(this.viewer.viewAll
+        ? 'Showing the whole house — floors above stay visible'
+        : 'Showing floors up to the one you are on');
+    };
     const add = $('#lvlAdd');
     if (add) add.onclick = () => {
       if (store.addLevel()) {
@@ -728,8 +778,10 @@ export class UI {
     stampShell(store, shell, ox, oy);
     this.closeDrawer('catalog');
     store.setTool('select');
+    if (shell.build2) this.viewer.setViewAll(true); // show both storeys in 3D
     if (store.viewMode !== '2d') store.setViewMode('2d');
     this.editor.fitToContent();
+    this.syncLevels();
     this.toast(`${shell.name} added — every wall and room is editable`);
   }
 
@@ -935,6 +987,7 @@ export class UI {
             <button class="action" id="pExtAll">${icon('paint')} Use on the whole exterior</button>
           </div>
           <div class="btn-row">
+            <button class="action" id="pDup">${icon('copy')} Duplicate</button>
             <button class="action danger" id="pDel">${icon('trash')} Delete wall</button>
           </div>
         </div>`;
@@ -947,6 +1000,7 @@ export class UI {
       this.matGrid('#matWallExt', 'wall', w.extMat || store.project.settings.exteriorWall, id => {
         store.checkpoint(); w.extMat = id; store.commit(true);
       }, ['Exterior Siding', 'Plaster & Concrete', 'Brick & Tile']);
+      $('#pDup').onclick = () => this.duplicateSelection();
       $('#pExtAll').onclick = () => {
         store.checkpoint();
         store.project.settings.exteriorWall = w.extMat || store.project.settings.exteriorWall;
@@ -982,6 +1036,7 @@ export class UI {
             ${hasSwing ? `<button class="action" id="pSwing">${icon('rotate')} Flip hinge</button>` : ''}
           </div>` : ''}
           <div class="btn-row">
+            <button class="action" id="pDup">${icon('copy')} Duplicate</button>
             <button class="action danger" id="pDel">${icon('trash')} Delete</button>
           </div>
         </div>`;
@@ -1005,6 +1060,7 @@ export class UI {
       });
       if (hasFlip) $('#pFlip').onclick = () => structural(() => o.flip = !o.flip);
       if (hasSwing) $('#pSwing').onclick = () => structural(() => o.swing = !o.swing);
+      $('#pDup').onclick = () => this.duplicateSelection();
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'room') {
       const room = store.room(sel.id);

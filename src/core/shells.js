@@ -165,6 +165,155 @@ export const SHELLS = [
     }
   },
   {
+    id: 'container_l',
+    name: 'Container Home L',
+    desc: 'Two 40 ft containers at 90\u00b0 — living wing + bedroom wing around a corner patio',
+    size: [1220, 1220],
+    build(api) {
+      api.settings({ wallHeight: 260, exteriorWall: 'real_corrugated' });
+      // wing A: east-west living container along the top
+      const an = api.wall(0, 0, 1220, 0, 8);
+      const ae = api.wall(1220, 0, 1220, 244, 8);
+      const as = api.wall(1220, 244, 244, 244, 8);
+      const aw = api.wall(0, 0, 0, 244, 8);
+      // wing B: north-south bedroom container down the left
+      const bw = api.wall(0, 244, 0, 1220, 8);
+      const bs = api.wall(0, 1220, 244, 1220, 8);
+      const be = api.wall(244, 244, 244, 1220, 8);
+      api.wall(0, 244, 244, 244, 8);
+      const bpart = api.wall(0, 830, 244, 830, 8);
+      // living wing: glass to the patio + kitchen window
+      api.opening(as, 'slidingDoor', 0.3, { width: 260, height: 220 });
+      api.opening(as, 'window', 0.72, { width: 200, height: 140, sill: 80 });
+      api.opening(an, 'window', 0.2, { width: 180 });
+      api.opening(an, 'window', 0.6, { width: 180 });
+      api.opening(ae, 'window', 0.5, { width: 140 });
+      // bedroom wing: entry door + windows
+      api.opening(be, 'door', 0.12, { width: 90 });
+      api.opening(be, 'slidingDoor', 0.62, { width: 200, height: 210 });
+      api.opening(bw, 'window', 0.3, { width: 160 });
+      api.opening(bw, 'window', 0.75, { width: 160 });
+      api.opening(bs, 'window', 0.5, { width: 140 });
+      api.opening(bpart, 'door', 0.5, { width: 84 });
+      api.room(610, 122, 'Living + Kitchen', 'real_caramel_plank');
+      api.room(122, 540, 'Bedroom', 'real_carpet_oat');
+      api.room(122, 1025, 'Bath & Laundry', 'real_white_tile', 'tile_bath');
+      api.item('roof_flat', 610, 122, 0, { w: 1300, d: 330, h: 30, elevation: 260 });
+      api.item('roof_flat', 122, 732, 0, { w: 330, d: 1060, h: 30, elevation: 260.6 });
+      // the sheltered corner becomes the patio
+      api.item('patio', 620, 620, 0, { w: 640, d: 640 });
+      api.item('patio_set', 620, 620, 0);
+      api.item('planter_box', 950, 380);
+      api.item('tree_birch', 1080, 900);
+    }
+  },
+  {
+    id: 'container_stack',
+    name: 'Container Stack + Roof Deck',
+    desc: 'Two containers down, one stacked up top with a railed roof deck',
+    size: [1220, 488],
+    build(api) {
+      api.settings({ wallHeight: 260, exteriorWall: 'real_corrugated' });
+      const n = api.wall(0, 0, 1220, 0, 8);
+      const e = api.wall(1220, 0, 1220, 488, 8);
+      const s = api.wall(1220, 488, 0, 488, 8);
+      const w = api.wall(0, 488, 0, 0, 8);
+      const mid = api.wall(0, 244, 1220, 244, 8);
+      const part = api.wall(760, 244, 760, 488, 8);
+      api.opening(s, 'slidingDoor', 0.25, { width: 260, height: 220 });
+      api.opening(s, 'door', 0.62, { width: 90 });
+      api.opening(s, 'window', 0.85, { width: 160 });
+      api.opening(n, 'window', 0.2, { width: 200 });
+      api.opening(n, 'window', 0.55, { width: 200 });
+      api.opening(n, 'window', 0.85, { width: 140 });
+      api.opening(w, 'window', 0.5, { width: 150 });
+      api.opening(mid, 'doorway', 0.3, { width: 110 });
+      api.opening(mid, 'door', 0.8, { width: 84 });
+      api.opening(part, 'door', 0.5, { width: 84 });
+      api.item('stairs', 1100, 122, Math.PI / 2, {});
+      api.room(500, 122, 'Kitchen + Dining', 'real_honey_strip');
+      api.room(380, 366, 'Living', 'real_caramel_plank');
+      api.room(990, 366, 'Bath', 'real_white_tile', 'tile_bath');
+      api.item('planter_box', -80, 560);
+      api.item('tree_oak', 1400, 620);
+    },
+    // upper container sits over the back row; the front row becomes a deck
+    build2(api) {
+      const n = api.wall(0, 0, 1220, 0, 8);
+      const e = api.wall(1220, 0, 1220, 244, 8);
+      const s = api.wall(1220, 244, 0, 244, 8);
+      const w = api.wall(0, 244, 0, 0, 8);
+      const part = api.wall(820, 0, 820, 244, 8);
+      api.opening(s, 'slidingDoor', 0.35, { width: 240, height: 210 });
+      api.opening(s, 'window', 0.8, { width: 160, height: 120, sill: 85 });
+      api.opening(n, 'window', 0.3, { width: 180 });
+      api.opening(n, 'window', 0.75, { width: 160 });
+      api.opening(w, 'window', 0.5, { width: 140 });
+      api.opening(part, 'door', 0.5, { width: 84 });
+      api.room(400, 122, 'Main Suite', 'real_carpet_oat');
+      api.room(1020, 122, 'En-suite', 'real_white_tile', 'tile_bath');
+      api.item('roof_flat', 610, 122, 0, { w: 1290, d: 320, h: 26, elevation: 260 });
+      // roof deck over the front container
+      api.item('patio', 550, 366, 0, { w: 1060, d: 230 });
+      api.item('fence', 550, 470, 0, { w: 1080, d: 8, h: 95 });
+      api.item('fence', 30, 366, Math.PI / 2, { w: 220, d: 8, h: 95 });
+      api.item('fence', 1070, 366, Math.PI / 2, { w: 220, d: 8, h: 95 });
+      api.item('patio_set', 350, 370, 0);
+      api.item('planter_box', 900, 380);
+    }
+  },
+  {
+    id: 'container_court',
+    name: 'Container Courtyard',
+    desc: 'Three containers wrap a private central courtyard, U-shaped',
+    size: [1220, 976],
+    build(api) {
+      api.settings({ wallHeight: 260, exteriorWall: 'real_corrugated' });
+      // back container spans the full width
+      const bn = api.wall(0, 0, 1220, 0, 8);
+      const bs = api.wall(0, 244, 1220, 244, 8);
+      const bw = api.wall(0, 0, 0, 244, 8);
+      const be = api.wall(1220, 0, 1220, 244, 8);
+      api.wall(690, 0, 690, 244, 8);
+      const bpart = api.wall(940, 0, 940, 244, 8);
+      // left wing
+      const lw = api.wall(0, 244, 0, 976, 8);
+      const le = api.wall(244, 244, 244, 976, 8);
+      const ls = api.wall(0, 976, 244, 976, 8);
+      // right wing
+      const rw = api.wall(976, 244, 976, 976, 8);
+      const re = api.wall(1220, 244, 1220, 976, 8);
+      const rs = api.wall(976, 976, 1220, 976, 8);
+      // openings: every room opens to the courtyard
+      api.opening(bs, 'slidingDoor', 0.28, { width: 240, height: 215 });
+      api.opening(bs, 'window', 0.62, { width: 160, height: 130, sill: 85 });
+      api.opening(le, 'slidingDoor', 0.4, { width: 220, height: 215 });
+      api.opening(rw, 'slidingDoor', 0.4, { width: 220, height: 215 });
+      api.opening(ls, 'door', 0.5, { width: 90 });
+      api.opening(bn, 'window', 0.18, { width: 180 });
+      api.opening(bn, 'window', 0.45, { width: 180 });
+      api.opening(bn, 'window', 0.85, { width: 140 });
+      api.opening(lw, 'window', 0.4, { width: 160 });
+      api.opening(re, 'window', 0.4, { width: 160 });
+      api.opening(bpart, 'door', 0.5, { width: 84 });
+      api.room(345, 122, 'Kitchen + Dining', 'real_honey_strip');
+      api.room(815, 122, 'Pantry', 'concrete_floor');
+      api.room(1080, 122, 'Bath', 'real_white_tile', 'tile_bath');
+      api.room(122, 610, 'Living', 'real_caramel_plank');
+      api.room(1098, 610, 'Bedroom', 'real_carpet_oat');
+      api.item('roof_flat', 610, 122, 0, { w: 1300, d: 330, h: 30, elevation: 260 });
+      api.item('roof_flat', 122, 610, 0, { w: 330, d: 820, h: 30, elevation: 260.6 });
+      api.item('roof_flat', 1098, 610, 0, { w: 330, d: 820, h: 30, elevation: 261.2 });
+      // courtyard: deck, dining set, greenery
+      api.item('patio', 610, 640, 0, { w: 700, d: 720 });
+      api.item('patio_set', 610, 700, 0);
+      api.item('planter_box', 400, 360);
+      api.item('planter_box', 820, 360);
+      api.item('bush_cloud', 350, 900);
+      api.item('tree_birch', 880, 920);
+    }
+  },
+  {
     id: 'hill_home',
     name: 'Hillside Home',
     desc: 'Earth-sheltered house tucked into a grass hill, glass front',
@@ -240,20 +389,37 @@ export function stampShell(store, shell, ox, oy) {
       if (s.wallHeight) for (const w of walls) w.height = s.wallHeight;
     }
   };
+  const finishLevel = () => {
+    for (const w of walls) {
+      if (store.project.settings.wallHeight) w.height = store.project.settings.wallHeight;
+    }
+    store.commit(true);
+    for (const rm of rooms) {
+      const room = store.rooms.find(r => pointInPolygon(rm.x, rm.y, r.polygon));
+      if (!room) continue;
+      const style = store.roomStyle(room.key);
+      style.name = rm.name;
+      if (rm.floor) style.floor = rm.floor;
+      if (rm.wall) style.wall = rm.wall;
+    }
+    store.commit(false);
+  };
+
   shell.build(api);
-  for (const w of walls) {
-    if (store.project.settings.wallHeight) w.height = store.project.settings.wallHeight;
+  finishLevel();
+
+  // two-storey shells: stamp the upper floor, then come back down
+  if (shell.build2) {
+    const base = store.project.activeLevel;
+    if (store.project.levels.length <= base + 1) store.addLevel();
+    else store.setActiveLevel(base + 1, false);
+    walls.length = 0;
+    rooms.length = 0;
+    shell.build2(api);
+    finishLevel();
+    store.setActiveLevel(base, false);
+    store.commit(true);
   }
-  store.commit(true);
-  for (const rm of rooms) {
-    const room = store.rooms.find(r => pointInPolygon(rm.x, rm.y, r.polygon));
-    if (!room) continue;
-    const style = store.roomStyle(room.key);
-    style.name = rm.name;
-    if (rm.floor) style.floor = rm.floor;
-    if (rm.wall) style.wall = rm.wall;
-  }
-  store.commit(false);
 }
 
 /** Small plan preview of a shell for the catalog card. */

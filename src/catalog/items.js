@@ -3,7 +3,7 @@
 // symbols and selectable finish palettes.
 import {
   G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel, prism, pyramid,
-  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage
+  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob
 } from './builders.js';
 
 export const CATEGORIES = [
@@ -43,6 +43,62 @@ const ROOFS = [
   { name: 'Scale Slate', chip: '#3f4448', roof: 'real_roof_slate' },
   { name: 'Aged Clay', chip: '#9a5a40', roof: 'real_roof_clay' }
 ];
+
+// deck/pad finishes: mat id + how many cm one texture tile covers
+const DECK_FINISHES = [
+  { name: 'Deck Boards', chip: '#8a6a4a', mat: 'deck_wood', scale: 200 },
+  { name: 'Whitewashed', chip: '#ddd2c2', mat: 'whitewash', scale: 200 },
+  { name: 'Wenge', chip: '#4a3a30', mat: 'real_wenge', scale: 240 },
+  { name: 'Tumbled Stone', chip: '#e0c9a2', mat: 'real_tumbled_cream', scale: 200 },
+  { name: 'Basket Pavers', chip: '#c8a878', mat: 'real_basket_pavers', scale: 260 },
+  { name: 'Cobblestone', chip: '#8d8d88', mat: 'real_cobblestone', scale: 280 }
+];
+const PAD_FINISHES = [
+  { name: 'Asphalt', chip: '#3d3f42', mat: 'counter_dark', scale: 260 },
+  { name: 'Concrete', chip: '#a5a29b', mat: 'pavement', scale: 220 },
+  { name: 'Pavers', chip: '#c8a878', mat: 'real_basket_pavers', scale: 260 },
+  { name: 'Cobblestone', chip: '#8d8d88', mat: 'real_cobblestone', scale: 280 },
+  { name: 'Gravel', chip: '#9a938a', mat: 'gravel', scale: 200 }
+];
+
+/** In-ground pool at true size: fixed rim width, tiled basin, real water. */
+function buildPool(w, d) {
+  const g = G();
+  box(g, tex('tile_white', w / 210, d / 210), w, 12, d, 0, 0, 0, { r: 3 }); // deck rim
+  const bw = w - 60, bd = d - 60; // basin inside a fixed 30cm coping
+  box(g, tex('tile_bath', bw / 150, bd / 150), bw, 3, bd, 0, 3, 0);
+  box(g, solid('#1d4a63', 0.35), bw - 6, 4, bd - 6, 0, 5, 0);
+  const wt = box(g, water(), bw - 8, 7, bd - 8, 0, 9, 0);
+  wt.receiveShadow = true;
+  // chrome ladder on the right end
+  cyl(g, chrome(), 2, 26, w / 2 - 60, 12, -15);
+  cyl(g, chrome(), 2, 26, w / 2 - 60, 12, 15);
+  cyl(g, chrome(), 2, 34, w / 2 - 60, 30, 0, { rx: Math.PI / 2 });
+  return g;
+}
+
+/** Flat surface pad built at true size, so the finish never stretches. */
+function buildSurfacePad(p, w, d, h) {
+  const g = G();
+  const mat = p?.mat || 'deck_wood';
+  const scale = p?.scale || 200;
+  box(g, tex(mat, w / scale, d / scale), w, h, d, 0, 0, 0, { r: 1 });
+  return g;
+}
+
+/** Rectangular pond: dark bed, stone edging and rippled water at true size. */
+function buildWaterArea(w, d) {
+  const g = G();
+  box(g, solid('#22394a', 0.95), w, 3, d, 0, 0, 0);
+  const edge = tex('stone_veneer', w / 180, 0.2);
+  box(g, edge, w + 14, 9, 10, 0, 0, -d / 2 - 4, { r: 3 });
+  box(g, edge, w + 14, 9, 10, 0, 0, d / 2 + 4, { r: 3 });
+  box(g, tex('stone_veneer', 0.2, d / 180), 10, 9, d + 2, -w / 2 - 4, 0, 0, { r: 3 });
+  box(g, tex('stone_veneer', 0.2, d / 180), 10, 9, d + 2, w / 2 + 4, 0, 0, { r: 3 });
+  const wt = box(g, water(), w - 4, 6, d - 4, 0, 1, 0);
+  wt.receiveShadow = true;
+  return g;
+}
 
 function sofaBuilder(seats, W, D, H) {
   return (p) => {
@@ -739,10 +795,41 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#5a4632', 0.95), 14, 170, 0, 0, 0, { rTop: 9 });
-      cyl(g, solid('#5a4632', 0.95), 6, 90, 0, 120, 0, { rz: 0.5 });
-      cyl(g, solid('#5a4632', 0.95), 5, 80, 0, 130, 0, { rz: -0.55 });
-      foliage(g, '#3f6b2e', '#548a3c', 0, 300, 0, 105, 14, 17);
+      // flared trunk with three main branches reaching into the crown
+      const bark = solid('#54422e', 0.95);
+      cyl(g, bark, 16, 165, 0, 0, 0, { rTop: 10 });
+      cyl(g, bark, 7, 110, 0, 120, 0, { rz: 0.5 });
+      cyl(g, bark, 6, 100, 0, 135, 0, { rz: -0.55 });
+      cyl(g, bark, 5, 85, 0, 150, 0, { rx: 0.45 });
+      // full dappled crown + a couple of low satellite tufts
+      foliage(g, '#33591f', '#6fa03e', 0, 300, 0, 112, 16, 17);
+      blob(g, '#33591f', '#649238', 46, 92, 218, 30, { seed: 41, sy: 0.85 });
+      blob(g, '#2f5220', '#5d8a34', 40, -85, 205, -38, { seed: 42, sy: 0.8 });
+      return g;
+    }
+  },
+  {
+    id: 'tree_birch', name: 'Birch Tree', cat: 'outdoor', w: 200, d: 200, h: 430,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      // pale birch bark with dark scars following the taper
+      const bark = solid('#d3ccbc', 0.85);
+      cyl(g, bark, 10, 240, 0, 0, 0, { rTop: 6 });
+      cyl(g, bark, 5, 120, 0, 180, 0, { rz: 0.35 });
+      let s = 7;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      for (let i = 0; i < 12; i++) {
+        const y = 20 + rand() * 200;
+        const rAt = 10 - (y / 240) * 4; // trunk radius at that height
+        const a = rand() * Math.PI * 2;
+        const m = box(g, solid('#41403a', 0.9), 5 + rand() * 6, 2.5, 1.4,
+          Math.cos(a) * (rAt - 0.4), y, Math.sin(a) * (rAt - 0.4), { r: 1 });
+        m.rotation.y = -a + Math.PI / 2;
+      }
+      // light, airy crown
+      foliage(g, '#5d8a3a', '#a4c46a', 0, 330, 0, 88, 12, 23);
+      blob(g, '#557f33', '#9aba60', 36, 62, 255, 15, { seed: 51, sy: 1.1 });
       return g;
     }
   },
@@ -751,13 +838,16 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#63503a', 0.95), 12, 120, 0, 0, 0, { rTop: 8 });
-      const green = solid('#2f5b30', 0.95);
-      const green2 = solid('#3a6b38', 0.95);
-      cyl(g, green, 88, 130, 0, 90, 0, { rTop: 0.5, seg: 12 });
-      cyl(g, green2, 68, 120, 0, 190, 0, { rTop: 0.5, seg: 12 });
-      cyl(g, green, 46, 110, 0, 285, 0, { rTop: 0.5, seg: 12 });
-      cyl(g, green2, 26, 85, 0, 375, 0, { rTop: 0.5, seg: 12 });
+      cyl(g, solid('#5c4a36', 0.95), 12, 130, 0, 0, 0, { rTop: 8 });
+      // fluffy boughs: squashed dark-green blobs tapering upward
+      const tiers = [
+        [86, 100, 0.5], [72, 165, 0.52], [58, 230, 0.55],
+        [44, 292, 0.58], [30, 350, 0.62], [18, 400, 0.7]
+      ];
+      tiers.forEach(([r, y, sy], i) => {
+        blob(g, '#24421f', '#4a7534', r, 0, y, 0, { seed: 61 + i * 3, sy });
+      });
+      blob(g, '#2a4a24', '#548038', 12, 0, 440, 0, { seed: 80, sy: 1.3 });
       return g;
     }
   },
@@ -766,8 +856,22 @@ export const ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      box(g, solid('#3d5c2e', 0.95), 200, 90, 55, 0, 0, 0, { r: 14, seg: 4 });
-      box(g, solid('#4a7038', 0.95), 194, 12, 49, 0, 84, 0, { r: 6 });
+      // organic clipped hedge: a row of overlapping leafy lumps
+      for (let i = 0; i < 5; i++) {
+        blob(g, '#31511f', '#5c8a36', 34, -80 + i * 40, 42, 0, { seed: 90 + i * 5, sy: 1.15 });
+      }
+      blob(g, '#365722', '#639240', 30, -55, 55, 6, { seed: 118, sy: 1 });
+      blob(g, '#2f4f1e', '#578534', 30, 48, 52, -6, { seed: 121, sy: 1.05 });
+      return g;
+    }
+  },
+  {
+    id: 'bush_cloud', name: 'Garden Bush', cat: 'outdoor', w: 120, d: 120, h: 105,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      foliage(g, '#375c22', '#6d9c42', 0, 52, 0, 52, 10, 33);
+      cyl(g, solid('#54422e', 0.95), 5, 24, 0, 0, 0);
       return g;
     }
   },
@@ -795,12 +899,21 @@ export const ITEMS = [
   },
   {
     id: 'patio', name: 'Patio Deck', cat: 'outdoor', w: 360, d: 240, h: 12, noShadow: true,
-    areaDraw: true, palettes: null, plan: { type: 'slab' },
-    build: () => {
-      const g = G();
-      box(g, tex('deck_wood', 1.5, 1), 360, 12, 240, 0, 0, 0, { r: 1 });
-      return g;
-    }
+    areaDraw: true, palettes: DECK_FINISHES, plan: { type: 'slab' },
+    build: (p) => buildSurfacePad(p, 360, 240, 12),
+    buildSized: (p, w, d) => buildSurfacePad(p, w, d, 12)
+  },
+  {
+    id: 'pad_drive', name: 'Driveway Pad', cat: 'outdoor', w: 550, d: 300, h: 6, noShadow: true,
+    areaDraw: true, palettes: PAD_FINISHES, plan: { type: 'slab' },
+    build: (p) => buildSurfacePad(p, 550, 300, 6),
+    buildSized: (p, w, d) => buildSurfacePad(p, w, d, 6)
+  },
+  {
+    id: 'water_area', name: 'Pond / Water Area', cat: 'outdoor', w: 400, d: 300, h: 10, noShadow: true,
+    areaDraw: true, palettes: null, plan: { type: 'pool' },
+    build: () => buildWaterArea(400, 300),
+    buildSized: (p, w, d) => buildWaterArea(w, d)
   },
   {
     id: 'mailbox', name: 'Mailbox', cat: 'outdoor', w: 30, d: 55, h: 115,
@@ -916,16 +1029,77 @@ export const ITEMS = [
   {
     id: 'pool', name: 'Swimming Pool', cat: 'outdoor', w: 500, d: 300, h: 24, noShadow: true,
     areaDraw: true, palettes: null, plan: { type: 'pool' },
+    build: () => buildPool(500, 300),
+    buildSized: (p, w, d) => buildPool(w, d)
+  },
+  {
+    id: 'pool_above', name: 'Above-Ground Pool', cat: 'outdoor', w: 400, d: 400, h: 135, noShadow: true,
+    palettes: null, plan: { type: 'pool' },
     build: () => {
       const g = G();
-      box(g, tex('tile_white', 2.4, 1.5), 500, 12, 300, 0, 0, 0, { r: 3 });   // deck rim
-      box(g, solid('#3a7d9c', 0.3), 440, 10, 240, 0, 4, 0);                    // basin
-      const w = box(g, water(), 432, 6, 232, 0, 10, 0);
+      // corrugated steel ring wall with a top rail
+      const wall = cyl(g, tex('corrugated_white', 8, 1), 196, 122, 0, 0, 0, { seg: 40 });
+      wall.castShadow = true;
+      const railMat = solid('#dcd8ce', 0.6);
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const seg = box(g, railMat, 92, 6, 26, Math.cos(a) * 188, 124, Math.sin(a) * 188, { r: 2 });
+        seg.rotation.y = -a + Math.PI / 2;
+        box(g, solid('#b8b4aa', 0.5), 5, 122, 5, Math.cos(a) * 197, 0, Math.sin(a) * 197);
+      }
+      // water surface rides just above the shell so it reads from any angle
+      const w = cyl(g, water(), 183, 4, 0, 122.5, 0, { seg: 36 });
       w.receiveShadow = true;
-      // chrome ladder
-      cyl(g, chrome(), 2, 26, 190, 12, -60);
-      cyl(g, chrome(), 2, 26, 190, 12, -90);
-      cyl(g, chrome(), 2, 30, 190, 30, -75, { rx: Math.PI / 2 });
+      // A-frame ladder over the wall
+      for (const s of [-1, 1]) {
+        cyl(g, chrome(), 2.4, 150, 175 + s * 0, 0, -24 * s);
+      }
+      cyl(g, chrome(), 2.4, 150, 175, 0, -24, { rx: 0.5 });
+      cyl(g, chrome(), 2.4, 150, 175, 0, 24, { rx: -0.5 });
+      for (let i = 0; i < 4; i++) {
+        box(g, chrome(), 34, 3, 6, 175, 28 + i * 32, -40 + i * 9.5);
+        box(g, chrome(), 34, 3, 6, 175, 28 + i * 32, 40 - i * 9.5);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'pool_above_deck', name: 'Pool + Deck', cat: 'outdoor', w: 640, d: 420, h: 145, noShadow: true,
+    palettes: null, plan: { type: 'pool' },
+    build: () => {
+      const g = G();
+      // above-ground pool on the right
+      const wall = cyl(g, tex('corrugated_gray', 8, 1), 190, 118, 130, 0, 0, { seg: 40 });
+      wall.castShadow = true;
+      const railMat = solid('#d8d4ca', 0.6);
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const seg = box(g, railMat, 88, 6, 24, 130 + Math.cos(a) * 182, 120, Math.sin(a) * 182, { r: 2 });
+        seg.rotation.y = -a + Math.PI / 2;
+      }
+      const w = cyl(g, water(), 177, 4, 130, 118.5, 0, { seg: 36 });
+      w.receiveShadow = true;
+      // raised wooden deck flush with the pool top, on the left
+      const deckTex = tex('deck_wood', 1.4, 1);
+      box(g, deckTex, 260, 10, 300, -180, 120, 0, { r: 1 });
+      const post = wood('#6a4f36', 0.8);
+      for (const [px, pz] of [[-296, -136], [-296, 136], [-70, -136], [-70, 136]]) {
+        box(g, post, 10, 120, 10, px, 0, pz);
+      }
+      // railing around the deck's outer edges
+      const rail = wood('#7a5c40', 0.7);
+      box(g, rail, 260, 5, 7, -180, 216, -146);
+      box(g, rail, 260, 5, 7, -180, 216, 146);
+      box(g, rail, 7, 5, 300, -306, 216, 0);
+      for (let i = 0; i < 7; i++) {
+        box(g, rail, 4, 90, 4, -300 + i * 38, 128, -146);
+        box(g, rail, 4, 90, 4, -300 + i * 38, 128, 146);
+      }
+      for (let i = 0; i < 8; i++) box(g, rail, 4, 90, 4, -306, 128, -132 + i * 38);
+      // stairs up to the deck
+      for (let i = 0; i < 5; i++) {
+        box(g, deckTex, 90, 8, 26, -180, 22 * i + 14, 172 + (4 - i) * 26, { r: 1 });
+      }
       return g;
     }
   },

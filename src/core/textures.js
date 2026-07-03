@@ -769,7 +769,28 @@ MATERIALS.push(
   { id: 'real_cobblestone', name: 'Cobblestone · Photo', use: 'ground', file: 'tex/pavingstones070.jpg', scale: 320, rough: 0.9, placeholder: '#8d8d88' },
   { id: 'real_plank_pavers', name: 'Plank Pavers · Photo', use: 'ground', file: 'tex/pavingstones128.jpg', scale: 300, rough: 0.8, placeholder: '#a89880' },
   { id: 'real_roof_slate', name: 'Scale Slate · Photo', use: 'internal', file: 'tex/roofingtiles001.jpg', scale: 200, rough: 0.85, placeholder: '#3f4448' },
-  { id: 'real_roof_clay', name: 'Aged Clay · Photo', use: 'internal', file: 'tex/roofingtiles007.jpg', scale: 200, rough: 0.8, placeholder: '#9a5a40' }
+  { id: 'real_roof_clay', name: 'Aged Clay · Photo', use: 'internal', file: 'tex/roofingtiles007.jpg', scale: 200, rough: 0.8, placeholder: '#9a5a40' },
+
+  // photo pack round 3 — all CC0 from ambientCG (see README attribution)
+  { id: 'real_espresso_rustic', group: 'Wood', name: 'Rustic Espresso · Photo', use: 'floor', file: 'tex/woodfloor041.jpg', scale: 280, rough: 0.6, placeholder: '#4f3b2c' },
+  { id: 'real_knotty_pine', group: 'Wood', name: 'Knotty Pine · Photo', use: 'floor', file: 'tex/woodfloor044.jpg', scale: 280, rough: 0.6, placeholder: '#d8b98c' },
+  { id: 'real_caramel_plank', group: 'Wood', name: 'Caramel Plank · Photo', use: 'floor', file: 'tex/woodfloor064.jpg', scale: 280, rough: 0.5, placeholder: '#a9702f' },
+  { id: 'real_basket_parquet', group: 'Wood', name: 'Basket Parquet · Photo', use: 'floor', file: 'tex/woodfloor070.jpg', scale: 220, rough: 0.5, placeholder: '#8a5a28' },
+  { id: 'real_wenge', group: 'Wood', name: 'Wenge Plank · Photo', use: 'floor', file: 'tex/planks023a.jpg', scale: 280, rough: 0.55, placeholder: '#4a3a30' },
+  { id: 'real_emerald_marble', group: 'Stone & Tile', name: 'Emerald Marble · Photo', use: 'floor', file: 'tex/marble016.jpg', scale: 280, rough: 0.14, placeholder: '#22302a' },
+  { id: 'real_bianco', group: 'Stone & Tile', name: 'Bianco Marble · Photo', use: 'floor', file: 'tex/marble021.jpg', scale: 280, rough: 0.14, placeholder: '#eceae4' },
+  { id: 'real_onyx_wave', group: 'Stone & Tile', name: 'Onyx Wave · Photo', use: 'floor', file: 'tex/onyx013.jpg', scale: 300, rough: 0.12, placeholder: '#2d2b28' },
+  { id: 'real_blue_onyx', group: 'Stone & Tile', name: 'Blue Onyx · Photo', use: 'floor', file: 'tex/travertine013.jpg', scale: 300, rough: 0.15, placeholder: '#9db8c8' },
+  { id: 'real_terrazzo_bold', group: 'Stone & Tile', name: 'Bold Terrazzo · Photo', use: 'floor', file: 'tex/terrazzo018.jpg', scale: 260, rough: 0.25, placeholder: '#e5ded2' },
+  { id: 'real_marble_tile', group: 'Stone & Tile', name: 'Marble Tile · Photo', use: 'floor', file: 'tex/tiles040.jpg', scale: 200, rough: 0.18, placeholder: '#e8e6e0' },
+  { id: 'real_blush_stone', group: 'Stone & Tile', name: 'Blush Limestone · Photo', use: 'floor', file: 'tex/tiles078.jpg', scale: 240, rough: 0.35, placeholder: '#c4a294' },
+  { id: 'real_tumbled_cream', group: 'Stone & Tile', name: 'Tumbled Cream · Photo', use: 'floor', file: 'tex/tiles142.jpg', scale: 200, rough: 0.4, placeholder: '#e0c9a2' },
+  { id: 'real_carpet_navy', group: 'Carpet', name: 'Navy Speck · Photo', use: 'floor', file: 'tex/carpet012.jpg', scale: 120, rough: 0.95, placeholder: '#33405a' },
+  { id: 'real_corrugated', group: 'Exterior Siding', name: 'Container Steel · Photo', use: 'wall', file: 'tex/corrugatedsteel009.jpg', scale: 240, rough: 0.5, placeholder: '#9aa2a8' },
+  { id: 'real_brick_aged', group: 'Brick & Tile', name: 'Aged Red Brick · Photo', use: 'wall', file: 'tex/bricks085.jpg', scale: 220, rough: 0.9, placeholder: '#9c5540' },
+  { id: 'real_brick_rustic', group: 'Brick & Tile', name: 'Rustic Brick · Photo', use: 'wall', file: 'tex/bricks097.jpg', scale: 220, rough: 0.9, placeholder: '#8d5038' },
+  { id: 'real_basket_pavers', name: 'Basket Pavers · Photo', use: 'ground', file: 'tex/pavingstones146.jpg', scale: 300, rough: 0.85, placeholder: '#c8a878' },
+  { id: 'real_sand', name: 'Sand · Photo', use: 'ground', file: 'tex/ground080.jpg', scale: 360, rough: 0.95, placeholder: '#cdb37c' }
 );
 
 export const MATERIAL_MAP = new Map(MATERIALS.map(m => [m.id, m]));

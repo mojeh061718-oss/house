@@ -289,6 +289,8 @@ export class Editor2D {
   onDown(e) {
     try { this.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
     const { sx, sy } = this.evtPos(e);
+    // ghost pointers from a missed pointerup would make every touch a pinch
+    if (e.isPrimary && this.pointers.size) { this.pointers.clear(); this.pinch = null; }
     this.pointers.set(e.pointerId, { sx, sy });
 
     if (this.pointers.size === 2) {

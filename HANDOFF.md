@@ -16,7 +16,24 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.13.1** — patios/pools drag-to-size (`areaDraw: true`
+- Current version: **2.14.0** — 19 more CC0 photo textures (round 3 in
+  textures.js/README); vegetation overhaul (`blob()` in builders.js:
+  noise-displaced icosphere w/ dappled vertex colors; foliage() uses it;
+  new tree_birch/bush_cloud); realistic water (MeshPhysical + ripple bump,
+  builders.water + arch3d stream mat); pool_above & pool_above_deck items;
+  size-true builders: `def.buildSized(p,w,d,h)` skips model scaling
+  (patio w/ 6 DECK_FINISHES palettes, pool, new pad_drive & water_area —
+  all areaDraw); 3 container-home shells (L/stack+deck/courtyard; shells
+  support `build2(api)` for an upper storey — stampShell handles levels);
+  viewer.setViewAll + "All" chip (level bar now lives in the TOPBAR next to
+  the view toggle); duplicate works for openings & walls too; ghost-pointer
+  fix (e.isPrimary clears stale pointers — was the "camera stuck on zoom"
+  bug); fit-view floats top-right of the viewport (.view-fit), off the rail;
+  catalog tabs wrap (no hidden scroll). NOTE deploy verification: check the
+  LIVE site serves the new asset hash — the gh-pages branch alone is not
+  enough (GitHub's internal pages build can fail; re-trigger via
+  workflow_dispatch on deploy.yml).
+- Previous: **2.13.1** — patios/pools drag-to-size (`areaDraw: true`
   on item defs → 'areaDraw' mode in editor2d + gesture in viewer3d with a
   flat preview box); old fixed-rect sidewalk/driveway slabs are
   `hidden: true` (kept for old saves, filtered from the catalog) and the

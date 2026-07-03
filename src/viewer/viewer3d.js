@@ -257,8 +257,10 @@ export class Viewer3D {
     const guard = (fn, what) => {
       try { fn(); } catch (err) { console.warn(what + ' build failed', err); }
     };
-    // render every level up to the active one, stacked
-    for (let i = 0; i <= active; i++) {
+    // render every level up to the active one — or the whole house in
+    // view-all mode — stacked
+    const top = this.topLevel();
+    for (let i = 0; i <= top; i++) {
       const lvl = project.levels[i];
       const shim = {
         walls: lvl.walls, openings: lvl.openings,
@@ -311,15 +313,19 @@ export class Viewer3D {
     this.disposeGroup(this.itemsGroup);
     this.itemGroups.clear();
     const wallH = this.store.project.settings.wallHeight;
-    const active = this.store.project.activeLevel ?? 0;
-    for (let li = 0; li <= active; li++) {
+    const top = this.topLevel();
+    for (let li = 0; li <= top; li++) {
     for (const it of this.store.project.levels[li].items) {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
       try {
         const isPath = def.path && it.path?.length >= 2;
-        const model = isPath ? buildPathModel(it, def) : def.build(paletteFor(it, def));
-        if (!isPath) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
+        // size-true builders (decks, pools, pads) rebuild at the item's real
+        // dimensions so surface textures never stretch
+        const model = isPath ? buildPathModel(it, def)
+          : def.buildSized ? def.buildSized(paletteFor(it, def), it.w, it.d, it.h)
+            : def.build(paletteFor(it, def));
+        if (!isPath && !def.buildSized) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
         const outer = new THREE.Group();
         outer.add(model);
         outer.userData.itemId = it.id;
@@ -369,7 +375,7 @@ export class Viewer3D {
         structuralChange = true;
       }
       this.poseItem(g, it, def, wallH, lvlY);
-      if (model && !it.path) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
+      if (model && !it.path && !def?.buildSized) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
     }
     for (const [id, g] of this.itemGroups) {
       if (g.userData.level === active && !alive.has(id)) structuralChange = true;
@@ -547,6 +553,18 @@ export class Viewer3D {
   setCeilings(on) {
     this.showCeilings = on;
     this.needsRebuild = true;
+  }
+
+  /** Show every storey of the house, not just up to the active floor. */
+  setViewAll(on) {
+    this.viewAll = on;
+    this.needsRebuild = true;
+  }
+
+  /** Highest level index to render right now. */
+  topLevel() {
+    const p = this.store.project;
+    return this.viewAll ? p.levels.length - 1 : (p.activeLevel ?? 0);
   }
 
   /**
@@ -894,6 +912,13 @@ export class Viewer3D {
   }
 
   onDown(e) {
+    // a primary pointer means no other real touches are down — clear any
+    // ghost pointer left by a missed pointerup (iOS), which otherwise turns
+    // every one-finger drag into a phantom pinch (camera "stuck on zoom")
+    if (e.isPrimary && this.pointers.size) {
+      this.pointers.clear();
+      if (this.gesture?.kind === 'pinch' || this.gesture?.kind === 'rotate') this.gesture = null;
+    }
     const p = this.pos(e);
     this.pointers.set(e.pointerId, p);
     try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }

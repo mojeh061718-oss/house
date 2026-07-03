@@ -149,9 +149,30 @@ export function mirror() {
 let waterMat = null;
 export function water() {
   if (!waterMat) {
-    waterMat = new THREE.MeshStandardMaterial({
-      color: '#2e6a86', roughness: 0.06, metalness: 0.45,
-      transparent: true, opacity: 0.92
+    // subtle procedural ripples so the surface catches light like real water
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#808080';
+    g.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 2) {
+      for (let x = 0; x < 256; x += 2) {
+        const v = 128 +
+          Math.sin(x * 0.11 + Math.sin(y * 0.07) * 3) * 34 +
+          Math.sin((x + y) * 0.05) * 22 +
+          Math.sin(y * 0.13 - Math.cos(x * 0.04) * 4) * 18;
+        g.fillStyle = `rgb(${v | 0},${v | 0},${v | 0})`;
+        g.fillRect(x, y, 2, 2);
+      }
+    }
+    const ripples = new THREE.CanvasTexture(c);
+    ripples.wrapS = ripples.wrapT = THREE.RepeatWrapping;
+    ripples.repeat.set(3, 3);
+    waterMat = new THREE.MeshPhysicalMaterial({
+      color: '#2f86ac', roughness: 0.04, metalness: 0.1,
+      transparent: true, opacity: 0.8,
+      clearcoat: 1, clearcoatRoughness: 0.06,
+      bumpMap: ripples, bumpScale: 1.6
     });
   }
   return waterMat;
@@ -345,23 +366,62 @@ export function artMaterial(seedNum) {
   return mat;
 }
 
-/** Organic foliage cluster for plants (irregular, not a plain ball). */
+/**
+ * Organic noise-displaced blob with dappled vertex colors — the building
+ * block of realistic canopies, bushes and hedges. Sun-lit tops lean toward
+ * hexB, shaded undersides toward hexA.
+ */
+export function blob(parent, hexA, hexB, r, x, y, z, opts = {}) {
+  const seed = opts.seed ?? 1;
+  const geo = new THREE.IcosahedronGeometry(r, opts.detail ?? 3);
+  const pos = geo.attributes.position;
+  const colA = new THREE.Color(hexA), colB = new THREE.Color(hexB);
+  const colors = new Float32Array(pos.count * 3);
+  const v = new THREE.Vector3();
+  const sy = opts.sy ?? 1;
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    // deterministic lumpy displacement from overlapping waves
+    const n =
+      Math.sin(v.x * 0.13 + seed * 1.7) +
+      Math.cos(v.y * 0.11 + seed * 2.3) +
+      Math.sin(v.z * 0.15 + seed * 3.1) +
+      Math.sin((v.x + v.z) * 0.07 + seed);
+    v.multiplyScalar(1 + n * 0.055);
+    pos.setXYZ(i, v.x, v.y * sy, v.z);
+    // dappled light: higher & more outward → brighter
+    const t = Math.min(1, Math.max(0, 0.45 + (v.y / r) * 0.38 + n * 0.06));
+    const c = colA.clone().lerp(colB, t);
+    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.92
+  }));
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Organic foliage cluster for plants — lumpy dappled blobs, not plain balls. */
 export function foliage(parent, hexA, hexB, cx, cy, cz, radius, count = 9, seed = 1) {
   let s = seed >>> 0;
   const rand = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 4294967296;
   };
-  for (let i = 0; i < count; i++) {
-    const mat = solid(rand() < 0.5 ? hexA : hexB, 0.95);
-    const r = radius * (0.35 + rand() * 0.4);
+  const blobs = Math.max(3, Math.round(count / 2));
+  for (let i = 0; i < blobs; i++) {
+    const r = radius * (0.42 + rand() * 0.34);
     const a = rand() * Math.PI * 2;
     const b = rand() * Math.PI - Math.PI / 2;
-    const dist = radius * (0.15 + rand() * 0.55);
-    sphere(parent, mat, r,
-      cx + Math.cos(a) * Math.cos(b) * dist,
-      cy + Math.sin(b) * dist * 0.8,
-      cz + Math.sin(a) * Math.cos(b) * dist,
-      { seg: 10, sy: 0.75 + rand() * 0.4 });
+    const distR = radius * (0.12 + rand() * 0.5);
+    blob(parent, hexA, hexB, r,
+      cx + Math.cos(a) * Math.cos(b) * distR,
+      cy + Math.sin(b) * distR * 0.7,
+      cz + Math.sin(a) * Math.cos(b) * distR,
+      { seed: seed + i * 7, sy: 0.8 + rand() * 0.3 });
   }
 }
