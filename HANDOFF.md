@@ -16,7 +16,16 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.14.2** — item locking: `it.locked` flag; padlock FAB
+- Current version: **2.15.0** — premium pack: 58 new catalog items across
+  every category (search "PREMIUM PACK" in items.js; sectional/chesterfield,
+  canopy & bunk beds, crib, island+stools, appliances, freestanding tub,
+  walk-in shower, double vanity, farm table, buffet, L-desk, exec chair,
+  bookcase wall, crystal chandelier, arc lamp, sconces, monstera, gallery
+  wall, aquarium, BBQ, fire pit, outdoor lounge, hammock, trampoline,
+  playhouse, greenhouse, palm/red maple, boulders, porch column, glass rail,
+  carport...; catalog now 175 items). Hero textures render at 2K: file mats
+  honor `res:` in textures.js (12 ids re-encoded at 2048px in public/tex).
+- Previous: **2.14.2** — item locking: `it.locked` flag; padlock FAB
   (`#selLock`, amber when locked; multi locks/unlocks the whole group);
   locked = selectable but no drag/rotate/resize/delete in 2D & 3D (guards in
   editor2d downSelect/itemHandles/dragMulti/'r', viewer3d onDown, store

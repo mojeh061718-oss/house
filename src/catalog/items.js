@@ -2221,6 +2221,884 @@ export const ITEMS = [
       }
       return g;
     }
+  },
+  // ===================== PREMIUM PACK (v2.15) =====================
+  // living
+  {
+    id: 'sofa_sectional', name: 'L-Sectional Sofa', cat: 'living', w: 300, d: 220, h: 78,
+    palettes: FABRICS, plan: { type: 'sofa', seats: 4 },
+    build: (p) => {
+      const g = G();
+      const f = tex(p.fabric, 2.4, 1);
+      box(g, solid('#4a453e', 0.8), 296, 14, 96, 0, 0, -58, { r: 2 });
+      box(g, solid('#4a453e', 0.8), 96, 14, 120, -100, 0, 50, { r: 2 });
+      box(g, f, 296, 40, 96, 0, 8, -58, { r: 8 });
+      box(g, f, 96, 40, 120, -100, 8, 50, { r: 8 });
+      box(g, f, 296, 34, 18, 0, 44, -96, { r: 7 });
+      box(g, f, 20, 26, 90, 138, 44, -58, { r: 7 });
+      for (let i = 0; i < 3; i++) box(g, f, 88, 16, 80, -96 + i * 96, 46, -54, { r: 7 });
+      box(g, f, 90, 16, 108, -100, 46, 52, { r: 7 });
+      for (let i = 0; i < 3; i++) box(g, f, 80, 40, 14, -96 + i * 96, 52, -88, { r: 7, rx: -0.12 });
+      return g;
+    }
+  },
+  {
+    id: 'sofa_chester', name: 'Chesterfield Sofa', cat: 'living', w: 220, d: 95, h: 80,
+    palettes: [{ name: 'Cognac', chip: '#8a5a34', c: '#8a5a34' }, { name: 'Oxblood', chip: '#6a2e2a', c: '#6a2e2a' }, { name: 'Forest', chip: '#3a5240', c: '#3a5240' }],
+    plan: { type: 'sofa', seats: 3 },
+    build: (p) => {
+      const g = G();
+      const lth = solid(p.c, 0.45);
+      box(g, lth, 216, 42, 88, 0, 0, 0, { r: 10 });
+      box(g, lth, 216, 40, 20, 0, 40, -34, { r: 10 });
+      for (const s of [-1, 1]) box(g, lth, 22, 34, 80, s * 97, 36, 0, { r: 10 });
+      for (let i = 0; i < 6; i++) sphere(g, solid('#2e2622', 0.5), 1.6, -75 + i * 30, 62, -25);
+      for (let i = 0; i < 2; i++) box(g, lth, 92, 12, 62, -48 + i * 96, 42, 6, { r: 6 });
+      legs4(g, wood('#4a3826'), 210, 82, 8, 3, 10);
+      return g;
+    }
+  },
+  {
+    id: 'media_console', name: 'Media Console', cat: 'living', w: 200, d: 45, h: 55,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 200, 44, 45, 0, 8, 0, { r: 2 });
+      box(g, solid('#1d1f22', 0.3), 92, 30, 2, -51, 15, 22);
+      box(g, solid('#1d1f22', 0.3), 92, 30, 2, 51, 15, 22);
+      handleBar(g, -51, 30, 23.5, 16); handleBar(g, 51, 30, 23.5, 16);
+      legs4(g, metal('#8a8d90'), 190, 38, 8, 2, 8);
+      box(g, solid('#26282c', 0.4), 160, 6, 10, 0, 52.2, 12, { r: 3 });
+      return g;
+    }
+  },
+  {
+    id: 'recliner', name: 'Recliner', cat: 'living', w: 90, d: 100, h: 100,
+    palettes: FABRICS, plan: { type: 'chair' },
+    build: (p) => {
+      const g = G();
+      const f = tex(p.fabric, 1, 1);
+      box(g, f, 84, 30, 80, 0, 0, 4, { r: 9 });
+      box(g, f, 70, 60, 20, 0, 28, -34, { r: 10, rx: -0.25 });
+      for (const s of [-1, 1]) box(g, f, 16, 30, 74, s * 36, 28, 2, { r: 8 });
+      box(g, f, 62, 10, 42, 0, 16, 52, { r: 6, rx: 0.35 });
+      return g;
+    }
+  },
+  {
+    id: 'shelf_ladder', name: 'Ladder Shelf', cat: 'living', w: 65, d: 40, h: 190,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      for (const s of [-1, 1]) box(g, wd, 5, 190, 5, s * 30, 0, -14, { rx: 0.18 });
+      for (let i = 0; i < 4; i++) box(g, wd, 62, 3, 34 - i * 7, 0, 42 + i * 44, -2 - i * 5);
+      box(g, wood('#7a5c40'), 16, 20, 12, -14, 45, 2);
+      box(g, wood('#4a5a6a'), 12, 17, 10, 4, 45, 2);
+      sphere(g, solid('#c8a878', 0.7), 7, 18, 96, -8);
+      return g;
+    }
+  },
+  {
+    id: 'pouf', name: 'Round Pouf', cat: 'living', w: 55, d: 55, h: 38,
+    palettes: FABRICS, plan: { type: 'tableRound' },
+    build: (p) => {
+      const g = G();
+      const m = tex(p.fabric, 1, 1);
+      cyl(g, m, 27, 34, 0, 0, 0, { seg: 20 });
+      sphere(g, m, 27, 0, 34, 0, { sy: 0.28 });
+      return g;
+    }
+  },
+  {
+    id: 'fireplace_wall', name: 'Electric Fireplace', cat: 'living', w: 150, d: 20, h: 130,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, tex('stone_veneer', 1.4, 1.2), 150, 128, 18, 0, 0, 0, { r: 1 });
+      box(g, solid('#141414', 0.3), 110, 42, 3, 0, 34, 9);
+      box(g, solid('#1d1d1d', 0.4), 104, 36, 1, 0, 37, 9.5);
+      for (let i = 0; i < 5; i++) sphere(g, solid('#ff7a26', 0.6), 4, -34 + i * 17, 42, 10);
+      box(g, wood('#6a4f36'), 130, 6, 24, 0, 96, 2, { r: 2 });
+      return g;
+    },
+    light: { y: 45, color: '#ff8a3a', intensity: 0.8, distance: 260 }
+  },
+  // bedroom
+  {
+    id: 'bed_canopy', name: 'Canopy Bed', cat: 'bedroom', w: 175, d: 215, h: 210,
+    palettes: WOODS, plan: { type: 'bed', pillows: 2 },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 175, 28, 212, 0, 6, 0, { r: 2 });
+      box(g, solid('#f0ede6', 0.9), 165, 22, 196, 0, 30, 2, { r: 7 });
+      box(g, tex('fabric_beige', 2, 2), 165, 10, 120, 0, 44, 38, { r: 6 });
+      for (const px of [-64, 64]) box(g, solid('#ffffff', 0.95), 58, 12, 38, px, 50, -76, { r: 6 });
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, wd, 7, 205, 7, sx * 84, 0, sz * 102);
+      box(g, wd, 175, 5, 7, 0, 202, -102); box(g, wd, 175, 5, 7, 0, 202, 102);
+      box(g, wd, 7, 5, 210, -84, 202, 0); box(g, wd, 7, 5, 210, 84, 202, 0);
+      return g;
+    }
+  },
+  {
+    id: 'bed_bunk', name: 'Bunk Bed', cat: 'bedroom', w: 105, d: 205, h: 165,
+    palettes: WOODS, plan: { type: 'bed', pillows: 1 },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      for (const y of [22, 110]) {
+        box(g, wd, 105, 14, 205, 0, y, 0, { r: 2 });
+        box(g, solid(y > 50 ? '#e8f0f4' : '#f4ece0', 0.9), 96, 14, 192, 0, y + 12, 0, { r: 5 });
+        box(g, solid('#ffffff', 0.95), 50, 9, 30, 0, y + 25, -80, { r: 4 });
+      }
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, wd, 8, 160, 8, sx * 48, 0, sz * 98);
+      box(g, wd, 100, 12, 4, 0, 130, 100);
+      for (const dx of [0, 14]) box(g, wd, 4, 100, 4, 40 + dx, 20, 102);
+      for (let i = 0; i < 4; i++) box(g, wd, 22, 4, 4, 47, 34 + i * 26, 102);
+      return g;
+    }
+  },
+  {
+    id: 'crib', name: 'Baby Crib', cat: 'bedroom', w: 130, d: 70, h: 95,
+    palettes: WOODS, plan: { type: 'bed', pillows: 1 },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 130, 8, 70, 0, 28, 0, { r: 2 });
+      box(g, solid('#f6f2ea', 0.95), 122, 12, 62, 0, 34, 0, { r: 4 });
+      for (const sz of [-1, 1]) {
+        box(g, wd, 130, 4, 4, 0, 88, sz * 33);
+        for (let i = 0; i < 12; i++) box(g, wd, 2.5, 56, 2.5, -60 + i * 11, 32, sz * 33);
+      }
+      for (const sx of [-1, 1]) {
+        box(g, wd, 4, 92, 4, sx * 63, 0, -33); box(g, wd, 4, 92, 4, sx * 63, 0, 33);
+        box(g, wd, 4, 4, 66, sx * 63, 88, 0);
+        for (let i = 0; i < 5; i++) box(g, wd, 2.5, 56, 2.5, sx * 63, 32, -27 + i * 13.5);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'vanity_makeup', name: 'Makeup Vanity', cat: 'bedroom', w: 110, d: 45, h: 140,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 110, 6, 45, 0, 72, 0, { r: 2 });
+      legs4(g, wd, 100, 38, 72, 2.5, 6);
+      box(g, wd, 30, 12, 40, -38, 60, 0); knob(g, -38, 66, 21);
+      cyl(g, wood('#8a6a4a'), 28, 2.5, 0, 82, -19.5, { rx: Math.PI / 2, seg: 28 });
+      cyl(g, mirror(), 26, 2, 0, 84, -18, { rx: Math.PI / 2, seg: 28 });
+      cyl(g, tex('fabric_beige', 1, 1), 17, 8, 30, 38, 34, { seg: 16 });
+      legs4(g, wd, 28, 28, 38, 2, 3);
+      return g;
+    }
+  },
+  {
+    id: 'bench_bed', name: 'Bed Bench', cat: 'bedroom', w: 130, d: 42, h: 45,
+    palettes: FABRICS, plan: { type: 'sofa', seats: 2 },
+    build: (p) => {
+      const g = G();
+      box(g, tex(p.fabric, 1.6, 0.6), 130, 18, 42, 0, 27, 0, { r: 7 });
+      legs4(g, metal('#8a8d90'), 120, 34, 27, 2, 6);
+      return g;
+    }
+  },
+  {
+    id: 'armoire', name: 'Armoire', cat: 'bedroom', w: 120, d: 60, h: 200,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 120, 196, 58, 0, 0, 0, { r: 2 });
+      for (const s of [-1, 1]) {
+        box(g, wd, 54, 182, 2, s * 29, 7, 29);
+        handleBar(g, s * 6, 95, 31, 22, true);
+      }
+      box(g, wd, 124, 8, 62, 0, 196, 0, { r: 2 });
+      return g;
+    }
+  },
+  // kitchen
+  {
+    id: 'island_stools', name: 'Island + Stools', cat: 'kitchen', w: 220, d: 150, h: 92,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood), 200, 84, 90, 0, 0, -20, { r: 2 });
+      box(g, tex('countertop', 2, 1), 220, 8, 110, 0, 84, -20, { r: 2 });
+      for (const s of [-1, 1]) { box(g, wood(p.wood), 50, 70, 2, s * 48, 6, 26); handleBar(g, s * 48, 62, 27, 18); }
+      for (let i = 0; i < 3; i++) {
+        const x = -70 + i * 70;
+        cyl(g, metal('#6a6d70'), 3, 62, x, 0, 52);
+        cyl(g, wood('#4a3826'), 17, 5, x, 62, 52, { seg: 18 });
+      }
+      return g;
+    }
+  },
+  {
+    id: 'range_hood', name: 'Range + Hood', cat: 'kitchen', w: 90, d: 65, h: 210,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, metal('#c8cbce', 0.3), 90, 90, 62, 0, 0, 0, { r: 1 });
+      box(g, solid('#17181a', 0.3), 80, 40, 2, 0, 30, 31);
+      handleBar(g, 0, 76, 33, 70);
+      box(g, solid('#1d1f22', 0.5), 86, 3, 58, 0, 90, 0);
+      for (let i = 0; i < 4; i++) cyl(g, solid('#2a2c2e', 0.5), 9, 1.5, -30 + (i % 2) * 60, 91.5, -14 + Math.floor(i / 2) * 28, { seg: 16 });
+      box(g, metal('#c8cbce', 0.3), 88, 22, 55, 0, 150, 0, { r: 1 });
+      prism(g, metal('#c8cbce', 0.3), 60, 40, 40, 0, 172, 0);
+      return g;
+    }
+  },
+  {
+    id: 'fridge_french', name: 'French-Door Fridge', cat: 'kitchen', w: 92, d: 72, h: 178,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const st = metal('#c4c7ca', 0.25);
+      box(g, st, 92, 176, 70, 0, 0, 0, { r: 3 });
+      box(g, solid('#9a9da0', 0.35), 90, 2, 68, 0, 108, 0);
+      box(g, solid('#9a9da0', 0.35), 2, 66, 68, 0, 110, 0);
+      handleBar(g, -8, 130, 36.5, 40, true); handleBar(g, 8, 130, 36.5, 40, true);
+      handleBar(g, 0, 88, 36.5, 60);
+      box(g, solid('#26282a', 0.3), 26, 34, 1.5, -22, 128, 35.6);
+      return g;
+    }
+  },
+  {
+    id: 'pantry_cab', name: 'Pantry Cabinet', cat: 'kitchen', w: 80, d: 60, h: 210,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 80, 208, 58, 0, 0, 0, { r: 1.5 });
+      for (const s of [-1, 1]) { box(g, wd, 36, 198, 2, s * 20, 5, 29); handleBar(g, s * 5, 105, 31, 26, true); }
+      return g;
+    }
+  },
+  {
+    id: 'coffee_bar', name: 'Coffee Station', cat: 'kitchen', w: 120, d: 50, h: 140,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood), 120, 84, 48, 0, 0, 0, { r: 2 });
+      box(g, tex('countertop', 1.2, 0.5), 124, 6, 52, 0, 84, 0, { r: 2 });
+      box(g, solid('#2a2c2e', 0.4), 26, 34, 30, -34, 90, 0, { r: 3 });
+      box(g, metal('#9a9da0'), 20, 6, 24, -34, 124, 0, { r: 2 });
+      cyl(g, solid('#e8e4dc', 0.7), 8, 20, 8, 90, 4);
+      box(g, wood('#8a6a4a'), 30, 3, 30, 36, 90, 0, { r: 2 });
+      for (let i = 0; i < 3; i++) cyl(g, solid(['#c8a878', '#8a5a34', '#e0d6c8'][i], 0.7), 4.5, 12, 26 + i * 11, 93, -6, { seg: 12 });
+      box(g, wood(p.wood), 116, 44, 3, 0, 96, -22);
+      box(g, wood(p.wood), 110, 3, 16, 0, 128, -15);
+      return g;
+    }
+  },
+  {
+    id: 'dishwasher', name: 'Dishwasher', cat: 'kitchen', w: 60, d: 62, h: 86,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, metal('#c4c7ca', 0.25), 60, 84, 60, 0, 0, 0, { r: 1.5 });
+      handleBar(g, 0, 74, 31, 44);
+      box(g, solid('#26282a', 0.4), 44, 4, 1.5, 0, 78, 30.6);
+      return g;
+    }
+  },
+  {
+    id: 'wine_cabinet', name: 'Wine Cabinet', cat: 'kitchen', w: 70, d: 45, h: 130,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood), 70, 128, 43, 0, 0, 0, { r: 2 });
+      box(g, glass(), 54, 80, 1.5, 0, 40, 21.8);
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+        cyl(g, solid(['#3a2430', '#2a3a2a', '#3a3020', '#2e2a3a'][c], 0.3), 3.6, 26, -21 + c * 14, 48 + r * 22, 8, { rx: Math.PI / 2 });
+      }
+      handleBar(g, 24, 70, 22.5, 20, true);
+      return g;
+    }
+  },
+  // bathroom
+  {
+    id: 'tub_free', name: 'Freestanding Tub', cat: 'bathroom', w: 170, d: 80, h: 60,
+    palettes: null, plan: { type: 'tableRound' },
+    build: () => {
+      const g = G();
+      const wh = solid('#f4f2ee', 0.25);
+      sphere(g, wh, 84, 0, 42, 0, { sy: 0.62, seg: 26 });
+      const wt = sphere(g, water(), 76, 0, 47, 0, { sy: 0.12, seg: 24 });
+      wt.receiveShadow = true;
+      cyl(g, chrome(), 2.2, 60, 70, 0, -26);
+      cyl(g, chrome(), 2, 24, 70, 58, -32, { rx: Math.PI / 2 });
+      return g;
+    }
+  },
+  {
+    id: 'shower_walkin', name: 'Walk-in Shower', cat: 'bathroom', w: 120, d: 120, h: 210,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, tex('tile_bath', 1.2, 2), 120, 208, 6, 0, 0, -57);
+      box(g, tex('tile_bath', 1.2, 2), 6, 208, 120, -57, 0, 0);
+      box(g, tex('tile_white', 1.2, 1.2), 120, 5, 120, 0, 0, 0);
+      box(g, glass(), 2, 200, 114, 58, 4, 0);
+      box(g, glass(), 60, 200, 2, 28, 4, 58);
+      cyl(g, chrome(), 1.8, 190, -50, 6, -50);
+      box(g, chrome(), 20, 2, 20, -44, 196, -44, { r: 2 });
+      return g;
+    }
+  },
+  {
+    id: 'vanity_double', name: 'Double Vanity', cat: 'bathroom', w: 160, d: 55, h: 200,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood), 160, 80, 52, 0, 0, 0, { r: 2 });
+      box(g, tex('countertop', 1.6, 0.55), 164, 6, 56, 0, 80, 0, { r: 2 });
+      for (const s of [-1, 1]) {
+        sphere(g, solid('#f4f2ee', 0.2), 22, s * 42, 86, 0, { sy: 0.3 });
+        cyl(g, chrome(), 1.6, 18, s * 42, 86, -18);
+        box(g, wood(p.wood), 58, 74, 3, s * 42, 108, -26.5);
+        box(g, mirror(), 54, 70, 2, s * 42, 110, -25);
+        handleBar(g, s * 42, 45, 27, 20);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'towel_ladder', name: 'Towel Ladder', cat: 'bathroom', w: 50, d: 8, h: 170,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      for (const s of [-1, 1]) box(g, wd, 4, 170, 4, s * 23, 0, 0, { rx: 0.12 });
+      for (let i = 0; i < 4; i++) box(g, wd, 46, 3, 3, 0, 40 + i * 36, -2 + i * 1.4);
+      box(g, solid('#dfe8ea', 0.95), 44, 26, 3, 0, 96, 4, { r: 2 });
+      box(g, solid('#c9d8da', 0.95), 44, 20, 3, 0, 56, 5.4, { r: 2 });
+      return g;
+    }
+  },
+  {
+    id: 'washer_dryer', name: 'Washer + Dryer', cat: 'bathroom', w: 65, d: 65, h: 175,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      for (const y of [0, 88]) {
+        box(g, solid('#e8e6e2', 0.4), 65, 86, 63, 0, y, 0, { r: 3 });
+        cyl(g, solid('#26282a', 0.2), 22, 2, 0, y + 40, 30.6, { rx: Math.PI / 2, seg: 24 });
+        cyl(g, glass(), 18, 2, 0, y + 40, 31.6, { rx: Math.PI / 2, seg: 24 });
+        box(g, solid('#c8c6c2', 0.4), 60, 8, 1.5, 0, y + 74, 31);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'mirror_led', name: 'LED Mirror', cat: 'bathroom', w: 90, d: 5, h: 70, mount: 'wall', elevation: 120,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, mirror(), 88, 66, 2, 0, 0, 0, { r: 2 });
+      box(g, solid('#fff6e0', 0.4), 92, 2, 2.4, 0, -2, 0, { r: 1 });
+      box(g, solid('#fff6e0', 0.4), 92, 2, 2.4, 0, 66, 0, { r: 1 });
+      return g;
+    },
+    light: { y: 30, color: '#fff2d8', intensity: 0.5, distance: 200 }
+  },
+  // dining
+  {
+    id: 'table_farm', name: 'Farmhouse Table', cat: 'dining', w: 240, d: 100, h: 78,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 240, 7, 100, 0, 71, 0, { r: 1.5 });
+      for (const s of [-1, 1]) {
+        box(g, wd, 10, 62, 80, s * 105, 8, 0, { r: 2 });
+        box(g, wd, 14, 8, 90, s * 105, 0, 0, { r: 2 });
+      }
+      box(g, wd, 200, 8, 10, 0, 24, 0);
+      return g;
+    }
+  },
+  {
+    id: 'buffet', name: 'Buffet Sideboard', cat: 'dining', w: 180, d: 48, h: 85,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 180, 74, 46, 0, 6, 0, { r: 2 });
+      for (let i = 0; i < 3; i++) { box(g, wd, 54, 64, 2, -60 + i * 60, 11, 23); handleBar(g, -60 + i * 60, 45, 25, 16); }
+      legs4(g, wd, 170, 40, 6, 2.5, 6);
+      sphere(g, solid('#b8c4c8', 0.3), 9, -50, 88, 0);
+      box(g, wood('#3a5240'), 14, 18, 14, 55, 80, 0, { r: 2 });
+      return g;
+    }
+  },
+  {
+    id: 'bar_cart', name: 'Bar Cart', cat: 'dining', w: 75, d: 45, h: 85,
+    palettes: null, plan: { type: 'table' },
+    build: () => {
+      const g = G();
+      const brass = metal('#c8a860', 0.3);
+      for (const y of [26, 74]) box(g, glass(), 70, 2, 42, 0, y, 0);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, brass, 1.6, 80, sx * 33, 0, sz * 19);
+      for (const sx of [-1, 1]) cyl(g, brass, 4.5, 2, sx * 33, 0, 0, { seg: 14, rx: Math.PI / 2 });
+      for (let i = 0; i < 3; i++) cyl(g, solid(['#2a3a2a', '#3a2430', '#c8b088'][i], 0.25), 3.4, 22, -18 + i * 12, 76, -8, { seg: 10 });
+      return g;
+    }
+  },
+  {
+    id: 'china_cabinet', name: 'China Cabinet', cat: 'dining', w: 110, d: 45, h: 195,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 110, 80, 44, 0, 0, 0, { r: 2 });
+      box(g, wd, 104, 108, 36, 0, 82, -3, { r: 2 });
+      box(g, glass(), 92, 96, 1.5, 0, 88, 15.6);
+      for (let i = 0; i < 2; i++) box(g, wd, 96, 2, 30, 0, 118 + i * 32, -3);
+      for (let i = 0; i < 4; i++) cyl(g, solid('#e8e6e0', 0.4), 6, 1.5, -36 + i * 24, 120, -3, { seg: 14 });
+      handleBar(g, -20, 45, 23, 14); handleBar(g, 20, 45, 23, 14);
+      return g;
+    }
+  },
+  // office
+  {
+    id: 'desk_l', name: 'L-Desk + Monitors', cat: 'office', w: 180, d: 160, h: 120,
+    palettes: WOODS, plan: { type: 'table' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 180, 6, 70, 0, 70, -45, { r: 2 });
+      box(g, wd, 70, 6, 90, -55, 70, 35, { r: 2 });
+      legs4(g, metal('#6a6d70'), 170, 60, 70, 2.5, 6, true);
+      box(g, metal('#6a6d70'), 6, 70, 6, -55, 0, 72);
+      for (const dx of [-28, 28]) {
+        box(g, solid('#17181a', 0.3), 50, 30, 2, dx, 92, -68, { rx: -0.06 });
+        cyl(g, solid('#2a2c2e', 0.5), 4, 14, dx, 76, -70);
+      }
+      box(g, solid('#26282a', 0.4), 42, 1.6, 14, 0, 76.5, -30, { r: 1 });
+      return g;
+    }
+  },
+  {
+    id: 'chair_exec', name: 'Executive Chair', cat: 'office', w: 65, d: 65, h: 118,
+    palettes: null, plan: { type: 'chair' },
+    build: () => {
+      const g = G();
+      const lth = solid('#2a2c30', 0.45);
+      cyl(g, metal('#7a7d80'), 3, 26, 0, 8, 0);
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2;
+        const leg = box(g, metal('#7a7d80'), 26, 3, 5, Math.cos(a) * 14, 4, Math.sin(a) * 14);
+        leg.rotation.y = -a;
+      }
+      box(g, lth, 52, 10, 52, 0, 36, 0, { r: 8 });
+      box(g, lth, 50, 62, 12, 0, 46, -24, { r: 9, rx: -0.08 });
+      for (const s of [-1, 1]) box(g, lth, 8, 6, 34, s * 28, 58, 0, { r: 3 });
+      return g;
+    }
+  },
+  {
+    id: 'bookwall', name: 'Bookcase Wall', cat: 'office', w: 200, d: 35, h: 220,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood);
+      box(g, wd, 200, 218, 8, 0, 0, -13);
+      for (let c = 0; c < 4; c++) box(g, wd, 4, 218, 33, -98 + c * 65.3, 0, 0);
+      for (let r2 = 0; r2 < 5; r2++) box(g, wd, 200, 4, 33, 0, 40 + r2 * 44, 0);
+      let sd2 = 5;
+      const rnd = () => { sd2 = (sd2 * 1664525 + 1013904223) >>> 0; return sd2 / 4294967296; };
+      const cols = ['#7a5c40', '#4a5a6a', '#7c4434', '#3a5240', '#8a8058', '#5a4a6a'];
+      for (let r2 = 0; r2 < 5; r2++) for (let c = 0; c < 3; c++) {
+        let x = -88 + c * 65.3;
+        const n = 4 + Math.floor(rnd() * 4);
+        for (let b = 0; b < n; b++) {
+          box(g, solid(cols[(b + c + r2) % 6], 0.85), 4 + rnd() * 3, 24 + rnd() * 10, 20, x, 4 + r2 * 44, 0);
+          x += 6 + rnd() * 3;
+        }
+      }
+      return g;
+    }
+  },
+  {
+    id: 'printer_stand', name: 'Printer Stand', cat: 'office', w: 60, d: 50, h: 75,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood), 60, 60, 48, 0, 0, 0, { r: 2 });
+      box(g, solid('#dfdfdc', 0.4), 46, 22, 38, 0, 60, 0, { r: 3 });
+      box(g, solid('#26282a', 0.4), 30, 2, 20, 0, 82, -4);
+      return g;
+    }
+  },
+  // decor & lighting
+  {
+    id: 'chandelier_crystal', name: 'Crystal Chandelier', cat: 'decor', w: 70, d: 70, h: 75, mount: 'ceiling',
+    palettes: null, plan: { type: 'rugRound' },
+    build: () => {
+      const g = G();
+      const brass = metal('#c8b070', 0.25);
+      cyl(g, brass, 1.2, 40, 0, -40, 0);
+      cyl(g, brass, 16, 3, 0, -44, 0, { seg: 18 });
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * Math.PI * 2;
+        const x = Math.cos(a) * 26, z = Math.sin(a) * 26;
+        shade(g, '#fff4da', 4, 3, 9, x, -60, z);
+        for (let k = 0; k < 3; k++) sphere(g, glass(), 1.6, x * (0.75 - k * 0.14), -62 - k * 6, z * (0.75 - k * 0.14));
+      }
+      sphere(g, glass(), 7, 0, -72, 0);
+      return g;
+    },
+    light: { y: -55, color: '#ffe8b8', intensity: 1.2, distance: 520 }
+  },
+  {
+    id: 'lamp_arc', name: 'Arc Floor Lamp', cat: 'decor', w: 120, d: 40, h: 200,
+    palettes: null, plan: { type: 'rugRound' },
+    build: () => {
+      const g = G();
+      cyl(g, solid('#3a3c3e', 0.5), 14, 5, -45, 0, 0, { seg: 18 });
+      cyl(g, metal('#9a9da0'), 1.8, 175, -52, 0, 0, { rz: -0.55 });
+      shade(g, '#f0e8d8', 15, 9, 20, 40, 152, 0);
+      return g;
+    },
+    light: { y: 160, color: '#ffe9c0', intensity: 0.9, distance: 420 }
+  },
+  {
+    id: 'pendant_trio', name: 'Pendant Trio', cat: 'decor', w: 130, d: 25, h: 60, mount: 'ceiling',
+    palettes: null, plan: { type: 'rug' },
+    build: () => {
+      const g = G();
+      for (let i = 0; i < 3; i++) {
+        const x = -45 + i * 45;
+        cyl(g, metal('#3a3c3e'), 0.8, 34, x, -34, 0);
+        shade(g, '#2f3134', 9, 4, 13, x, -48, 0);
+      }
+      return g;
+    },
+    light: { y: -45, color: '#ffdba0', intensity: 1.0, distance: 380 }
+  },
+  {
+    id: 'sconce_pair', name: 'Wall Sconces', cat: 'decor', w: 100, d: 12, h: 30, mount: 'wall', elevation: 165,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      for (const s of [-1, 1]) {
+        box(g, metal('#c8b070', 0.3), 3, 16, 3, s * 40, 0, -3);
+        shade(g, '#f4ead2', 6, 4.5, 11, s * 40, 8, 2);
+      }
+      return g;
+    },
+    light: { y: 15, color: '#ffe9c0', intensity: 0.7, distance: 260 }
+  },
+  {
+    id: 'plant_monstera', name: 'Monstera Plant', cat: 'decor', w: 90, d: 90, h: 150,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      cyl(g, solid('#b8825a', 0.85), 18, 26, 0, 0, 0, { rTop: 15, seg: 16 });
+      cyl(g, solid('#4a3626', 0.95), 14, 3, 0, 26, 0, { seg: 16 });
+      let sd3 = 17;
+      const rnd = () => { sd3 = (sd3 * 1664525 + 1013904223) >>> 0; return sd3 / 4294967296; };
+      for (let i = 0; i < 8; i++) {
+        const a = rnd() * Math.PI * 2;
+        cyl(g, solid('#3f6b2e', 0.9), 1.2, 60 + rnd() * 55, 0, 26, 0, { rz: Math.cos(a) * 0.45, rx: Math.sin(a) * 0.45 });
+        const leaf = sphere(g, solid(rnd() < 0.5 ? '#2f5b30' : '#3d7038', 0.85), 16 + rnd() * 9,
+          Math.cos(a) * (28 + rnd() * 18), 80 + rnd() * 55, Math.sin(a) * (28 + rnd() * 18), { sy: 0.16, seg: 10 });
+        leaf.rotation.z = (rnd() - 0.5) * 0.7;
+        leaf.rotation.x = (rnd() - 0.5) * 0.7;
+      }
+      return g;
+    }
+  },
+  {
+    id: 'gallery_wall', name: 'Gallery Wall', cat: 'decor', w: 160, d: 6, h: 110, mount: 'wall', elevation: 120,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const frames = [
+        [-55, 30, 34, 44], [-12, 42, 40, 28], [-14, 4, 44, 30], [34, 22, 30, 40], [62, 40, 22, 22], [62, 2, 22, 30]
+      ];
+      frames.forEach(([x, y, w2, h2], i) => {
+        box(g, wood(i % 2 ? '#3a3735' : '#8a6a4a'), w2, h2, 2.5, x, y, 0);
+        box(g, artMaterial(i + 40), w2 - 6, h2 - 6, 1.6, x, y + 3, 0.8);
+      });
+      return g;
+    }
+  },
+  {
+    id: 'mirror_floor', name: 'Leaning Mirror', cat: 'decor', w: 70, d: 12, h: 180,
+    palettes: WOODS, plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood), 70, 180, 4, 0, 0, 0, { r: 2, rx: -0.08 });
+      box(g, mirror(), 60, 170, 1.6, 0, 4, 1.8, { rx: -0.08 });
+      return g;
+    }
+  },
+  {
+    id: 'aquarium', name: 'Aquarium', cat: 'decor', w: 120, d: 45, h: 130,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, wood('#3a3735'), 120, 60, 44, 0, 0, 0, { r: 2 });
+      box(g, glass(), 114, 60, 40, 0, 60, 0);
+      const wt = box(g, water(), 110, 50, 36, 0, 62, 0);
+      wt.castShadow = false;
+      box(g, solid('#c8b088', 0.95), 108, 6, 34, 0, 62, 0);
+      for (let i = 0; i < 3; i++) blob(g, '#2f5b30', '#4a8a3c', 6, -30 + i * 30, 72, 0, { seed: 30 + i, sy: 1.6, detail: 1 });
+      for (let i = 0; i < 4; i++) sphere(g, solid(['#e8a03a', '#e86a3a', '#e8d03a', '#3a8ae8'][i], 0.5), 2.4, -35 + i * 24, 90 + (i % 2) * 12, 4, { sx: 1.6 });
+      box(g, wood('#3a3735'), 120, 6, 44, 0, 120, 0, { r: 2 });
+      return g;
+    },
+    light: { y: 115, color: '#a8d8ff', intensity: 0.6, distance: 240 }
+  },
+  // outdoor
+  {
+    id: 'grill_station', name: 'BBQ Grill', cat: 'outdoor', w: 140, d: 65, h: 120,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const st = metal('#b8bbbe', 0.3);
+      box(g, solid('#26282a', 0.4), 76, 42, 55, -20, 2, 0, { r: 3 });
+      box(g, st, 80, 45, 58, -20, 45, 0, { r: 3 });
+      sphere(g, st, 40, -20, 92, 0, { sy: 0.5, seg: 20 });
+      handleBar(g, -20, 106, 20, 40);
+      box(g, wood('#8a6a4a'), 44, 4, 56, 48, 88, 0, { r: 2 });
+      box(g, st, 6, 86, 6, 48, 0, -20); box(g, st, 6, 86, 6, 48, 0, 20);
+      for (let i = 0; i < 3; i++) cyl(g, solid('#17181a', 0.4), 3.4, 6, -44 + i * 22, 66, 29, { rx: Math.PI / 2 });
+      return g;
+    }
+  },
+  {
+    id: 'fire_pit', name: 'Fire Pit', cat: 'outdoor', w: 110, d: 110, h: 45,
+    palettes: null, plan: { type: 'tableRound' },
+    build: () => {
+      const g = G();
+      cyl(g, tex('stone_veneer', 2.4, 0.4), 55, 40, 0, 0, 0, { seg: 24 });
+      cyl(g, solid('#1d1d1d', 0.9), 46, 4, 0, 40, 0, { seg: 24 });
+      let sd4 = 3;
+      const rnd = () => { sd4 = (sd4 * 1664525 + 1013904223) >>> 0; return sd4 / 4294967296; };
+      for (let i = 0; i < 7; i++) {
+        const lg = cyl(g, wood('#4a3626'), 4, 34, (rnd() - 0.5) * 30, 46, (rnd() - 0.5) * 30, { rx: Math.PI / 2 });
+        lg.rotation.y = rnd() * Math.PI;
+      }
+      for (let i = 0; i < 4; i++) {
+        const f = cyl(g, solid('#ff8a2a', 0.8), 8 - i, 20 + i * 6, (rnd() - 0.5) * 16, 44, (rnd() - 0.5) * 16, { rTop: 0.5, seg: 8 });
+        f.castShadow = false;
+      }
+      return g;
+    },
+    light: { y: 60, color: '#ff8a3a', intensity: 1.3, distance: 420 }
+  },
+  {
+    id: 'outdoor_sofa', name: 'Outdoor Lounge Set', cat: 'outdoor', w: 260, d: 220, h: 70,
+    palettes: null, plan: { type: 'sofa', seats: 4 },
+    build: () => {
+      const g = G();
+      const rat = wood('#6a5a44', 0.85);
+      const cush = solid('#dfd8c8', 0.9);
+      box(g, rat, 250, 30, 80, 0, 0, -65, { r: 4 });
+      box(g, rat, 80, 30, 120, -85, 0, 40, { r: 4 });
+      box(g, cush, 240, 12, 70, 0, 30, -65, { r: 5 });
+      box(g, cush, 70, 12, 110, -85, 30, 40, { r: 5 });
+      box(g, rat, 250, 28, 12, 0, 30, -102, { r: 4 });
+      for (let i = 0; i < 3; i++) box(g, cush, 70, 34, 10, -80 + i * 80, 40, -96, { r: 5, rx: -0.1 });
+      box(g, rat, 90, 32, 90, 55, 0, 45, { r: 4 });
+      box(g, glass(), 84, 2, 84, 55, 32, 45);
+      return g;
+    }
+  },
+  {
+    id: 'hammock', name: 'Hammock', cat: 'outdoor', w: 300, d: 110, h: 115,
+    palettes: null, plan: { type: 'rug' },
+    build: () => {
+      const g = G();
+      const st = metal('#5a5d60', 0.5);
+      box(g, st, 6, 110, 6, -130, 0, 0, { rz: 0.35 });
+      box(g, st, 6, 110, 6, 130, 0, 0, { rz: -0.35 });
+      box(g, st, 240, 6, 8, 0, 0, 0, { r: 2 });
+      const fabric = wavyPanel(g, tex('fabric_beige', 2, 1), 180, 90, 5, 8);
+      fabric.rotation.x = -Math.PI / 2 + 0.12;
+      fabric.position.set(0, 78, 0);
+      fabric.scale.y = 0.8;
+      cyl(g, solid('#c8c4ba', 0.8), 1, 42, -122, 78, 0, { rz: 1.05 });
+      cyl(g, solid('#c8c4ba', 0.8), 1, 42, 122, 78, 0, { rz: -1.05 });
+      return g;
+    }
+  },
+  {
+    id: 'trampoline', name: 'Trampoline', cat: 'outdoor', w: 300, d: 300, h: 180,
+    palettes: null, plan: { type: 'rings' },
+    build: () => {
+      const g = G();
+      cyl(g, solid('#1d2733', 0.85), 148, 6, 0, 80, 0, { seg: 30 });
+      cyl(g, solid('#3a6ea8', 0.8), 150, 8, 0, 86, 0, { rTop: 150, seg: 30 });
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * Math.PI * 2;
+        cyl(g, metal('#7a7d80'), 2.4, 86, Math.cos(a) * 130, 0, Math.sin(a) * 130);
+        cyl(g, metal('#3a3c3e'), 1.2, 90, Math.cos(a) * 138, 88, Math.sin(a) * 138);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'playhouse', name: 'Kids Playhouse', cat: 'outdoor', w: 180, d: 160, h: 190,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, tex('siding_butter', 1.6, 1), 160, 120, 140, 0, 0, 0, { r: 1 });
+      prism(g, tex('shingle_red', 1, 1), 176, 62, 156, 0, 118, 0, tex('siding_white', 1, 1));
+      box(g, wood('#6a4f36'), 40, 74, 4, -30, 0, 70.5);
+      box(g, solid('#e8e6e0', 0.7), 40, 40, 3, 40, 47, 70.6, { r: 1 });
+      box(g, solid('#bcd8e2', 0.2), 34, 34, 2, 40, 50, 71);
+      box(g, solid('#bcd8e2', 0.2), 30, 30, 2, 0, 50, -70.5);
+      return g;
+    }
+  },
+  {
+    id: 'greenhouse', name: 'Greenhouse', cat: 'outdoor', w: 240, d: 180, h: 210,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const fr = metal('#4a5a4a', 0.5);
+      box(g, fr, 240, 4, 180, 0, 0, 0);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, fr, 5, 150, 5, sx * 116, 0, sz * 86);
+      for (const sz of [-1, 1]) box(g, glass(), 230, 146, 2, 0, 2, sz * 87);
+      for (const sx of [-1, 1]) box(g, glass(), 2, 146, 172, sx * 117, 2, 0);
+      prism(g, glass(), 244, 60, 186, 0, 150, 0, glass());
+      box(g, fr, 240, 4, 4, 0, 148, -88); box(g, fr, 240, 4, 4, 0, 148, 88);
+      box(g, wood('#8a6a4a'), 200, 8, 40, 0, 76, -55);
+      for (let i = 0; i < 4; i++) blob(g, '#375c22', '#6d9c42', 12, -70 + i * 46, 84, -55, { seed: 70 + i, detail: 1 });
+      return g;
+    }
+  },
+  {
+    id: 'mailbox', name: 'Mailbox', cat: 'outdoor', w: 30, d: 50, h: 115,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, wood('#5a4632'), 8, 100, 8, 0, 0, 0);
+      box(g, metal('#3a3c3e', 0.5), 24, 20, 44, 0, 100, 0, { r: 6 });
+      box(g, solid('#c43a30', 0.6), 2.5, 12, 3, 14, 106, 12);
+      return g;
+    }
+  },
+  {
+    id: 'garden_arch', name: 'Garden Arbor', cat: 'outdoor', w: 140, d: 50, h: 230,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const wd = wood('#e8e4dc', 0.75);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, wd, 6, 200, 6, sx * 62, 0, sz * 20);
+      for (let i = 0; i < 6; i++) box(g, wd, 8, 4, 56, -60 + i * 24, 202 + Math.sin(i / 5 * Math.PI) * 16, 0);
+      for (const sx of [-1, 1]) {
+        box(g, wd, 4, 4, 44, sx * 62, 90, 0); box(g, wd, 4, 4, 44, sx * 62, 140, 0);
+        blob(g, '#375c22', '#679a40', 22, sx * 62, 120, 0, { seed: 81 + sx, sy: 2.4, detail: 1 });
+      }
+      blob(g, '#3f6b2e', '#7aa848', 26, 0, 212, 0, { seed: 85, sy: 0.7 });
+      return g;
+    }
+  },
+  {
+    id: 'tree_palm', name: 'Palm Tree', cat: 'outdoor', w: 240, d: 240, h: 420,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      for (let i = 0; i < 9; i++) {
+        const t = i / 8;
+        cyl(g, solid(i % 2 ? '#8a7050' : '#7a6244', 0.9), 11 - t * 4, 42, t * 34, i * 38, 0, { rTop: 10 - t * 4, seg: 10 });
+      }
+      for (let i = 0; i < 9; i++) {
+        const a = i / 9 * Math.PI * 2;
+        const fr = blob(g, '#2f6b30', '#63a842', 20, 34 + Math.cos(a) * 78, 344, Math.sin(a) * 78,
+          { seed: 60 + i, sy: 0.22, detail: 1 });
+        fr.scale.x = 3.4;
+        fr.rotation.y = -a;
+        fr.rotation.z = -0.35;
+      }
+      sphere(g, solid('#6a4f36', 0.9), 9, 34, 340, 0);
+      return g;
+    }
+  },
+  {
+    id: 'tree_maple_red', name: 'Red Maple', cat: 'outdoor', w: 240, d: 240, h: 400,
+    palettes: null, plan: { type: 'plant' },
+    build: () => {
+      const g = G();
+      const bark = solid('#4a3a30', 0.95);
+      cyl(g, bark, 13, 160, 0, 0, 0, { rTop: 8 });
+      cyl(g, bark, 6, 90, 0, 115, 0, { rz: 0.5 });
+      cyl(g, bark, 5, 85, 0, 125, 0, { rz: -0.5 });
+      foliage(g, '#7a2a20', '#c8542e', 0, 280, 0, 100, 14, 55);
+      blob(g, '#6e2418', '#b8442a', 42, 85, 205, 25, { seed: 96, sy: 0.85 });
+      return g;
+    }
+  },
+  {
+    id: 'boulder_set', name: 'Landscape Boulders', cat: 'outdoor', w: 160, d: 110, h: 55,
+    palettes: null, plan: { type: 'hedge' },
+    build: () => {
+      const g = G();
+      blob(g, '#6e6a60', '#a8a296', 34, -40, 20, 0, { seed: 11, sy: 0.72 });
+      blob(g, '#75705f', '#b0a898', 24, 32, 14, 18, { seed: 12, sy: 0.68 });
+      blob(g, '#66625a', '#9a948a', 16, 55, 10, -22, { seed: 13, sy: 0.7 });
+      blob(g, '#375c22', '#679a40', 12, -8, 8, 30, { seed: 14, sy: 0.9 });
+      return g;
+    }
+  },
+  // structure
+  {
+    id: 'porch_column', name: 'Porch Column', cat: 'structure', w: 35, d: 35, h: 280,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const wh = solid('#eceae4', 0.7);
+      box(g, wh, 34, 10, 34, 0, 0, 0, { r: 1 });
+      cyl(g, wh, 11, 258, 0, 10, 0, { rTop: 9.5, seg: 20 });
+      box(g, wh, 30, 6, 30, 0, 268, 0, { r: 1 });
+      box(g, wh, 34, 6, 34, 0, 274, 0, { r: 1 });
+      return g;
+    }
+  },
+  {
+    id: 'glass_rail', name: 'Glass Railing', cat: 'structure', w: 200, d: 10, h: 105,
+    palettes: null, plan: { type: 'fence' },
+    build: () => {
+      const g = G();
+      const st = metal('#9a9da0', 0.3);
+      for (let i = 0; i < 4; i++) box(g, st, 4, 100, 4, -95 + i * 63.3, 0, 0);
+      box(g, st, 200, 5, 6, 0, 100, 0, { r: 2 });
+      box(g, glass(), 192, 88, 1.2, 0, 8, 0);
+      return g;
+    }
+  },
+  {
+    id: 'carport', name: 'Carport', cat: 'structure', w: 360, d: 560, h: 260,
+    palettes: null, plan: { type: 'pergola' },
+    build: () => {
+      const g = G();
+      const st = metal('#5a5d60', 0.5);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, st, 10, 235, 10, sx * 170, 0, sz * 265);
+      for (const sz of [-1, 1]) box(g, st, 356, 10, 12, 0, 232, sz * 265);
+      box(g, tex('corrugated_gray', 4, 5), 360, 6, 560, 0, 244, 0, { rx: 0.05 });
+      return g;
+    }
+  },
+  {
+    id: 'balcony_planter', name: 'Rail Planter', cat: 'structure', w: 90, d: 25, h: 35,
+    palettes: null, plan: { type: 'hedge' },
+    build: () => {
+      const g = G();
+      box(g, solid('#4a4438', 0.8), 88, 22, 24, 0, 0, 0, { r: 2 });
+      for (let i = 0; i < 4; i++) blob(g, '#375c22', '#6d9c42', 11, -33 + i * 22, 24, 0, { seed: 41 + i, detail: 1 });
+      for (let i = 0; i < 3; i++) sphere(g, solid(['#c43a50', '#e8b03a', '#c46ad0'][i], 0.7), 3, -22 + i * 22, 34, 6);
+      return g;
+    }
   }
 ];
 
