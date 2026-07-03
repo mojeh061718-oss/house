@@ -205,6 +205,47 @@ export function sphere(parent, mat, r, x, y, z, opts = {}) {
   return mesh;
 }
 
+/** Triangular prism with the ridge running along x: base w×d, apex height h.
+ *  Sloped faces + underside get `mat`; the two triangular gable ends get
+ *  `capMat` (falls back to `mat`). Base sits at y. */
+export function prism(parent, mat, w, h, d, x = 0, y = 0, z = 0, capMat = null, uvScale = 180) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-d / 2, 0);
+  shape.lineTo(d / 2, 0);
+  shape.lineTo(0, h);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
+  // extrude UVs are in cm — normalize to texture repeats
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, uv.getX(i) / uvScale, uv.getY(i) / uvScale);
+  }
+  // extrude runs along +z; swing it so the ridge runs along x, centered
+  // (rotateY(-90°) maps the depth run onto -x, so shift back by +w/2)
+  geo.rotateY(-Math.PI / 2);
+  geo.translate(w / 2, 0, 0);
+  const mesh = new THREE.Mesh(geo, [capMat || mat, mat]);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Four-sided pyramid (hip roof shape): rectangular base w×d, apex height h. */
+export function pyramid(parent, mat, w, h, d, x = 0, y = 0, z = 0) {
+  const geo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1);
+  geo.rotateY(Math.PI / 4);
+  geo.translate(0, 0.5, 0);
+  geo.scale(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
 /** Four legs at footprint corners. */
 export function legs4(parent, mat, w, d, h, r = 2.5, inset = 6, square = false) {
   const px = w / 2 - inset, pz = d / 2 - inset;

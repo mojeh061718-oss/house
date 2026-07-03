@@ -381,6 +381,26 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       ctx.restore();
       break;
     }
+    case 'roof': {
+      // dashed footprint + ridge line + slope hatching
+      ctx.save();
+      ctx.globalAlpha = 0.75;
+      ctx.setLineDash([8, 5]);
+      rr(ctx, -hw, -hd, w, d, 2);
+      ctx.fillStyle = 'rgba(190,186,178,0.35)';
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      line(-hw, 0, hw, 0);
+      ctx.globalAlpha = 0.35;
+      const step = Math.max(28, w / 10);
+      for (let x = -hw + step; x < hw - 4; x += step) {
+        line(x, -hd + 4, x, -4);
+        line(x, 4, x, hd - 4);
+      }
+      ctx.restore();
+      break;
+    }
     case 'path': {
       // gentle S-curve stroke — placed paths are drawn from their real points
       ctx.save();

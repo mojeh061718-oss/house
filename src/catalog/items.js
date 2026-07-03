@@ -2,7 +2,7 @@
 // assembled from primitives (no external assets), with architectural 2D plan
 // symbols and selectable finish palettes.
 import {
-  G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel,
+  G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel, prism, pyramid,
   solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage
 } from './builders.js';
 
@@ -33,6 +33,14 @@ const WOODS = [
 ];
 
 const dark = '#33312e';
+
+const ROOFS = [
+  { name: 'Charcoal', chip: '#4b4d51', roof: 'shingle_charcoal' },
+  { name: 'Timber', chip: '#6a5442', roof: 'shingle_brown' },
+  { name: 'Clay', chip: '#8d4a34', roof: 'shingle_red' },
+  { name: 'Slate', chip: '#4e5a5e', roof: 'shingle_slate' },
+  { name: 'Metal', chip: '#5b6166', roof: 'roof_metal' }
+];
 
 function sofaBuilder(seats, W, D, H) {
   return (p) => {
@@ -1014,6 +1022,87 @@ export const ITEMS = [
       return g;
     }
   },
+  // --- roofs: they drop onto the top of the wall line (elevation = wall height)
+  //     and can be resized/rotated like any item to cover the footprint ---
+  {
+    id: 'roof_gable', name: 'Gable Roof', cat: 'structure', w: 700, d: 560, h: 200,
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' },
+    build: (p) => {
+      const g = G();
+      const shingle = tex(p.roof, 1, 1);
+      const gableEnd = tex('siding_white', 1, 1);
+      prism(g, shingle, 700, 190, 560, 0, 8, 0, gableEnd);
+      // eave fascia + soffit slab under the roof edge
+      box(g, solid('#e8e3d8', 0.7), 700, 9, 576, 0, 0, 0);
+      // ridge cap
+      box(g, solid('#3c3e42', 0.8), 704, 7, 16, 0, 194, 0, { r: 2 });
+      return g;
+    }
+  },
+  {
+    id: 'roof_hip', name: 'Hip Roof', cat: 'structure', w: 700, d: 560, h: 190,
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' },
+    build: (p) => {
+      const g = G();
+      pyramid(g, tex(p.roof, 5, 3), 740, 182, 600, 0, 8, 0);
+      box(g, solid('#e8e3d8', 0.7), 740, 9, 600, 0, 0, 0);
+      return g;
+    }
+  },
+  {
+    id: 'roof_shed', name: 'Shed Roof', cat: 'structure', w: 500, d: 420, h: 130,
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' },
+    build: (p) => {
+      const g = G();
+      const ang = Math.atan2(110, 420);
+      const len = Math.hypot(110, 420);
+      const panel = box(g, tex(p.roof, 2.6, 2.4), 520, 10, len + 16, 0, 55, 0, { rx: ang });
+      panel.castShadow = true;
+      box(g, solid('#e8e3d8', 0.7), 520, 9, 14, 0, 104, -206, { rx: ang });
+      box(g, solid('#e8e3d8', 0.7), 520, 9, 14, 0, -4, 206, { rx: ang });
+      return g;
+    }
+  },
+  {
+    id: 'roof_flat', name: 'Flat Roof', cat: 'structure', w: 600, d: 500, h: 45,
+    elevation: 260, palettes: null, plan: { type: 'roof' },
+    build: () => {
+      const g = G();
+      box(g, tex('gravel', 3, 2.5), 600, 14, 500, 0, 0, 0);
+      const parapet = solid('#d8d2c6', 0.8);
+      box(g, parapet, 600, 40, 16, 0, 0, -242);
+      box(g, parapet, 600, 40, 16, 0, 0, 242);
+      box(g, parapet, 16, 40, 468, -292, 0, 0);
+      box(g, parapet, 16, 40, 468, 292, 0, 0);
+      return g;
+    }
+  },
+  {
+    id: 'dormer', name: 'Dormer', cat: 'structure', w: 160, d: 150, h: 170,
+    elevation: 300, palettes: ROOFS, plan: { type: 'roof' },
+    build: (p) => {
+      const g = G();
+      const face = tex('siding_white', 1, 1);
+      box(g, face, 140, 110, 130, 0, 0, 0);
+      // window on the front face
+      box(g, solid('#3a3e44', 0.4), 70, 66, 4, 0, 26, 66);
+      box(g, solid('#1d2733', 0.12), 62, 58, 3, 0, 30, 67);
+      box(g, solid('#e8e6e0', 0.5), 4, 58, 3.5, 0, 30, 67.5);
+      prism(g, tex(p.roof, 1, 1), 156, 62, 150, 0, 108, 0, face);
+      return g;
+    }
+  },
+  {
+    id: 'chimney', name: 'Chimney', cat: 'structure', w: 70, d: 70, h: 210,
+    elevation: 300, palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      box(g, tex('brick_red', 0.5, 1.4), 64, 190, 64, 0, 0, 0);
+      box(g, solid('#c9c2b4', 0.7), 76, 10, 76, 0, 190, 0, { r: 1.5 });
+      box(g, solid('#33342f', 0.8), 34, 12, 34, 0, 198, 0);
+      return g;
+    }
+  },
   {
     id: 'elevator', name: 'Elevator', cat: 'structure', w: 170, d: 170, h: 285,
     palettes: null, plan: { type: 'elevator' },
@@ -1260,6 +1349,503 @@ export const ITEMS = [
       for (let x = -135; x <= 135; x += 30) {
         box(g, wd, 6, 8, 296, x, 242, 0);
       }
+      return g;
+    }
+  },
+
+  // ======================= EXPANSION PACK: INDOOR =======================
+  {
+    id: 'sofa_l', name: 'Sectional Sofa', cat: 'living', w: 280, d: 200, h: 82,
+    palettes: FABRICS, plan: { type: 'sofa', seats: 4 },
+    build: (p) => {
+      const g = G();
+      const fab = tex(p.fabric, 2, 2);
+      const baseH = 22, armW = 18;
+      legs4(g, solid('#4a4038', 0.6), 270, 190, 6, 2.2, 6);
+      // long run along the back + chaise leg on the left
+      box(g, fab, 280, baseH, 95, 0, 6, -52.5, { r: 4 });
+      box(g, fab, 95, baseH, 105, -92.5, 6, 47.5, { r: 4 });
+      // back + arms
+      box(g, fab, 280, 60 - baseH, 22, 0, baseH + 6, -89, { r: 6 });
+      box(g, fab, armW, 54 - baseH, 92, 131, baseH, -52, { r: 6 });
+      box(g, fab, armW, 54 - baseH, 105, -131, baseH, 47.5, { r: 6 });
+      // seat + chaise cushions
+      for (let i = 0; i < 3; i++) {
+        box(g, fab, 84, 14, 70, -88 + i * 88, baseH + 4, -46, { r: 5 });
+        box(g, fab, 82, 34, 14, -88 + i * 88, baseH + 16, -72, { r: 5, rx: -0.12 });
+      }
+      box(g, fab, 84, 14, 96, -92.5, baseH + 4, 48, { r: 5 });
+      return g;
+    }
+  },
+  {
+    id: 'recliner', name: 'Recliner', cat: 'living', w: 92, d: 160, h: 100,
+    palettes: FABRICS, plan: { type: 'sofa', seats: 1 },
+    build: (p) => {
+      const g = G();
+      const fab = tex(p.fabric, 2, 2);
+      box(g, fab, 92, 26, 90, 0, 0, -20, { r: 6 });
+      box(g, fab, 20, 34, 86, -36, 22, -22, { r: 7 });
+      box(g, fab, 20, 34, 86, 36, 22, -22, { r: 7 });
+      box(g, fab, 56, 14, 66, 0, 26, -22, { r: 5 });
+      box(g, fab, 60, 62, 20, 0, 34, -60, { r: 8, rx: -0.24 });
+      // extended footrest
+      box(g, fab, 56, 12, 52, 0, 22, 44, { r: 5, rx: 0.16 });
+      box(g, metal('#5a5d61', 0.4), 4, 18, 30, -16, 4, 26, { rx: 0.5 });
+      box(g, metal('#5a5d61', 0.4), 4, 18, 30, 16, 4, 26, { rx: 0.5 });
+      return g;
+    }
+  },
+  {
+    id: 'piano', name: 'Upright Piano', cat: 'living', w: 150, d: 64, h: 126,
+    palettes: null, plan: { type: 'storage' },
+    build: () => {
+      const g = G();
+      const body = wood('#2e2622', 0.35);
+      box(g, body, 150, 100, 40, 0, 26, -10, { r: 2 });          // upper body
+      box(g, body, 150, 8, 62, 0, 66, 0, { r: 1.5 });            // key bed
+      // keys
+      box(g, solid('#f2efe6', 0.3), 122, 3, 16, 0, 74, 18);
+      for (let i = 0; i < 18; i++) {
+        box(g, solid('#1a1a1c', 0.3), 3.4, 3.2, 9, -57 + i * 6.7, 75.5, 14.5);
+      }
+      box(g, body, 150, 5, 20, 0, 78, -4);                        // fallboard
+      for (const sx of [-1, 1]) box(g, body, 10, 66, 12, sx * 66, 0, 20); // front legs
+      // pedals + bench
+      for (const px of [-10, 0, 10]) box(g, metal('#b8a468', 0.3), 5, 3, 10, px, 6, 24);
+      box(g, body, 74, 6, 34, 0, 46, 78, { r: 1.5 });
+      legs4(g, body, 66, 28, 46, 3, 4, true);
+      const bench = g.children.slice(-4);
+      for (const leg of bench) leg.position.z += 78;
+      return g;
+    }
+  },
+  {
+    id: 'pool_table', name: 'Pool Table', cat: 'living', w: 254, d: 140, h: 82,
+    palettes: null, plan: { type: 'table' },
+    build: () => {
+      const g = G();
+      const mahogany = wood('#4e3526', 0.45);
+      box(g, mahogany, 254, 16, 140, 0, 62, 0, { r: 3 });         // rail frame
+      box(g, solid('#2e6b45', 0.95), 226, 4, 112, 0, 75, 0);      // felt
+      // pockets
+      for (const [px, pz] of [[-113, -56], [0, -60], [113, -56], [-113, 56], [0, 60], [113, 56]]) {
+        cyl(g, solid('#141416', 0.6), 8, 5, px, 74, pz);
+      }
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        box(g, mahogany, 16, 62, 16, sx * 108, 0, sz * 52, { r: 2 });
+      }
+      // a few balls + cue resting on the felt
+      sphere(g, solid('#e8e4da', 0.2), 4, -30, 81, 6);
+      sphere(g, solid('#b03a2e', 0.2), 4, 22, 81, -12);
+      sphere(g, solid('#2952a3', 0.2), 4, 34, 81, 14);
+      cyl(g, wood('#b08a5e', 0.4), 1.6, 130, -40, 80, 34, { rz: Math.PI / 2 });
+      return g;
+    }
+  },
+  {
+    id: 'mirror_floor', name: 'Floor Mirror', cat: 'decor', w: 62, d: 14, h: 172,
+    palettes: WOODS, plan: { type: 'wallDecor' },
+    build: (p) => {
+      const g = G();
+      const frame = wood(p.wood, 0.5);
+      const lean = -0.1;
+      box(g, frame, 62, 172, 5, 0, 0, 0, { r: 2, rx: lean });
+      const m = box(g, mirror(), 52, 160, 2, 0, 6, 2.2, { rx: lean });
+      m.position.z += 1;
+      return g;
+    }
+  },
+  {
+    id: 'ceiling_fan', name: 'Ceiling Fan', cat: 'decor', w: 132, d: 132, h: 45,
+    mount: 'ceiling', palettes: null, plan: { type: 'lampRound' },
+    light: { y: -34, color: '#fff2dc', intensity: 1.2, distance: 620 },
+    build: () => {
+      const g = G();
+      const steel = metal('#8a8e93', 0.35);
+      cyl(g, steel, 3, 14, 0, -14, 0);
+      cyl(g, steel, 9, 8, 0, -24, 0);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const blade = box(g, wood('#6a4f38', 0.5), 56, 2.2, 16, Math.cos(a) * 36, -22, Math.sin(a) * 36, { r: 3 });
+        blade.rotation.y = -a;
+        blade.rotation.z = 0.06;
+      }
+      const globe = solid('#f4ead6', 0.6);
+      globe.emissive.set('#f4e2bc');
+      globe.emissiveIntensity = 0.7;
+      sphere(g, globe, 9, 0, -30, 0, { sy: 0.7 });
+      return g;
+    }
+  },
+  {
+    id: 'bunk_bed', name: 'Bunk Bed', cat: 'bedroom', w: 104, d: 208, h: 165,
+    palettes: WOODS, plan: { type: 'bed' },
+    build: (p) => {
+      const g = G();
+      const frame = wood(p.wood, 0.55);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        box(g, frame, 8, 160, 8, sx * 48, 0, sz * 100);
+      }
+      for (const y of [22, 96]) {
+        box(g, frame, 104, 8, 208, 0, y, 0, { r: 1 });
+        box(g, solid('#f0ede6', 0.7), 94, 12, 196, 0, y + 8, 0, { r: 4 });
+        box(g, solid(y > 50 ? '#7d94b8' : '#b8907d', 0.8), 94, 5, 90, 0, y + 17, -50, { r: 3 });
+        box(g, solid('#fdfdfb', 0.6), 60, 7, 34, 0, y + 18, -80, { r: 3 });
+      }
+      // guard rail + ladder
+      box(g, frame, 100, 6, 4, 0, 122, 102);
+      for (let i = 0; i < 4; i++) box(g, frame, 26, 4, 4, 66, 24 + i * 30, 60);
+      box(g, frame, 4, 130, 4, 54, 8, 60);
+      box(g, frame, 4, 130, 4, 78, 8, 60);
+      return g;
+    }
+  },
+  {
+    id: 'crib', name: 'Baby Crib', cat: 'bedroom', w: 74, d: 134, h: 95,
+    palettes: WOODS, plan: { type: 'bed' },
+    build: (p) => {
+      const g = G();
+      const frame = wood(p.wood, 0.5);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        box(g, frame, 6, 92, 6, sx * 34, 0, sz * 64, { r: 2 });
+      }
+      box(g, frame, 74, 6, 134, 0, 32, 0, { r: 1 });
+      box(g, solid('#f4f1ea', 0.7), 66, 10, 124, 0, 37, 0, { r: 3 });
+      // bar rails on all four sides
+      for (const sz of [-1, 1]) {
+        box(g, frame, 74, 4, 5, 0, 84, sz * 64);
+        for (let x = -28; x <= 28; x += 8) box(g, frame, 2.4, 46, 2.4, x, 38, sz * 64);
+      }
+      for (const sx of [-1, 1]) {
+        box(g, frame, 5, 4, 128, sx * 34, 84, 0);
+        for (let z = -56; z <= 56; z += 8) box(g, frame, 2.4, 46, 2.4, sx * 34, 38, z);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'sideboard', name: 'Sideboard', cat: 'dining', w: 168, d: 46, h: 82,
+    palettes: WOODS, plan: { type: 'storage' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.5);
+      legs4(g, solid(dark, 0.4), 158, 38, 14, 2, 5, true);
+      box(g, wd, 168, 62, 46, 0, 14, 0, { r: 1.5 });
+      for (let i = 0; i < 3; i++) {
+        box(g, wood(p.wood, 0.42), 52, 56, 1.5, -56 + i * 56, 17, 23.2);
+        knob(g, -38 + i * 56, 45, 24.4);
+      }
+      // decor on top: vase + bowl
+      cyl(g, solid('#c8beac', 0.6), 6, 22, -55, 76, 0, { rTop: 3.5 });
+      foliage(g, '#5d7a4c', '#728f5e', -55, 102, 0, 9, 4, 21);
+      cyl(g, solid('#8a8478', 0.5), 11, 5, 40, 76, 0, { rTop: 13 });
+      return g;
+    }
+  },
+  {
+    id: 'wine_cabinet', name: 'Wine Cabinet', cat: 'dining', w: 82, d: 42, h: 180,
+    palettes: WOODS, plan: { type: 'storage' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.5);
+      box(g, wd, 82, 176, 42, 0, 0, 0, { r: 1.5 });
+      box(g, solid('#25211e', 0.7), 72, 86, 3, 0, 82, 20);
+      // bottle racks peeking out of the lower half
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 4; c++) {
+          const bottle = cyl(g, solid(['#3a4a2e', '#4a2e33', '#2e3a4a'][(r + c) % 3], 0.3),
+            4.2, 30, -27 + c * 18, 18 + r * 20, 8, { rx: Math.PI / 2 });
+          sphere(g, solid('#6a6f5a', 0.4), 2, -27 + c * 18, 18 + r * 20, 25);
+        }
+      }
+      // glass upper door
+      box(g, glass(), 72, 82, 2, 0, 84, 21.5);
+      handleBar(g, 30, 110, 22.5, 14, true);
+      return g;
+    }
+  },
+  {
+    id: 'vanity_double', name: 'Double Vanity', cat: 'bathroom', w: 152, d: 52, h: 86,
+    palettes: WOODS, plan: { type: 'sink' },
+    build: (p) => {
+      const g = G();
+      legs4(g, metal('#7c8084', 0.4), 142, 44, 12, 1.6, 3, true);
+      box(g, wood(p.wood, 0.5), 152, 62, 50, 0, 12, 0, { r: 1 });
+      for (const sx of [-38, 38]) {
+        box(g, wood(p.wood, 0.42), 66, 56, 1.5, sx, 15, 25.2);
+        handleBar(g, sx, 43, 26.2, 16);
+      }
+      box(g, tex('countertop', 0.9, 0.4), 154, 3, 52, 0, 74, 0, { r: 0.8 });
+      for (const sx of [-38, 38]) {
+        const basin = sphere(g, solid('#f4f3f0', 0.2), 15, sx, 80, 2, { sy: 0.45 });
+        basin.scale.x = 1.25;
+        cyl(g, chrome(), 1.4, 18, sx, 76, -17);
+        cyl(g, chrome(), 1.2, 12, sx, 93, -11.5, { rx: Math.PI / 2 });
+      }
+      return g;
+    }
+  },
+  {
+    id: 'treadmill', name: 'Treadmill', cat: 'office', w: 82, d: 190, h: 142,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const body = metal('#33363b', 0.4);
+      box(g, body, 76, 14, 170, 0, 0, 8, { r: 5 });
+      box(g, solid('#1c1e21', 0.9), 58, 3, 140, 0, 14, 14, { r: 2 });
+      // uprights + console
+      for (const sx of [-1, 1]) box(g, body, 6, 120, 8, sx * 34, 10, -70, { rx: 0.22 });
+      box(g, body, 76, 8, 5, 0, 126, -94, { rx: 0.3 });
+      const screen = solid('#1a2632', 0.3);
+      screen.emissive.set('#2e5a7c');
+      screen.emissiveIntensity = 0.5;
+      box(g, screen, 40, 24, 4, 0, 128, -90, { rx: -0.35 });
+      return g;
+    }
+  },
+
+  // ======================= EXPANSION PACK: OUTDOOR =======================
+  {
+    id: 'truck', name: 'Pickup Truck', cat: 'outdoor', w: 200, d: 560, h: 190,
+    palettes: [
+      { name: 'White', chip: '#e8e8ea', body: '#e8e8ea' },
+      { name: 'Black', chip: '#26282c', body: '#26282c' },
+      { name: 'Red', chip: '#8d3021', body: '#8d3021' },
+      { name: 'Steel', chip: '#5f6a74', body: '#5f6a74' }
+    ],
+    plan: { type: 'car' },
+    build: (p) => {
+      const g = G();
+      const paint = solid(p.body, 0.32);
+      const darkGlass = solid('#1d2733', 0.12);
+      const tire = solid('#1c1c1e', 0.9);
+      const rim = metal('#c2c6cc', 0.3);
+      for (const [wz, wx] of [[-180, -84], [-180, 84], [160, -84], [160, 84]]) {
+        cyl(g, tire, 40, 26, wx, 40, wz, { rz: Math.PI / 2 });
+        cyl(g, rim, 22, 27.5, wx, 40, wz, { rz: Math.PI / 2 });
+      }
+      box(g, paint, 186, 66, 540, 0, 44, 0, { r: 8, seg: 4 });   // chassis body
+      box(g, paint, 178, 62, 190, 0, 104, -60, { r: 10, seg: 4 }); // cab
+      box(g, darkGlass, 170, 46, 178, 0, 112, -58, { r: 9, seg: 4 });
+      // open bed
+      box(g, solid('#2b2d31', 0.7), 166, 6, 220, 0, 106, 150);
+      box(g, paint, 8, 34, 220, -85, 110, 150);
+      box(g, paint, 8, 34, 220, 85, 110, 150);
+      box(g, paint, 170, 34, 8, 0, 110, 262);
+      box(g, solid('#f4f0d8', 0.3), 30, 12, 6, -66, 78, -264);
+      box(g, solid('#f4f0d8', 0.3), 30, 12, 6, 66, 78, -264);
+      box(g, solid('#7a2018', 0.4), 26, 12, 6, -74, 92, 266);
+      box(g, solid('#7a2018', 0.4), 26, 12, 6, 74, 92, 266);
+      box(g, metal('#9aa0a6', 0.4), 170, 12, 12, 0, 34, -268);
+      box(g, metal('#9aa0a6', 0.4), 170, 12, 12, 0, 34, 268);
+      return g;
+    }
+  },
+  {
+    id: 'bicycle', name: 'Bicycle', cat: 'outdoor', w: 45, d: 170, h: 105,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const frame = metal('#8d3021', 0.3);
+      const tire = solid('#26262a', 0.85);
+      for (const z of [-55, 55]) {
+        cyl(g, tire, 33, 3, 0, 33, z, { rz: Math.PI / 2 });
+        cyl(g, metal('#c2c6cc', 0.25), 29, 3.4, 0, 33, z, { rz: Math.PI / 2 });
+      }
+      // frame tubes
+      box(g, frame, 3.5, 3.5, 62, 0, 60, -22, { rx: 0.25 });
+      box(g, frame, 3.5, 52, 3.5, 0, 33, -55, { rx: 0.32 });
+      box(g, frame, 3.5, 48, 3.5, 0, 33, 42, { rx: -0.28 });
+      box(g, frame, 3.5, 44, 3.5, 0, 42, 8, { rx: -0.2 });
+      // handlebars + seat + pedals
+      box(g, metal('#2b2d31', 0.4), 34, 3, 3, 0, 92, -62);
+      box(g, solid('#1e1e20', 0.7), 9, 4, 24, 0, 84, 24, { r: 2 });
+      cyl(g, metal('#6d7278', 0.4), 6, 4, 0, 36, 6, { rz: Math.PI / 2 });
+      return g;
+    }
+  },
+  {
+    id: 'fountain', name: 'Garden Fountain', cat: 'outdoor', w: 220, d: 220, h: 150,
+    palettes: null, plan: { type: 'rings' },
+    build: () => {
+      const g = G();
+      const stone = solid('#b3aca0', 0.85);
+      cyl(g, stone, 105, 34, 0, 0, 0, { seg: 26 });
+      cyl(g, solid('#8f887c', 0.9), 96, 6, 0, 32, 0, { seg: 26 });
+      let w = cyl(g, water(), 92, 5, 0, 30, 0, { seg: 26 });
+      w.receiveShadow = true;
+      cyl(g, stone, 12, 62, 0, 30, 0);
+      cyl(g, stone, 48, 12, 0, 88, 0, { seg: 22 });
+      w = cyl(g, water(), 43, 4, 0, 98, 0, { seg: 22 });
+      cyl(g, stone, 7, 34, 0, 98, 0);
+      cyl(g, stone, 22, 9, 0, 130, 0, { seg: 18 });
+      cyl(g, water(), 18, 3.5, 0, 137, 0, { seg: 18 });
+      sphere(g, stone, 6, 0, 146, 0);
+      return g;
+    }
+  },
+  {
+    id: 'gazebo', name: 'Gazebo', cat: 'outdoor', w: 340, d: 340, h: 320,
+    palettes: WOODS, plan: { type: 'pergola' },
+    build: (p) => {
+      const g = G();
+      const wd = wood(p.wood, 0.7);
+      // hexagonal posts + railing + deck
+      cyl(g, wd, 160, 10, 0, 0, 0, { seg: 6 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+        const px = Math.cos(a) * 140, pz = Math.sin(a) * 140;
+        box(g, wd, 11, 240, 11, px, 8, pz);
+        // railing between posts (skip the entry side)
+        if (i !== 4) {
+          const a2 = ((i + 1) / 6) * Math.PI * 2 + Math.PI / 6;
+          const qx = Math.cos(a2) * 140, qz = Math.sin(a2) * 140;
+          const mx = (px + qx) / 2, mz = (pz + qz) / 2;
+          const len = Math.hypot(qx - px, qz - pz);
+          const rot = -Math.atan2(qz - pz, qx - px);
+          box(g, wd, len - 14, 6, 5, mx, 90, mz, { ry: rot });
+          box(g, wd, len - 14, 6, 5, mx, 40, mz, { ry: rot });
+        }
+      }
+      // hex roof + finial
+      const roofMesh = cyl(g, tex('shingle_brown', 4, 2), 205, 82, 0, 244, 0, { rTop: 3, seg: 6 });
+      roofMesh.rotation.y = Math.PI / 6;
+      sphere(g, wd, 8, 0, 330, 0);
+      return g;
+    }
+  },
+  {
+    id: 'shed_garden', name: 'Garden Shed', cat: 'outdoor', w: 300, d: 220, h: 260,
+    palettes: [
+      { name: 'White', chip: '#e7e3d8', siding: 'siding_white' },
+      { name: 'Cedar', chip: '#8a6a4a', siding: 'cedar_shake' },
+      { name: 'Grey', chip: '#a9adad', siding: 'siding_gray' }
+    ],
+    plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const skin = tex(p.siding, 1.6, 1);
+      box(g, skin, 296, 200, 216, 0, 0, 0);
+      prism(g, tex('shingle_charcoal', 1, 1), 316, 70, 250, 0, 198, 0, skin);
+      // door + hinges + window
+      box(g, wood('#5d4a36', 0.6), 78, 160, 4, -60, 0, 109);
+      knob(g, -32, 82, 112);
+      box(g, solid('#3a3e44', 0.4), 62, 58, 4, 70, 90, 109);
+      box(g, solid('#cfe0e8', 0.15), 54, 50, 3, 70, 94, 110);
+      box(g, solid('#e8e6e0', 0.5), 3.5, 50, 3.5, 70, 94, 110.5);
+      return g;
+    }
+  },
+  {
+    id: 'dog_house', name: 'Dog House', cat: 'outdoor', w: 96, d: 116, h: 100,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const skin = wood('#8a5c3c', 0.7);
+      box(g, skin, 92, 66, 112, 0, 0, 0);
+      prism(g, tex('shingle_red', 1, 1), 104, 34, 124, 0, 64, 0, skin);
+      // arched doorway (approximated: box + half-cylinder)
+      box(g, solid('#241d16', 0.95), 36, 34, 4, 0, 0, 55);
+      const arch = cyl(g, solid('#241d16', 0.95), 18, 4, 0, 34, 55, { rx: Math.PI / 2 });
+      // food bowl
+      cyl(g, metal('#b9bdc4', 0.3), 9, 5, 34, 0, 74);
+      return g;
+    }
+  },
+  {
+    id: 'flower_bed', name: 'Flower Bed', cat: 'outdoor', w: 170, d: 85, h: 42,
+    palettes: null, plan: { type: 'hedge' },
+    build: () => {
+      const g = G();
+      let s = 77;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      // stone border
+      for (let i = 0; i < 18; i++) {
+        const t = i / 18;
+        const a = t * Math.PI * 2;
+        const rx = Math.cos(a) * 78, rz = Math.sin(a) * 36;
+        sphere(g, solid(rand() < 0.5 ? '#8a8478' : '#75705f', 0.9), 8 + rand() * 4, rx, 4, rz, { sy: 0.65, seg: 8 });
+      }
+      const soil = cyl(g, solid('#4a3a28', 0.98), 74, 8, 0, 0, 0, { seg: 24 });
+      soil.scale.z = 0.46;
+      // flowers: stems + colored heads
+      const heads = ['#c94a63', '#e0a33c', '#9c6bbf', '#e8e4da', '#d3591f'];
+      for (let i = 0; i < 14; i++) {
+        const fx = (rand() - 0.5) * 130, fz = (rand() - 0.5) * 56;
+        const fh = 16 + rand() * 14;
+        cyl(g, solid('#4e6b34', 0.9), 1, fh, fx, 6, fz);
+        sphere(g, solid(heads[Math.floor(rand() * heads.length)], 0.7), 3.5 + rand() * 2, fx, 8 + fh, fz, { seg: 8 });
+      }
+      return g;
+    }
+  },
+  {
+    id: 'planter_box', name: 'Planter Box', cat: 'outdoor', w: 110, d: 42, h: 52,
+    palettes: WOODS, plan: { type: 'hedge' },
+    build: (p) => {
+      const g = G();
+      box(g, wood(p.wood, 0.75), 110, 40, 42, 0, 0, 0, { r: 2 });
+      box(g, solid('#4a3a28', 0.98), 100, 4, 34, 0, 36, 0);
+      foliage(g, '#4e6b34', '#5f8040', -30, 52, 0, 14, 5, 41);
+      foliage(g, '#5d7a4c', '#728f5e', 8, 54, 4, 15, 5, 42);
+      foliage(g, '#3f6b2e', '#548a3c', 40, 50, -4, 12, 4, 43);
+      return g;
+    }
+  },
+  {
+    id: 'lounger', name: 'Sun Lounger', cat: 'outdoor', w: 66, d: 186, h: 72,
+    palettes: null, plan: { type: 'sofa', seats: 1 },
+    build: () => {
+      const g = G();
+      const frame = wood('#8a6a4a', 0.7);
+      const canvas = solid('#dad4c4', 0.85);
+      for (const sx of [-1, 1]) {
+        box(g, frame, 5, 5, 180, sx * 29, 28, 0);
+        box(g, frame, 5, 28, 5, sx * 29, 0, -80);
+        box(g, frame, 5, 28, 5, sx * 29, 0, 60);
+      }
+      box(g, canvas, 56, 4, 118, 0, 32, 22, { r: 2 });
+      box(g, canvas, 56, 4, 74, 0, 52, -54, { r: 2, rx: -0.62 });
+      return g;
+    }
+  },
+  {
+    id: 'slide', name: 'Playground Slide', cat: 'outdoor', w: 96, d: 260, h: 165,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const steel = metal('#7d838c', 0.4);
+      const plastic = solid('#c8412e', 0.5);
+      // platform + ladder at the back
+      for (const sx of [-1, 1]) {
+        box(g, steel, 5, 128, 5, sx * 30, 0, -100);
+        box(g, steel, 5, 118, 5, sx * 30, 0, -55, { rx: 0.1 });
+      }
+      for (let i = 0; i < 5; i++) box(g, steel, 54, 4, 5, 0, 18 + i * 24, -100);
+      box(g, plastic, 64, 6, 44, 0, 126, -78, { r: 2 });
+      // slide surface with side rails
+      const ang = 0.52;
+      box(g, plastic, 52, 5, 210, 0, 62, 30, { rx: ang, r: 2 });
+      box(g, plastic, 6, 14, 210, -26, 66, 30, { rx: ang, r: 2 });
+      box(g, plastic, 6, 14, 210, 26, 66, 30, { rx: ang, r: 2 });
+      return g;
+    }
+  },
+  {
+    id: 'sandbox', name: 'Sandbox', cat: 'outdoor', w: 170, d: 170, h: 32,
+    palettes: null, plan: { type: 'box' },
+    build: () => {
+      const g = G();
+      const frame = wood('#8a6a4a', 0.8);
+      box(g, frame, 170, 28, 18, 0, 0, -76);
+      box(g, frame, 170, 28, 18, 0, 0, 76);
+      box(g, frame, 18, 28, 134, -76, 0, 0);
+      box(g, frame, 18, 28, 134, 76, 0, 0);
+      box(g, solid('#d9c391', 0.98), 134, 20, 134, 0, 0, 0);
+      // bucket + shovel
+      cyl(g, solid('#2f6ea3', 0.5), 8, 12, 30, 20, 24, { rTop: 6.5 });
+      box(g, solid('#e0a33c', 0.5), 4, 2, 26, -26, 21, -12, { ry: 0.6 });
       return g;
     }
   }

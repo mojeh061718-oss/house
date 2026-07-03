@@ -496,8 +496,143 @@ function genGrass(ctx, bctx, p) {
   bctx.putImageData(bimg, 0, 0);
 }
 
+function genSiding(ctx, bctx, p) {
+  // horizontal lap siding: each course shades darker toward its bottom edge
+  genPaint(ctx, bctx, { base: p.base, seed: p.seed });
+  const rand = mulberry32(p.seed + 3);
+  const courses = p.courses ?? 8;
+  const ch = SIZE / courses;
+  const base = hexToRgb(p.base);
+  for (let i = 0; i < courses; i++) {
+    const y = i * ch;
+    const grd = ctx.createLinearGradient(0, y, 0, y + ch);
+    grd.addColorStop(0, rgb(mix(base, [255, 255, 255], 0.10)));
+    grd.addColorStop(0.82, rgb(mix(base, [0, 0, 0], 0.04)));
+    grd.addColorStop(1, rgb(mix(base, [0, 0, 0], 0.30)));
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, y, SIZE, ch);
+    // faint wood streaks along each board
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = '#000';
+    for (let s = 0; s < 5; s++) {
+      ctx.fillRect(0, y + rand() * ch, SIZE, 1);
+    }
+    ctx.globalAlpha = 1;
+    const bg = bctx.createLinearGradient(0, y, 0, y + ch);
+    bg.addColorStop(0, 'rgb(185,185,185)');
+    bg.addColorStop(0.85, 'rgb(150,150,150)');
+    bg.addColorStop(1, 'rgb(40,40,40)');
+    bctx.fillStyle = bg;
+    bctx.fillRect(0, y, SIZE, ch);
+  }
+}
+
+function genBoardBatten(ctx, bctx, p) {
+  // vertical board-and-batten: wide boards with raised battens over the seams
+  genPaint(ctx, bctx, { base: p.base, seed: p.seed });
+  const boards = p.boards ?? 5;
+  const bw = SIZE / boards;
+  const base = hexToRgb(p.base);
+  bctx.fillStyle = 'rgb(150,150,150)';
+  bctx.fillRect(0, 0, SIZE, SIZE);
+  for (let i = 0; i < boards; i++) {
+    const x = i * bw;
+    // seam shading
+    ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.18));
+    ctx.fillRect(x - 2, 0, 4, SIZE);
+    // batten strip with side highlights
+    const batW = bw * 0.16;
+    ctx.fillStyle = rgb(mix(base, [255, 255, 255], 0.07));
+    ctx.fillRect(x - batW / 2, 0, batW, SIZE);
+    ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.22));
+    ctx.fillRect(x - batW / 2, 0, 1.5, SIZE);
+    ctx.fillRect(x + batW / 2 - 1.5, 0, 1.5, SIZE);
+    bctx.fillStyle = 'rgb(215,215,215)';
+    bctx.fillRect(x - batW / 2, 0, batW, SIZE);
+  }
+}
+
+function genShingles(ctx, bctx, p) {
+  // staggered asphalt shingle courses with per-tab tone variation
+  const rand = mulberry32(p.seed);
+  const rows = p.rows ?? 10, tabs = p.tabs ?? 7;
+  const rh = SIZE / rows, tw = SIZE / tabs;
+  const base = hexToRgb(p.base);
+  ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.45));
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  bctx.fillStyle = 'rgb(60,60,60)';
+  bctx.fillRect(0, 0, SIZE, SIZE);
+  for (let r = 0; r < rows; r++) {
+    const off = (r % 2) * tw / 2;
+    for (let t = -1; t < tabs + 1; t++) {
+      const v = (rand() - 0.5) * 30;
+      const col = [base[0] + v, base[1] + v, base[2] + v];
+      const x = t * tw + off + 1.5, y = r * rh;
+      const grd = ctx.createLinearGradient(0, y, 0, y + rh);
+      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.05)));
+      grd.addColorStop(0.85, rgb(col));
+      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.4)));
+      ctx.fillStyle = grd;
+      ctx.fillRect(x, y, tw - 3, rh - 1.5);
+      // granule speckle
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      for (let s = 0; s < 26; s++) {
+        ctx.fillRect(x + rand() * (tw - 3), y + rand() * rh, 1, 1);
+      }
+      bctx.fillStyle = 'rgb(170,170,170)';
+      bctx.fillRect(x, y, tw - 3, rh - 1.5);
+    }
+  }
+}
+
+function genStone(ctx, bctx, p) {
+  // irregular stacked stone veneer on a mortar bed
+  const rand = mulberry32(p.seed);
+  const mortar = hexToRgb(p.mortar || '#8f887c');
+  ctx.fillStyle = rgb(mortar);
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  bctx.fillStyle = 'rgb(55,55,55)';
+  bctx.fillRect(0, 0, SIZE, SIZE);
+  const colors = (p.colors || ['#a89c88', '#918776', '#b5a996', '#7e7669']).map(hexToRgb);
+  const rows = p.rows ?? 6;
+  const rh = SIZE / rows;
+  for (let r = 0; r < rows; r++) {
+    let x = -rand() * 40;
+    while (x < SIZE) {
+      const w = 50 + rand() * 90;
+      const h = rh * (0.82 + rand() * 0.14);
+      const y = r * rh + rh * 0.06;
+      const base = colors[Math.floor(rand() * colors.length)];
+      const v = (rand() - 0.5) * 20;
+      const col = [base[0] + v, base[1] + v, base[2] + v];
+      const grd = ctx.createLinearGradient(x, y, x, y + h);
+      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.12)));
+      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.16)));
+      ctx.fillStyle = grd;
+      // rounded, slightly irregular block
+      const rr = 6 + rand() * 6;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w - 5, h, rr);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      for (let s = 0; s < 10; s++) {
+        ctx.fillRect(x + rand() * w, y + rand() * h, 1.5, 1.5);
+      }
+      bctx.beginPath();
+      bctx.roundRect(x, y, w - 5, h, rr);
+      bctx.fillStyle = 'rgb(190,190,190)';
+      bctx.fill();
+      x += w;
+    }
+  }
+}
+
 const GENERATORS = {
   wood: genWoodPlanks,
+  siding: genSiding,
+  boardbatten: genBoardBatten,
+  shingles: genShingles,
+  stone: genStone,
   herringbone: genHerringbone,
   tiles: genTiles,
   marble: genMarble,
@@ -565,6 +700,26 @@ export const MATERIALS = [
   { id: 'tile_bath', group: 'Brick & Tile', name: 'Bath Ceramic', use: 'wall', gen: 'tiles', scale: 100, rough: 0.2, params: { seed: 76, count: 4, gap: 2, grout: '#98a2a6', colors: ['#dfe8ea', '#d3dfe2'], variation: 6 } },
   { id: 'concrete_wall', group: 'Plaster & Concrete', name: 'Concrete', use: 'wall', gen: 'concrete', scale: 240, rough: 0.8, params: { seed: 77, base: '#9d9b96' } },
   { id: 'plaster_light', group: 'Plaster & Concrete', name: 'Plaster', use: 'wall', gen: 'concrete', scale: 260, rough: 0.85, params: { seed: 78, base: '#d8d3c8' } },
+
+  // Exterior siding & finishes
+  { id: 'siding_white', group: 'Exterior Siding', name: 'Lap · Classic White', use: 'wall', gen: 'siding', scale: 180, rough: 0.75, params: { seed: 120, base: '#e7e3d8', courses: 8 } },
+  { id: 'siding_gray', group: 'Exterior Siding', name: 'Lap · Harbor Grey', use: 'wall', gen: 'siding', scale: 180, rough: 0.75, params: { seed: 121, base: '#a9adad', courses: 8 } },
+  { id: 'siding_navy', group: 'Exterior Siding', name: 'Lap · Navy', use: 'wall', gen: 'siding', scale: 180, rough: 0.75, params: { seed: 122, base: '#3c4a5e', courses: 8 } },
+  { id: 'siding_sage', group: 'Exterior Siding', name: 'Lap · Sage', use: 'wall', gen: 'siding', scale: 180, rough: 0.75, params: { seed: 123, base: '#9aa88f', courses: 8 } },
+  { id: 'siding_butter', group: 'Exterior Siding', name: 'Lap · Buttercream', use: 'wall', gen: 'siding', scale: 180, rough: 0.75, params: { seed: 124, base: '#e4d3a4', courses: 8 } },
+  { id: 'siding_clay', group: 'Exterior Siding', name: 'Lap · Terracotta', use: 'wall', gen: 'siding', scale: 180, rough: 0.75, params: { seed: 125, base: '#bd7f60', courses: 8 } },
+  { id: 'bb_white', group: 'Exterior Siding', name: 'Board & Batten White', use: 'wall', gen: 'boardbatten', scale: 200, rough: 0.8, params: { seed: 126, base: '#e9e5da', boards: 5 } },
+  { id: 'bb_black', group: 'Exterior Siding', name: 'Board & Batten Iron', use: 'wall', gen: 'boardbatten', scale: 200, rough: 0.8, params: { seed: 127, base: '#3a3c3e', boards: 5 } },
+  { id: 'stucco_warm', group: 'Exterior Siding', name: 'Stucco', use: 'wall', gen: 'concrete', scale: 240, rough: 0.9, params: { seed: 128, base: '#ded2ba' } },
+  { id: 'stone_veneer', group: 'Exterior Siding', name: 'Stacked Stone', use: 'wall', gen: 'stone', scale: 220, rough: 0.9, params: { seed: 129 } },
+  { id: 'cedar_shake', group: 'Exterior Siding', name: 'Cedar Shake', use: 'wall', gen: 'shingles', scale: 160, rough: 0.85, params: { seed: 130, base: '#9c7a56', rows: 6, tabs: 8 } },
+
+  // Roofing (consumed by roof items, not the wall pickers)
+  { id: 'shingle_charcoal', name: 'Charcoal Shingle', use: 'internal', gen: 'shingles', scale: 180, rough: 0.9, params: { seed: 131, base: '#4b4d51' } },
+  { id: 'shingle_brown', name: 'Timber Shingle', use: 'internal', gen: 'shingles', scale: 180, rough: 0.9, params: { seed: 132, base: '#6a5442' } },
+  { id: 'shingle_red', name: 'Clay Shingle', use: 'internal', gen: 'shingles', scale: 180, rough: 0.85, params: { seed: 133, base: '#8d4a34' } },
+  { id: 'shingle_slate', name: 'Slate Shingle', use: 'internal', gen: 'shingles', scale: 180, rough: 0.8, params: { seed: 134, base: '#4e5a5e' } },
+  { id: 'roof_metal', name: 'Standing Seam', use: 'internal', gen: 'boardbatten', scale: 160, rough: 0.45, params: { seed: 135, base: '#5b6166', boards: 4 } },
 
   // Environment / internal
   { id: 'grass', name: 'Lush Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 80 } },
