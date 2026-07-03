@@ -1054,3 +1054,6 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 }
 .view-fit svg { width: 19px; height: 19px; }
 .view-fit:active { transform: scale(0.94); color: var(--text); }
+
+.fab.mini.locked { background: #d9a514; border-color: #d9a514; color: #1d2129; }
+.fab.mini.locked span { color: #1d2129; }

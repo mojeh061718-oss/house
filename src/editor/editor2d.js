@@ -393,6 +393,7 @@ export class Editor2D {
         name: 'dragMulti', startX: w.x, startY: w.y, moved: false, dragging: true,
         origins: sel.ids.map(id => {
           const it = store.item(id);
+          if (it?.locked) return null; // locked members stay put
           return it && {
             id, x: it.x, y: it.y,
             path: it.path ? it.path.map(p => ({ x: p.x, y: p.y })) : null
@@ -404,6 +405,7 @@ export class Editor2D {
     if (hit?.kind === 'item') {
       const it = store.item(hit.id);
       store.select(hit);
+      if (it.locked) return; // locked: selectable, not movable
       store.checkpoint();
       this.mode = { name: 'dragItem', id: it.id, offX: w.x - it.x, offY: w.y - it.y, moved: false, dragging: true };
     } else if (hit?.kind === 'opening') {
@@ -559,7 +561,7 @@ export class Editor2D {
   }
 
   itemHandles(it) {
-    if (it.path) return []; // paths just move — no rotate/resize handles
+    if (it.path || it.locked) return []; // paths move-only; locked items stay put
     const cos = Math.cos(it.rotation), sin = Math.sin(it.rotation);
     const loc = (lx, ly) => {
       const wx = it.x + lx * cos - ly * sin;
@@ -916,6 +918,7 @@ export class Editor2D {
       const sel = store.selection;
       if (sel?.kind === 'item') {
         const it = store.item(sel.id);
+        if (it.locked) return;
         store.checkpoint();
         it.rotation += Math.PI / 12;
         store.commit(false);
@@ -1243,6 +1246,20 @@ export class Editor2D {
     ctx.translate(it.x, it.y);
     ctx.rotate(it.rotation);
     drawPlanSymbol(ctx, def, it.w, it.d, px);
+    if (it.locked) {
+      // small padlock badge so locked pieces read at a glance
+      ctx.rotate(-it.rotation);
+      const s = 7 * px;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.strokeStyle = '#b8860b';
+      ctx.lineWidth = 1.6 * px;
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.55, s * 0.55, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillRect(-s * 0.8, -s * 0.5, s * 1.6, s * 1.2);
+      ctx.strokeRect(-s * 0.8, -s * 0.5, s * 1.6, s * 1.2);
+      ctx.rotate(it.rotation);
+    }
     if (selected) {
       ctx.strokeStyle = '#3884ff';
       ctx.lineWidth = 1.8 * px;

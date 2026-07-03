@@ -16,7 +16,13 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.14.1** — drawable fences (`path_fence`: path item w/
+- Current version: **2.14.2** — item locking: `it.locked` flag; padlock FAB
+  (`#selLock`, amber when locked; multi locks/unlocks the whole group);
+  locked = selectable but no drag/rotate/resize/delete in 2D & 3D (guards in
+  editor2d downSelect/itemHandles/dragMulti/'r', viewer3d onDown, store
+  deleteSelection incl. room-delete sparing); gold padlock badge drawn on
+  locked items in the plan; amber 3D selection box.
+- Previous: **2.14.1** — drawable fences (`path_fence`: path item w/
   `surface:'fence'` → `buildFenceModel` in arch3d — posts/rails/instanced
   pickets per FENCE_STYLES palette; 2D = line+post dots in strokePath; old
   'fence' item hidden) and organic ponds (`buildPond` in builders: wobbled

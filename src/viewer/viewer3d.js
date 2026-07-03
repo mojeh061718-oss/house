@@ -411,6 +411,8 @@ export class Viewer3D {
       if (g) {
         this.selBox.box.setFromObject(g);
         this.selBox.visible = true;
+        // amber box = locked in place
+        this.selBox.material.color.set(this.store.item(sel.id)?.locked ? '#d9a514' : '#3884ff');
         const it = this.store.item(sel.id);
         if (it) {
           g.userData.palette = it.palette;
@@ -982,7 +984,7 @@ export class Viewer3D {
       const it = this.store.item(hit.itemId);
       this.store.select({ kind: 'item', id: hit.itemId });
       const def = ITEM_MAP.get(it.defId);
-      if (def?.mount === 'ceiling') return;
+      if (def?.mount === 'ceiling' || it.locked) return;
       this.store.checkpoint();
       this.drag = {
         id: hit.itemId,

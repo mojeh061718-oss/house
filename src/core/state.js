@@ -269,10 +269,12 @@ export class Store {
       for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) arr.splice(i, 1);
     };
     if (sel.kind === 'item') {
+      const it = this.item(sel.id);
+      if (it?.locked) { this.undoStack.pop(); this.emit('history'); return false; }
       cut(p.items, i => i.id === sel.id);
     } else if (sel.kind === 'multi') {
       const ids = new Set(sel.ids);
-      cut(p.items, i => ids.has(i.id));
+      cut(p.items, i => ids.has(i.id) && !i.locked);
     } else if (sel.kind === 'opening') {
       cut(p.openings, o => o.id === sel.id);
     } else if (sel.kind === 'wall') {
@@ -292,7 +294,7 @@ export class Store {
       // furniture inside goes too; roof-level pieces (roofs, dormers,
       // chimneys — elevation at/above the wall top) belong to the whole
       // house, not this room
-      cut(p.items, i => (i.elevation || 0) < 200 && pointInPolygon(i.x, i.y, room.polygon));
+      cut(p.items, i => !i.locked && (i.elevation || 0) < 200 && pointInPolygon(i.x, i.y, room.polygon));
       delete p.roomStyles[sel.id];
     }
     this.select(null);

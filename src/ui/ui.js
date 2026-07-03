@@ -514,6 +514,7 @@ export class UI {
         <button class="fab mini flip item-only" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
         <button class="fab mini item-only" id="selShrink" title="Smaller">${ICONS.minus}<span>Smaller</span></button>
         <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
+        <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
         <button class="fab mini" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
         <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
         <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
@@ -525,10 +526,12 @@ export class UI {
       if (sel?.kind !== 'item') return;
       const it = store.item(sel.id);
       if (!it) return;
+      if (it.locked) { this.toast('Locked — tap the padlock to unlock'); return; }
       store.checkpoint();
       fn(it);
       store.commit(false);
     };
+    $('#selLock').onclick = () => this.toggleLock();
     $('#selRotL').onclick = () => withItem(it => it.rotation -= Math.PI / 4);
     $('#selRotR').onclick = () => withItem(it => it.rotation += Math.PI / 4);
     $('#selGrow').onclick = () => withItem(it => {
@@ -543,7 +546,44 @@ export class UI {
     });
     $('#selDup').onclick = () => this.duplicateSelection();
     $('#selEdit').onclick = () => this.toggleDrawer('props');
-    $('#selDel').onclick = () => store.deleteSelection();
+    $('#selDel').onclick = () => {
+      if (!store.deleteSelection() && this.selectionLocked()) {
+        this.toast('Locked — tap the padlock to unlock');
+      }
+    };
+  }
+
+  /** Is the current selection a locked item (or all-locked group)? */
+  selectionLocked() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind === 'item') return !!store.item(sel.id)?.locked;
+    if (sel?.kind === 'multi') return sel.ids.every(id => store.item(id)?.locked);
+    return false;
+  }
+
+  /** Toggle the padlock on the selected item or group. */
+  toggleLock() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind === 'item') {
+      const it = store.item(sel.id);
+      if (!it) return;
+      store.checkpoint();
+      it.locked = !it.locked;
+      store.commit(false);
+      this.syncFabs();
+      this.toast(it.locked ? 'Locked in place' : 'Unlocked');
+    } else if (sel?.kind === 'multi') {
+      const items = sel.ids.map(id => store.item(id)).filter(Boolean);
+      if (!items.length) return;
+      const lock = items.some(i => !i.locked); // any loose → lock all
+      store.checkpoint();
+      for (const i of items) i.locked = lock;
+      store.commit(false);
+      this.syncFabs();
+      this.toast(lock ? `${items.length} items locked` : `${items.length} items unlocked`);
+    }
   }
 
   /** Duplicate the current selection: item, room, multi group, opening or wall. */
@@ -615,6 +655,15 @@ export class UI {
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
     });
+    // padlock: items & groups only; icon mirrors the current state
+    const lockBtn = $('#selLock');
+    const lockable = isItem || sel?.kind === 'multi';
+    lockBtn.style.display = lockable ? '' : 'none';
+    if (lockable) {
+      const locked = this.selectionLocked();
+      lockBtn.innerHTML = `${locked ? ICONS.lock : ICONS.unlock}<span>${locked ? 'Locked' : 'Lock'}</span>`;
+      lockBtn.classList.toggle('locked', locked);
+    }
     // Copy sits next to Edit and Delete for everything selectable
     $('#selDup').style.display = sel ? '' : 'none';
     // wide screens: surface the details drawer automatically
