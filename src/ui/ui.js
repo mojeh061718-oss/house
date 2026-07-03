@@ -349,6 +349,10 @@ export class UI {
       store.checkpoint();
       const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
       Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
+      if (it.path) {
+        created.path = it.path.map(p => ({ x: p.x + 40, y: p.y + 40 }));
+        created.pw = it.pw;
+      }
       store.commit(false);
       store.select({ kind: 'item', id: created.id });
       this.toast('Duplicated');
@@ -541,15 +545,18 @@ export class UI {
       const it = store.item(sel.id);
       if (!it) { store.select(null); return; }
       const def = ITEM_MAP.get(it.defId);
+      const isPath = !!it.path;
       panel.innerHTML = `${head(def?.name || 'Item')}
         <div class="props-body">
           <div class="props-grid2">
+            ${isPath ? this.lenRow('pPW', 'Path width', it.pw || def.path.width) : `
             ${this.lenRow('pW', 'Width', it.w)}
             ${this.lenRow('pD', 'Depth', it.d)}
             ${this.lenRow('pH', 'Height', it.h)}
             ${this.numRow('pRot', 'Rotation', deg(it.rotation), '°')}
-            ${this.lenRow('pElev', 'Elevation', it.elevation || 0)}
+            ${this.lenRow('pElev', 'Elevation', it.elevation || 0)}`}
           </div>
+          ${isPath ? '<div class="props-section-title">Drag the path on the plan to move it. Duplicate to branch it.</div>' : ''}
           ${def?.palettes ? '<div class="props-section-title">Finish</div><div class="chip-row" id="palRow"></div>' : ''}
           <div class="btn-row">
             <button class="action" id="pDup">${icon('copy')} Duplicate</button>
@@ -557,11 +564,15 @@ export class UI {
           </div>
         </div>`;
       const commit = (fn) => { store.checkpoint(); fn(); store.commit(false); };
-      this.bindLen('pW', v => commit(() => it.w = Math.max(10, Math.round(v))));
-      this.bindLen('pD', v => commit(() => it.d = Math.max(10, Math.round(v))));
-      this.bindLen('pH', v => commit(() => it.h = Math.max(10, Math.round(v))));
-      this.bindNum('pRot', v => commit(() => it.rotation = v * Math.PI / 180));
-      this.bindLen('pElev', v => commit(() => it.elevation = Math.max(0, Math.round(v))));
+      if (isPath) {
+        this.bindLen('pPW', v => commit(() => it.pw = Math.max(30, Math.min(600, Math.round(v)))));
+      } else {
+        this.bindLen('pW', v => commit(() => it.w = Math.max(10, Math.round(v))));
+        this.bindLen('pD', v => commit(() => it.d = Math.max(10, Math.round(v))));
+        this.bindLen('pH', v => commit(() => it.h = Math.max(10, Math.round(v))));
+        this.bindNum('pRot', v => commit(() => it.rotation = v * Math.PI / 180));
+        this.bindLen('pElev', v => commit(() => it.elevation = Math.max(0, Math.round(v))));
+      }
       if (def?.palettes) {
         const row = $('#palRow');
         def.palettes.forEach((pal, idx) => {
@@ -576,6 +587,10 @@ export class UI {
         store.checkpoint();
         const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
         Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
+        if (it.path) {
+          created.path = it.path.map(p => ({ x: p.x + 40, y: p.y + 40 }));
+          created.pw = it.pw;
+        }
         store.commit(false);
         store.select({ kind: 'item', id: created.id });
       };
@@ -869,7 +884,9 @@ export class UI {
         room: 'Drag to draw a rectangular room',
         door: `${tap} a wall to place a door`,
         window: `${tap} a wall to place a window`,
-        place: `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
+        place: ITEM_MAP.get(store.placeDefId)?.path
+          ? `Drag along the plan to lay the ${ITEM_MAP.get(store.placeDefId).name.toLowerCase()}`
+          : `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`
       };
       text = hints[store.tool] || '';
     }

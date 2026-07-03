@@ -1207,6 +1207,45 @@ export const ITEMS = [
       return g;
     }
   },
+  // --- draggable paths: drag on the plan and the surface is laid along the stroke ---
+  {
+    id: 'path_sidewalk', name: 'Sidewalk Path', cat: 'outdoor', w: 240, d: 120, h: 5, noShadow: true,
+    palettes: null, plan: { type: 'path' }, path: { mat: 'pavement', width: 120 },
+    build: () => {
+      const g = G();
+      box(g, tex('pavement', 1.2, 0.6), 240, 5, 120, 0, 0, 0);
+      return g;
+    }
+  },
+  {
+    id: 'path_driveway', name: 'Driveway Path', cat: 'outdoor', w: 300, d: 280, h: 4, noShadow: true,
+    palettes: null, plan: { type: 'path' }, path: { mat: 'counter_dark', width: 280 },
+    build: () => {
+      const g = G();
+      box(g, tex('counter_dark', 1.5, 1.4), 300, 4, 280, 0, 0, 0);
+      return g;
+    }
+  },
+  {
+    id: 'path_gravel', name: 'Gravel Path', cat: 'outdoor', w: 200, d: 90, h: 4, noShadow: true,
+    palettes: null, plan: { type: 'path' }, path: { mat: 'gravel', width: 90 },
+    build: () => {
+      const g = G();
+      box(g, tex('gravel', 1.2, 0.6), 200, 4, 90, 0, 0, 0);
+      return g;
+    }
+  },
+  {
+    id: 'path_stream', name: 'Water Stream', cat: 'outdoor', w: 260, d: 150, h: 8, noShadow: true,
+    palettes: null, plan: { type: 'path' }, path: { mat: 'water', width: 150, surface: 'water' },
+    build: () => {
+      const g = G();
+      box(g, solid('#3a7d9c', 0.3), 260, 4, 150, 0, 0, 0);
+      const w = box(g, water(), 252, 4, 142, 0, 3, 0);
+      w.receiveShadow = true;
+      return g;
+    }
+  },
   {
     id: 'pergola', name: 'Pergola', cat: 'outdoor', w: 300, d: 300, h: 250,
     palettes: WOODS, plan: { type: 'pergola' },

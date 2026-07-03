@@ -381,6 +381,19 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       ctx.restore();
       break;
     }
+    case 'path': {
+      // gentle S-curve stroke — placed paths are drawn from their real points
+      ctx.save();
+      ctx.lineWidth = Math.min(d * 0.62, w * 0.5);
+      ctx.strokeStyle = 'rgba(190,188,180,0.9)';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-hw + ctx.lineWidth / 2, hd * 0.35);
+      ctx.bezierCurveTo(-hw * 0.2, hd * 0.5, hw * 0.2, -hd * 0.5, hw - ctx.lineWidth / 2, -hd * 0.35);
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
     default:
       outline(2);
   }

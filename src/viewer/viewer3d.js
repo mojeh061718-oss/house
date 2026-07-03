@@ -4,7 +4,7 @@
 // the forced-landscape mode on iPhone/iPad works identically.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { buildWalls, buildFloors, buildCeilings, buildGround } from './arch3d.js';
+import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp, wallLength } from '../core/geometry.js';
 import { snapPose } from '../core/placement.js';
@@ -296,12 +296,16 @@ export class Viewer3D {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
       try {
-        const model = def.build(paletteFor(it, def));
-        model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
+        const isPath = def.path && it.path?.length >= 2;
+        const model = isPath ? buildPathModel(it, def) : def.build(paletteFor(it, def));
+        if (!isPath) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
         const outer = new THREE.Group();
         outer.add(model);
         outer.userData.itemId = it.id;
         outer.userData.level = li;
+        outer.userData.palette = it.palette;
+        outer.userData.w = it.w; outer.userData.d = it.d; outer.userData.h = it.h;
+        outer.userData.pw = it.pw;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
         if (def.light) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
@@ -338,11 +342,12 @@ export class Viewer3D {
       if (!g) { structuralChange = true; continue; }
       const def = ITEM_MAP.get(it.defId);
       const model = g.children[0];
-      if (g.userData.palette !== it.palette || g.userData.w !== it.w || g.userData.d !== it.d || g.userData.h !== it.h) {
+      if (g.userData.palette !== it.palette || g.userData.w !== it.w || g.userData.d !== it.d || g.userData.h !== it.h ||
+          g.userData.pw !== it.pw) {
         structuralChange = true;
       }
       this.poseItem(g, it, def, wallH, lvlY);
-      if (model) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
+      if (model && !it.path) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
     }
     for (const [id, g] of this.itemGroups) {
       if (g.userData.level === active && !alive.has(id)) structuralChange = true;
@@ -672,6 +677,7 @@ export class Viewer3D {
     const pose = snapPose(store.project.walls, def, target.x, target.y, {});
     store.checkpoint();
     const it = store.addItem(def.id, pose.x, pose.y, pose.rot, def);
+    if (def.path) this.seedDefaultPath(it, def);
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
@@ -690,11 +696,23 @@ export class Viewer3D {
     const pose = snapPose(store.project.walls, def, room.centroid.x, room.centroid.y, {});
     store.checkpoint();
     const it = store.addItem(defId, pose.x, pose.y, pose.rot, def);
+    if (def.path) this.seedDefaultPath(it, def);
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
     this.flyToItem(it);
     return true;
+  }
+
+  /** Paths placed by a 3D tap start as a short straight run (drawn freely in 2D). */
+  seedDefaultPath(it, def) {
+    const L = Math.max(def.w, 240);
+    it.path = [{ x: Math.round(it.x - L / 2), y: Math.round(it.y) },
+               { x: Math.round(it.x + L / 2), y: Math.round(it.y) }];
+    it.pw = def.path.width;
+    it.rotation = 0;
+    it.w = L + def.path.width;
+    it.d = def.path.width;
   }
 
   /** Tap-to-place doors/windows on a wall in 3D. */
@@ -834,11 +852,17 @@ export class Viewer3D {
           const target = def?.mount === 'wall'
             ? { x: pt.x, y: pt.z }
             : { x: pt.x - this.drag.offX, y: pt.z - this.drag.offZ };
-          const pose = snapPose(this.store.project.walls, def, target.x, target.y,
-            { fine: true, rot: it.rotation, d: it.d });
-          it.x = pose.x;
-          it.y = pose.y;
-          if (pose.snapped) it.rotation = pose.rot;
+          if (it.path) {
+            const dx = target.x - it.x, dy = target.y - it.y;
+            it.x = target.x; it.y = target.y;
+            for (const pp of it.path) { pp.x += dx; pp.y += dy; }
+          } else {
+            const pose = snapPose(this.store.project.walls, def, target.x, target.y,
+              { fine: true, rot: it.rotation, d: it.d });
+            it.x = pose.x;
+            it.y = pose.y;
+            if (pose.snapped) it.rotation = pose.rot;
+          }
           this.drag.moved = true;
           this.store.commit(false);
         }

@@ -38,6 +38,71 @@ export function archMat(matId, opts = {}) {
   return m;
 }
 
+/** 3D model for a dragged path item (sidewalk/driveway/gravel/water stream).
+ *  Geometry is built relative to the item's center so the usual item posing
+ *  (and drag translation) applies unchanged. */
+export function buildPathModel(it, def) {
+  const g = new THREE.Group();
+  const width = it.pw || def.path.width;
+  const isWater = def.path.surface === 'water';
+  const h = isWater ? 6 : Math.max(def.h || 4, 3);
+  const rel = it.path.map(p => ({ x: p.x - it.x, y: p.y - it.y }));
+  const mat = isWater ? waterMat() : archMat(def.path.mat);
+  const scale = MATERIAL_MAP.get(def.path.mat)?.scale ?? 200;
+  const topY = isWater ? h - 2 : h; // water sits slightly recessed
+  const add = (mesh) => {
+    mesh.receiveShadow = true;
+    g.add(mesh);
+    return mesh;
+  };
+  for (let i = 1; i < rel.length; i++) {
+    const a = rel[i - 1], b = rel[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 1) continue;
+    const geo = new THREE.BoxGeometry(len, topY, width);
+    if (!isWater) boxWorldUV(geo, new THREE.Vector3((a.x + b.x) / 2, topY / 2, (a.y + b.y) / 2), scale);
+    const mesh = add(new THREE.Mesh(geo, mat));
+    mesh.position.set((a.x + b.x) / 2, topY / 2, (a.y + b.y) / 2);
+    mesh.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+  }
+  // round caps and elbows
+  for (const p of rel) {
+    const geo = new THREE.CylinderGeometry(width / 2, width / 2, topY - 0.2, 22);
+    const mesh = add(new THREE.Mesh(geo, mat));
+    mesh.position.set(p.x, (topY - 0.2) / 2, p.y);
+  }
+  if (isWater) {
+    // dark stream bed under the water surface
+    const bed = solidMat('#22394a');
+    for (let i = 1; i < rel.length; i++) {
+      const a = rel[i - 1], b = rel[i];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len < 1) continue;
+      const mesh = add(new THREE.Mesh(new THREE.BoxGeometry(len + 6, 1.6, width + 6), bed));
+      mesh.position.set((a.x + b.x) / 2, 0.8, (a.y + b.y) / 2);
+      mesh.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+    }
+  }
+  return g;
+}
+
+let _waterMat = null;
+function waterMat() {
+  if (!_waterMat) {
+    _waterMat = new THREE.MeshStandardMaterial({
+      color: '#2e6a86', roughness: 0.06, metalness: 0.45,
+      transparent: true, opacity: 0.92
+    });
+  }
+  return _waterMat;
+}
+
+let _bedMat = null;
+function solidMat(hex) {
+  if (!_bedMat) _bedMat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.95 });
+  return _bedMat;
+}
+
 /** Remap a BoxGeometry's UVs to world units / textureScale (planar per axis). */
 function boxWorldUV(geo, offset, scaleCm) {
   const pos = geo.attributes.position;

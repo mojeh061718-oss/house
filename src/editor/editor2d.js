@@ -205,6 +205,21 @@ export class Editor2D {
     // steal every tap meant for the sofa.
     let bestItem = null, bestScore = Infinity;
     for (const it of this.sortedItems()) {
+      const def = ITEM_MAP.get(it.defId);
+      if (it.path && def?.path) {
+        // paths hit along their stroke, and always lose to furniture on top
+        const hw = (it.pw || def.path.width) / 2 + tol;
+        let d = Infinity;
+        for (let i = 1; i < it.path.length; i++) {
+          const a = it.path[i - 1], b = it.path[i];
+          d = Math.min(d, pointSegDist(wx, wy, a.x, a.y, b.x, b.y).d);
+        }
+        if (d < hw) {
+          const score = 1.5 + d / hw;
+          if (score <= bestScore) { bestScore = score; bestItem = it; }
+        }
+        continue;
+      }
       // very shallow items (wall TVs, shelves) get a minimum hit depth
       const hitD = Math.max(it.d, 22);
       if (pointInItemRect(wx, wy, it, it.w + tol, hitD + tol)) {
@@ -240,6 +255,7 @@ export class Editor2D {
     const rank = it => {
       const def = ITEM_MAP.get(it.defId);
       if (!def) return 1;
+      if (def.plan?.type === 'path') return -1; // ground surfaces under everything
       if (def.plan?.type === 'rug' || def.plan?.type === 'rugRound') return 0;
       if (def.mount === 'wall' || def.mount === 'ceiling') return 2;
       return 1;
@@ -413,9 +429,34 @@ export class Editor2D {
     const store = this.store;
     const def = ITEM_MAP.get(store.placeDefId);
     if (!def) return;
+    if (def.path) {
+      // paths are laid by dragging: collect the stroke, commit on release
+      this.mode = { name: 'pathDraw', def, pts: [{ x: w.x, y: w.y }], cur: null, dragging: true };
+      return;
+    }
     const pos = this.placePose(w, def);
     store.checkpoint();
     const it = store.addItem(def.id, pos.x, pos.y, pos.rot, def);
+    store.commit(false);
+    store.setTool('select');
+    store.select({ kind: 'item', id: it.id });
+  }
+
+  /** Create a path item from a drawn stroke (absolute plan points). */
+  commitPath(def, pts) {
+    const store = this.store;
+    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    for (const p of pts) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    const width = def.path.width;
+    store.checkpoint();
+    const it = store.addItem(def.id, (minX + maxX) / 2, (minY + maxY) / 2, 0, def);
+    it.path = pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+    it.pw = width;
+    it.w = Math.max(maxX - minX + width, width);
+    it.d = Math.max(maxY - minY + width, width);
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
@@ -438,6 +479,7 @@ export class Editor2D {
   }
 
   itemHandles(it) {
+    if (it.path) return []; // paths just move — no rotate/resize handles
     const cos = Math.cos(it.rotation), sin = Math.sin(it.rotation);
     const loc = (lx, ly) => {
       const wx = it.x + lx * cos - ly * sin;
@@ -498,11 +540,27 @@ export class Editor2D {
         m.cur = this.snapPoint(w.x, w.y);
         break;
       }
+      case 'pathDraw': {
+        const last = m.pts[m.pts.length - 1];
+        const step = Math.max(24, m.def.path.width / 4);
+        if (dist(w.x, w.y, last.x, last.y) >= step) m.pts.push({ x: w.x, y: w.y });
+        m.cur = { x: w.x, y: w.y };
+        break;
+      }
       case 'dragItem': {
         const it = store.item(m.id);
         if (!it) break;
         m.moved = true;
         const def = ITEM_MAP.get(it.defId);
+        if (it.path) {
+          // translate the whole stroke with the drag
+          const nx = w.x - m.offX, ny = w.y - m.offY;
+          const dx = nx - it.x, dy = ny - it.y;
+          it.x = nx; it.y = ny;
+          for (const p of it.path) { p.x += dx; p.y += dy; }
+          store.commit(false);
+          break;
+        }
         const target = def?.mount === 'wall'
           ? w
           : { x: w.x - m.offX, y: w.y - m.offY };
@@ -600,6 +658,15 @@ export class Editor2D {
         store.addWall(m.start.x, m.start.y, m.preview.x, m.preview.y);
         store.commit(true);
       }
+    }
+    if (m.name === 'pathDraw') {
+      const pts = m.pts.slice();
+      if (m.cur && dist(m.cur.x, m.cur.y, pts[pts.length - 1].x, pts[pts.length - 1].y) > 8) {
+        pts.push(m.cur);
+      }
+      let len = 0;
+      for (let i = 1; i < pts.length; i++) len += dist(pts[i].x, pts[i].y, pts[i - 1].x, pts[i - 1].y);
+      if (pts.length >= 2 && len > 50) this.commitPath(m.def, pts);
     }
     if (m.name === 'roomRect' && m.start && m.cur) {
       const { start: s, cur: c } = m;
@@ -738,7 +805,7 @@ export class Editor2D {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
       const t = def.plan?.type;
-      if (t === 'rug' || t === 'rugRound') this.drawItem(ctx, it, def, px);
+      if (t === 'rug' || t === 'rugRound' || t === 'path') this.drawItem(ctx, it, def, px);
     }
 
     this.drawWalls(ctx, px);
@@ -747,7 +814,7 @@ export class Editor2D {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
       const t = def.plan?.type;
-      if (t !== 'rug' && t !== 'rugRound') this.drawItem(ctx, it, def, px);
+      if (t !== 'rug' && t !== 'rugRound' && t !== 'path') this.drawItem(ctx, it, def, px);
     }
 
     this.drawOpenings(ctx, px);
@@ -897,6 +964,10 @@ export class Editor2D {
 
   drawItem(ctx, it, def, px) {
     const selected = this.store.selection?.kind === 'item' && this.store.selection.id === it.id;
+    if (it.path && def.path) {
+      this.strokePath(ctx, it.path, it.pw || def.path.width, def, px, selected);
+      return;
+    }
     ctx.save();
     ctx.translate(it.x, it.y);
     ctx.rotate(it.rotation);
@@ -906,6 +977,40 @@ export class Editor2D {
       ctx.lineWidth = 1.8 * px;
       ctx.setLineDash([6 * px, 4 * px]);
       ctx.strokeRect(-it.w / 2 - 4, -it.d / 2 - 4, it.w + 8, it.d + 8);
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
+  /** Render a laid path (sidewalk/driveway/gravel/water) along its stroke. */
+  strokePath(ctx, pts, width, def, px, selected = false, alpha = 1) {
+    if (pts.length < 2) return;
+    const isWater = def.path?.surface === 'water';
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const trace = () => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    };
+    // edge/bank line under the fill
+    ctx.strokeStyle = isWater ? '#6d98ac' : 'rgba(70,76,88,0.55)';
+    ctx.lineWidth = width + 3 * px;
+    trace();
+    ctx.stroke();
+    ctx.strokeStyle = isWater ? '#a8cede' : this.floorPattern(def.path.mat);
+    ctx.lineWidth = width;
+    trace();
+    ctx.stroke();
+    if (selected) {
+      ctx.strokeStyle = '#3884ff';
+      ctx.lineWidth = 2 * px;
+      ctx.setLineDash([6 * px, 4 * px]);
+      ctx.lineCap = 'butt';
+      trace();
+      ctx.stroke();
       ctx.setLineDash([]);
     }
     ctx.restore();
@@ -940,6 +1045,10 @@ export class Editor2D {
       }
       this.drawNode(ctx, start.x, start.y, px, start.kind);
       this.drawNode(ctx, preview.x, preview.y, px, preview.kind);
+    }
+    if (m.name === 'pathDraw' && m.pts.length) {
+      const pts = m.cur ? [...m.pts, m.cur] : m.pts;
+      this.strokePath(ctx, pts, m.def.path.width, m.def, px, false, 0.65);
     }
     if (m.name === 'roomRect' && m.cur) {
       const { start: s, cur: c } = m;
@@ -1084,6 +1193,7 @@ export class Editor2D {
       const it = store.item(sel.id);
       if (!it) return;
       const hs = this.itemHandles(it);
+      if (!hs.length) return; // paths: move-only, no handles
       // line from item to rotate handle (under the handles)
       const c = this.toScreen(it.x, it.y);
       ctx.strokeStyle = 'rgba(56,132,255,0.5)';

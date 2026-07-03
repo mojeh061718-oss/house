@@ -6,7 +6,7 @@ import { pointSegDist, wallAngle } from './geometry.js';
 const GRID = 10;
 const NO_WALL_SNAP = new Set([
   'rug', 'rugRound', 'plant', 'slab', 'car', 'hedge', 'fence', 'box', 'pond', 'pool',
-  'rings', 'hottub', 'swingset', 'patioset', 'pergola', 'hoop'
+  'rings', 'hottub', 'swingset', 'patioset', 'pergola', 'hoop', 'path'
 ]);
 
 function nearestWall(walls, x, y, maxDist) {
