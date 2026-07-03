@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/mobile-home-design-app-l2mc9l
+      - claude/md-handoff-tasks-mf6tye
   workflow_dispatch:
 
 permissions:

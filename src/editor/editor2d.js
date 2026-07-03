@@ -10,7 +10,8 @@ import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
 import { localPos } from '../core/orientation.js';
 import { fmtFtIn, fmtArea } from '../core/units.js';
-import { snapPose } from '../core/placement.js';
+import { snapPose, createPathItem } from '../core/placement.js';
+import { openingDefaults, isWindowType } from '../core/openings.js';
 
 const GRID = 10;            // snap grid (cm)
 
@@ -316,6 +317,7 @@ export class Editor2D {
 
     switch (store.tool) {
       case 'select': this.downSelect(w, sx, sy); break;
+      case 'multi': this.mode = { name: 'marquee', start: { x: w.x, y: w.y }, cur: null, sx, sy, dragging: true }; break;
       case 'wall': this.downWall(w); break;
       case 'room': this.mode = { name: 'roomRect', start: this.snapPoint(w.x, w.y), cur: null, dragging: true }; break;
       case 'door': case 'window': this.downOpening(w, store.tool); break;
@@ -342,6 +344,20 @@ export class Editor2D {
           store.checkpoint();
           this.mode = { name: 'resizeItem', id: it.id, handle: h, startW: it.w, startD: it.d, dragging: true };
           return;
+        }
+      }
+    }
+    // 1b. jamb-end resize handles of current opening selection
+    if (sel?.kind === 'opening') {
+      const o = store.opening(sel.id);
+      const wall = o && store.wall(o.wallId);
+      if (o && wall) {
+        for (const h of this.openingHandles(o, wall)) {
+          if (Math.hypot(h.sx - sx, h.sy - sy) < this.handleHit) {
+            store.checkpoint();
+            this.mode = { name: 'resizeOpening', id: o.id, end: h.end, dragging: true };
+            return;
+          }
         }
       }
     }
@@ -413,8 +429,8 @@ export class Editor2D {
     const store = this.store;
     const near = this.nearestWall(w.x, w.y, 40 / this.view.scale + 20);
     if (!near) return;
-    const type = tool === 'door' ? 'door' : 'window';
-    const width = type === 'door' ? DEFAULTS.doorWidth : DEFAULTS.windowWidth;
+    const type = tool === 'door' ? store.doorType : store.windowType;
+    const width = openingDefaults(type).width;
     const len = wallLength(near.wall);
     if (len < width + 12) return;
     const t = clamp(near.t, (width / 2 + 6) / len, 1 - (width / 2 + 6) / len);
@@ -444,27 +460,23 @@ export class Editor2D {
 
   /** Create a path item from a drawn stroke (absolute plan points). */
   commitPath(def, pts) {
-    const store = this.store;
-    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-    for (const p of pts) {
-      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
-    }
-    const width = def.path.width;
-    store.checkpoint();
-    const it = store.addItem(def.id, (minX + maxX) / 2, (minY + maxY) / 2, 0, def);
-    it.path = pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
-    it.pw = width;
-    it.w = Math.max(maxX - minX + width, width);
-    it.d = Math.max(maxY - minY + width, width);
-    store.commit(false);
-    store.setTool('select');
-    store.select({ kind: 'item', id: it.id });
+    createPathItem(this.store, def, pts);
   }
 
   /** Position + rotation for placing an item, snapping to walls where sensible. */
   placePose(w, def, opts = {}) {
     return snapPose(this.store.project.walls, def, w.x, w.y, opts);
+  }
+
+  /** Screen positions of the two jamb-end resize handles of an opening. */
+  openingHandles(o, wall) {
+    const c = wallPoint(wall, o.t);
+    const ang = wallAngle(wall);
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    return [-1, 1].map(end => {
+      const s = this.toScreen(c.x + dx * (o.width / 2) * end, c.y + dy * (o.width / 2) * end);
+      return { end, sx: s.x, sy: s.y };
+    });
   }
 
   itemHandleAt(it, sx, sy) {
@@ -538,6 +550,29 @@ export class Editor2D {
       }
       case 'roomRect': {
         m.cur = this.snapPoint(w.x, w.y);
+        break;
+      }
+      case 'marquee': {
+        m.cur = { x: w.x, y: w.y };
+        break;
+      }
+      case 'resizeOpening': {
+        const o = store.opening(m.id);
+        const wall = o && store.wall(o.wallId);
+        if (!wall) break;
+        const len = wallLength(wall);
+        const r = pointSegDist(w.x, w.y, wall.ax, wall.ay, wall.bx, wall.by);
+        const e = m.end; // -1 grabs the near jamb, +1 the far jamb
+        const tFixed = o.t - e * o.width / (2 * len);   // opposite jamb stays put
+        const margin = 6 / len;
+        const tEdge = clamp(r.t, margin, 1 - margin);
+        const maxW = (e > 0 ? (1 - margin - tFixed) : (tFixed - margin)) * len;
+        const width = Math.round(clamp((tEdge - tFixed) * len * e, 40, Math.min(300, maxW)));
+        if (width >= 40) {
+          o.width = width;
+          o.t = tFixed + e * width / (2 * len);
+          store.commit(true);
+        }
         break;
       }
       case 'pathDraw': {
@@ -667,6 +702,31 @@ export class Editor2D {
       let len = 0;
       for (let i = 1; i < pts.length; i++) len += dist(pts[i].x, pts[i].y, pts[i - 1].x, pts[i - 1].y);
       if (pts.length >= 2 && len > 50) this.commitPath(m.def, pts);
+    }
+    if (m.name === 'marquee') {
+      const a = m.start, b = m.cur;
+      const dragged = b && (Math.abs(b.x - a.x) > 14 / this.view.scale ||
+                            Math.abs(b.y - a.y) > 14 / this.view.scale);
+      if (dragged) {
+        const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
+        const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+        const ids = store.project.items
+          .filter(it => it.x >= x1 && it.x <= x2 && it.y >= y1 && it.y <= y2)
+          .map(it => it.id);
+        store.select(ids.length ? { kind: 'multi', ids } : null);
+      } else {
+        // tap: toggle the item under the finger in or out of the group
+        const hit = this.hitTest(a.x, a.y);
+        if (hit?.kind === 'item') {
+          const cur = store.selection;
+          let ids = cur?.kind === 'multi' ? cur.ids.slice()
+            : cur?.kind === 'item' ? [cur.id] : [];
+          ids = ids.includes(hit.id) ? ids.filter(i => i !== hit.id) : [...ids, hit.id];
+          store.select(ids.length ? { kind: 'multi', ids } : null);
+        } else {
+          store.select(null);
+        }
+      }
     }
     if (m.name === 'roomRect' && m.start && m.cur) {
       const { start: s, cur: c } = m;
@@ -826,6 +886,68 @@ export class Editor2D {
     this.drawRoomLabels(ctx);
     this.drawDimensions(ctx);
     this.drawSelectionHandles(ctx);
+    this.drawRulers(ctx, W, H);
+  }
+
+  /** Ruler labels along the top/left edges plus a grid-scale chip, so the
+   *  grid always has a real-world reference. */
+  drawRulers(ctx, W, H) {
+    const scale = this.view.scale;
+    const fmt = (cm) => (cm < 0 ? '-' : '') + fmtFtIn(Math.abs(cm));
+    // label spacing that keeps at least ~64px between labels
+    const steps = [100, 200, 500, 1000, 2000, 5000, 10000];
+    const step = steps.find(s => s * scale >= 64) || 20000;
+    const left = this.view.x - (W / 2) / scale;
+    const right = this.view.x + (W / 2) / scale;
+    const top = this.view.y - (H / 2) / scale;
+    const bottom = this.view.y + (H / 2) / scale;
+
+    ctx.fillStyle = 'rgba(238,240,242,0.88)';
+    ctx.fillRect(0, 0, W, 17);
+    ctx.fillRect(0, 17, 17, H - 17);
+    ctx.strokeStyle = 'rgba(120,130,145,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, 17.5); ctx.lineTo(W, 17.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(17.5, 17); ctx.lineTo(17.5, H); ctx.stroke();
+
+    ctx.font = '9.5px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(70,78,90,0.9)';
+    ctx.strokeStyle = 'rgba(70,78,90,0.6)';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    for (let x = Math.ceil(left / step) * step; x <= right; x += step) {
+      const s = (x - this.view.x) * scale + W / 2;
+      if (s < 28) continue;
+      ctx.beginPath(); ctx.moveTo(s, 12); ctx.lineTo(s, 17); ctx.stroke();
+      ctx.fillText(fmt(x), s, 7.5);
+    }
+    for (let y = Math.ceil(top / step) * step; y <= bottom; y += step) {
+      const s = (y - this.view.y) * scale + H / 2;
+      if (s < 30) continue;
+      ctx.beginPath(); ctx.moveTo(12, s); ctx.lineTo(17, s); ctx.stroke();
+      ctx.save();
+      ctx.translate(8, s);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(fmt(y), 0, 0);
+      ctx.restore();
+    }
+    // scale chip: what one grid square currently measures
+    const gridStep = scale > 0.5 ? 20 : scale > 0.18 ? 100 : 500;
+    const label = `1 square = ${fmtFtIn(gridStep)}`;
+    ctx.font = '600 10.5px system-ui, sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(238,240,242,0.92)';
+    ctx.strokeStyle = 'rgba(120,130,145,0.4)';
+    const cx = 26, cy = 24;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cx, cy, tw + 16, 20, 10);
+    else ctx.rect(cx, cy, tw + 16, 20);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(60,68,80,0.92)';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, cx + 8, cy + 10.5);
+    ctx.textBaseline = 'alphabetic';
   }
 
   drawGrid(ctx, W, H, px) {
@@ -916,11 +1038,74 @@ export class Editor2D {
       ctx.fillRect(-hw, -th, o.width, th * 2);
       ctx.strokeStyle = selected ? '#3884ff' : '#3d4148';
       ctx.lineWidth = 1.4 * px;
-      if (o.type === 'window') {
+      if (o.type === 'window' || o.type === 'picture' || o.type === 'casement') {
         ctx.strokeRect(-hw, -th, o.width, th * 2);
         ctx.beginPath();
-        ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0);
+        if (o.type === 'picture') {
+          // fixed pane: double glazing lines, no dividers
+          ctx.moveTo(-hw, -th * 0.4); ctx.lineTo(hw, -th * 0.4);
+          ctx.moveTo(-hw, th * 0.4); ctx.lineTo(hw, th * 0.4);
+        } else {
+          ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0);
+        }
         ctx.stroke();
+        if (o.type === 'casement') {
+          // cracked-open sash mark
+          ctx.save();
+          ctx.setLineDash([4 * px, 4 * px]);
+          ctx.beginPath();
+          ctx.arc(-hw, th, o.width, 0, Math.PI * 0.28);
+          ctx.stroke();
+          ctx.restore();
+          ctx.beginPath();
+          ctx.moveTo(-hw, th);
+          ctx.lineTo(-hw + Math.cos(Math.PI * 0.28) * o.width, th + Math.sin(Math.PI * 0.28) * o.width);
+          ctx.stroke();
+        }
+      } else if (o.type === 'garage') {
+        ctx.strokeRect(-hw, -th, o.width, th * 2);
+        ctx.save();
+        ctx.setLineDash([6 * px, 4 * px]);
+        ctx.beginPath();
+        ctx.moveTo(-hw, -th * 0.33); ctx.lineTo(hw, -th * 0.33);
+        ctx.moveTo(-hw, th * 0.33); ctx.lineTo(hw, th * 0.33);
+        ctx.stroke();
+        ctx.restore();
+      } else if (o.type === 'pocket') {
+        // jambs + panel half-slid into its wall cavity
+        ctx.beginPath();
+        ctx.moveTo(-hw, -th); ctx.lineTo(-hw, th);
+        ctx.moveTo(hw, -th); ctx.lineTo(hw, th);
+        ctx.stroke();
+        ctx.fillStyle = selected ? '#3884ff' : '#3d4148';
+        ctx.fillRect(-hw, -th * 0.35, hw, th * 0.7);
+        ctx.save();
+        ctx.strokeStyle = '#eef0f2';
+        ctx.setLineDash([5 * px, 4 * px]);
+        ctx.strokeRect(-hw - o.width / 2, -th * 0.35, o.width / 2, th * 0.7);
+        ctx.restore();
+      } else if (o.type === 'double' || o.type === 'french') {
+        // two leaves swinging from both jambs, meeting in the middle
+        const sideY = o.flip ? -1 : 1;
+        ctx.beginPath();
+        ctx.moveTo(-hw, -th); ctx.lineTo(-hw, th);
+        ctx.moveTo(hw, -th); ctx.lineTo(hw, th);
+        ctx.stroke();
+        for (const s of [-1, 1]) {
+          const hingeX = s * hw;
+          ctx.beginPath();
+          ctx.moveTo(hingeX, th * sideY);
+          ctx.lineTo(hingeX, th * sideY + hw * sideY);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.setLineDash([4 * px, 4 * px]);
+          let a0, a1;
+          if (sideY > 0) { [a0, a1] = s > 0 ? [Math.PI / 2, Math.PI] : [0, Math.PI / 2]; }
+          else { [a0, a1] = s > 0 ? [Math.PI, Math.PI * 1.5] : [Math.PI * 1.5, Math.PI * 2]; }
+          ctx.arc(hingeX, th * sideY, hw, a0, a1);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       } else if (o.type === 'doorway') {
         ctx.save();
         ctx.setLineDash([6 * px, 5 * px]);
@@ -929,7 +1114,7 @@ export class Editor2D {
         ctx.moveTo(hw, -th); ctx.lineTo(hw, th);
         ctx.stroke();
         ctx.restore();
-      } else if (o.type === 'slidingDoor') {
+      } else if (o.type === 'slidingDoor' || o.type === 'slidingWindow') {
         ctx.strokeRect(-hw, -th, o.width, th * 2);
         ctx.beginPath();
         ctx.moveTo(-hw, -th * 0.4); ctx.lineTo(hw * 0.15, -th * 0.4);
@@ -963,7 +1148,9 @@ export class Editor2D {
   }
 
   drawItem(ctx, it, def, px) {
-    const selected = this.store.selection?.kind === 'item' && this.store.selection.id === it.id;
+    const sel = this.store.selection;
+    const selected = (sel?.kind === 'item' && sel.id === it.id) ||
+      (sel?.kind === 'multi' && sel.ids.includes(it.id));
     if (it.path && def.path) {
       this.strokePath(ctx, it.path, it.pw || def.path.width, def, px, selected);
       return;
@@ -1000,10 +1187,34 @@ export class Editor2D {
     ctx.lineWidth = width + 3 * px;
     trace();
     ctx.stroke();
-    ctx.strokeStyle = isWater ? '#a8cede' : this.floorPattern(def.path.mat);
-    ctx.lineWidth = width;
-    trace();
-    ctx.stroke();
+    if (isWater) {
+      ctx.strokeStyle = '#a8cede';
+      ctx.lineWidth = width;
+      trace();
+      ctx.stroke();
+    } else {
+      // the pattern follows the stroke: fill each segment in its own rotated
+      // frame (round joint + body in one path so overlap paints once), with
+      // the pattern offset by the distance already laid for continuity
+      ctx.fillStyle = this.floorPattern(def.path.mat);
+      let run = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        if (len < 0.5) continue;
+        ctx.save();
+        ctx.translate(a.x, a.y);
+        ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+        ctx.translate(-run, 0);
+        ctx.beginPath();
+        ctx.arc(run, 0, width / 2, 0, Math.PI * 2);
+        ctx.rect(run, -width / 2, len, width);
+        if (i === pts.length - 1) ctx.arc(run + len, 0, width / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        run += len;
+      }
+    }
     if (selected) {
       ctx.strokeStyle = '#3884ff';
       ctx.lineWidth = 2 * px;
@@ -1058,11 +1269,21 @@ export class Editor2D {
       ctx.strokeRect(Math.min(s.x, c.x), Math.min(s.y, c.y), Math.abs(c.x - s.x), Math.abs(c.y - s.y));
       ctx.globalAlpha = 1;
     }
+    if (m.name === 'marquee' && m.cur) {
+      const { start: s, cur: c } = m;
+      ctx.fillStyle = 'rgba(56,132,255,0.12)';
+      ctx.fillRect(Math.min(s.x, c.x), Math.min(s.y, c.y), Math.abs(c.x - s.x), Math.abs(c.y - s.y));
+      ctx.strokeStyle = '#3884ff';
+      ctx.lineWidth = 1.5 * px;
+      ctx.setLineDash([6 * px, 4 * px]);
+      ctx.strokeRect(Math.min(s.x, c.x), Math.min(s.y, c.y), Math.abs(c.x - s.x), Math.abs(c.y - s.y));
+      ctx.setLineDash([]);
+    }
     if ((store.tool === 'door' || store.tool === 'window') && this.hover) {
       const near = this.nearestWall(this.hover.x, this.hover.y, 40 / this.view.scale + 20);
       if (near) {
         const ang = wallAngle(near.wall);
-        const width = store.tool === 'door' ? DEFAULTS.doorWidth : DEFAULTS.windowWidth;
+        const width = openingDefaults(store.tool === 'door' ? store.doorType : store.windowType).width;
         ctx.save();
         ctx.translate(near.px, near.py);
         ctx.rotate(ang);
@@ -1237,6 +1458,29 @@ export class Editor2D {
         ctx.fill();
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = '#3884ff';
+        ctx.stroke();
+      }
+    }
+    if (sel?.kind === 'opening') {
+      const o = store.opening(sel.id);
+      const w = o && store.wall(o.wallId);
+      if (!o || !w) return;
+      for (const h of this.openingHandles(o, w)) {
+        ctx.beginPath();
+        ctx.arc(h.sx, h.sy, this.handleR - 1, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#3884ff';
+        ctx.stroke();
+        // double-arrow glyph hinting the drag direction
+        ctx.beginPath();
+        ctx.moveTo(h.sx - 4.5, h.sy); ctx.lineTo(h.sx + 4.5, h.sy);
+        ctx.moveTo(h.sx - 4.5, h.sy); ctx.lineTo(h.sx - 1.5, h.sy - 3);
+        ctx.moveTo(h.sx - 4.5, h.sy); ctx.lineTo(h.sx - 1.5, h.sy + 3);
+        ctx.moveTo(h.sx + 4.5, h.sy); ctx.lineTo(h.sx + 1.5, h.sy - 3);
+        ctx.moveTo(h.sx + 4.5, h.sy); ctx.lineTo(h.sx + 1.5, h.sy + 3);
+        ctx.lineWidth = 1.6;
         ctx.stroke();
       }
     }

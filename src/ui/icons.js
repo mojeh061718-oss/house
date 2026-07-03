@@ -9,6 +9,7 @@ export const ICONS = {
   room: svg('<rect x="4" y="5" width="16" height="14"/><path d="M4 12h6M14 5v4"/>'),
   door: svg('<path d="M4 20h16"/><path d="M6 20V4h9"/><path d="M15 4a13 13 0 0 1-9 12.6" stroke-dasharray="2.5 2.5"/><path d="M15 4v16"/>'),
   window: svg('<rect x="4" y="6" width="16" height="12"/><path d="M12 6v12M4 12h16"/>'),
+  multi: svg('<rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke-dasharray="3 2.6"/><rect x="7" y="7" width="4.5" height="4.5"/><rect x="13" y="12.5" width="4.5" height="4.5"/>'),
   undo: svg('<path d="M8 6 4 10l4 4"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/>'),
   redo: svg('<path d="m16 6 4 4-4 4"/><path d="M20 10H10a6 6 0 0 0 0 12h3"/>'),
   d2: svg('<rect x="3.5" y="5" width="17" height="14" rx="1.5"/><text x="12" y="16" text-anchor="middle" font-size="8.5" font-weight="700" stroke="none" fill="currentColor">2D</text>'),

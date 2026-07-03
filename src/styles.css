@@ -652,6 +652,60 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .chip { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; }
 .chip.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
+/* opening (door/window) type picker chips in the props panel */
+.type-chip {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 8px 13px;
+  cursor: pointer;
+}
+.type-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* door/window type popover next to the tool rail (child of #workspace) */
+.opening-pop {
+  position: absolute;
+  left: calc(84px + var(--safe-l));
+  width: 178px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  z-index: 40;
+}
+.opening-pop .pop-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 4px 8px 7px;
+}
+.opening-pop button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 9px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 10px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.opening-pop button i { font-style: normal; font-size: 11px; color: var(--text-dim); }
+.opening-pop button:hover { background: var(--accent-soft); }
+.opening-pop button.active { background: var(--accent); color: #fff; }
+.opening-pop button.active i { color: rgba(255, 255, 255, 0.8); }
+
 .seg-row { display: flex; background: var(--panel-2); border-radius: 9px; padding: 3px; gap: 2px; }
 .seg-row button {
   flex: 1;

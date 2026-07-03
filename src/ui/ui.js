@@ -10,6 +10,8 @@ import { fmtFtIn, fmtArea, inValue, inToCm } from '../core/units.js';
 import { THEMES, applyTheme } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
+import { OPENING_TYPES, OPENING_MAP, isWindowType } from '../core/openings.js';
+import { autoRoof, AUTO_ROOF_IDS } from '../core/autoroof.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -45,7 +47,11 @@ export class UI {
       this.syncFabs();
     });
     store.on('change', () => this.renderPropsSoft());
-    store.on('tool', () => { this.syncTools(); this.showHint(); });
+    store.on('tool', () => {
+      this.syncTools();
+      this.showHint();
+      if (store.tool !== 'door' && store.tool !== 'window') this.hideOpeningPop();
+    });
     store.on('view', () => this.syncView());
     store.on('history', () => this.syncHistory());
     store.on('projectLoaded', () => {
@@ -276,26 +282,76 @@ export class UI {
       `<button class="rail-btn tool" data-tool="${id}" title="${title}">${ICONS[id]}<span>${label}</span></button>`;
     rail.innerHTML = `
       ${tool('select', 'Select', 'Select & move things')}
+      ${tool('multi', 'Group', 'Select several items — drag a box or tap items')}
       ${tool('wall', 'Wall', 'Draw walls point to point')}
       ${tool('room', 'Room', 'Drag out a rectangular room')}
       ${tool('door', 'Door', 'Place a door on a wall')}
       ${tool('window', 'Window', 'Place a window on a wall')}
       <span class="rail-spacer"></span>
       <button class="rail-btn" id="btnFit" title="Fit plan to screen">${ICONS.fit}<span>Fit view</span></button>`;
+    if (!$('#openingPop')) {
+      const pop = el('div', 'opening-pop hidden');
+      pop.id = 'openingPop';
+      $('#workspace').appendChild(pop);
+    }
     rail.querySelectorAll('.tool').forEach(b => {
       b.onclick = () => {
         const t = b.dataset.tool;
         // drawing happens on the plan — jump back when a draw tool is picked in 3D
-        if ((t === 'wall' || t === 'room') && store.viewMode === '3d') {
+        if ((t === 'wall' || t === 'room' || t === 'multi') && store.viewMode === '3d') {
           store.setViewMode('2d');
         }
-        store.setTool(t === store.tool ? 'select' : t);
+        if (t === store.tool) {
+          store.setTool('select');
+          this.hideOpeningPop();
+          return;
+        }
+        store.setTool(t);
+        // door & window are drawers: arm the last-used type right away and
+        // offer the other types in a small popover
+        if (t === 'door' || t === 'window') this.showOpeningPop(t, b);
+        else this.hideOpeningPop();
       };
     });
     $('#btnFit').onclick = () => {
       this.editor.fitToContent();
       this.viewer.frameAll();
     };
+    document.addEventListener('pointerdown', (e) => {
+      const pop = $('#openingPop');
+      if (pop && !pop.classList.contains('hidden') &&
+          !pop.contains(e.target) && !e.target.closest('#toolrail .tool')) {
+        this.hideOpeningPop();
+      }
+    });
+  }
+
+  /** Popover listing door/window types next to the rail button. */
+  showOpeningPop(kind, anchor) {
+    const store = this.store;
+    const pop = $('#openingPop');
+    const current = kind === 'door' ? store.doorType : store.windowType;
+    const list = OPENING_TYPES.filter(t => (t.kind === 'window') === (kind === 'window'));
+    pop.innerHTML = `<div class="pop-title">${kind === 'door' ? 'Door type' : 'Window type'}</div>` +
+      list.map(t => `<button data-t="${t.id}" class="${t.id === current ? 'active' : ''}">
+        ${t.name}<i>${fmtFtIn(t.width)} wide</i></button>`).join('');
+    pop.querySelectorAll('button').forEach(b => {
+      b.onclick = () => {
+        if (kind === 'door') store.doorType = b.dataset.t;
+        else store.windowType = b.dataset.t;
+        this.hideOpeningPop();
+        this.toast(`${OPENING_MAP.get(b.dataset.t).name} armed — tap a wall to place it`);
+        this.showHint();
+      };
+    });
+    pop.classList.remove('hidden');
+    const ws = $('#workspace');
+    pop.style.top = Math.max(8, Math.min(anchor.offsetTop - 10,
+      ws.clientHeight - pop.offsetHeight - 8)) + 'px';
+  }
+
+  hideOpeningPop() {
+    $('#openingPop')?.classList.add('hidden');
   }
 
   syncTools() {
@@ -342,19 +398,36 @@ export class UI {
       it.d = Math.max(10, Math.round(it.d / 1.1));
       it.h = Math.max(10, Math.round(it.h / 1.1));
     });
-    $('#selDup').onclick = () => {
-      const sel = store.selection;
-      if (sel?.kind === 'room') { this.duplicateRoom(sel.id); return; }
-      if (sel?.kind !== 'item') return;
-      const it = store.item(sel.id);
-      const def = ITEM_MAP.get(it.defId);
-      store.checkpoint();
+    const cloneItem = (it, def) => {
       const created = store.addItem(it.defId, it.x + 40, it.y + 40, it.rotation, def);
       Object.assign(created, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
       if (it.path) {
         created.path = it.path.map(p => ({ x: p.x + 40, y: p.y + 40 }));
         created.pw = it.pw;
       }
+      return created;
+    };
+    $('#selDup').onclick = () => {
+      const sel = store.selection;
+      if (sel?.kind === 'room') { this.duplicateRoom(sel.id); return; }
+      if (sel?.kind === 'multi') {
+        store.checkpoint();
+        const ids = [];
+        for (const id of sel.ids) {
+          const it = store.item(id);
+          const def = it && ITEM_MAP.get(it.defId);
+          if (def) ids.push(cloneItem(it, def).id);
+        }
+        store.commit(false);
+        if (ids.length) store.select({ kind: 'multi', ids });
+        this.toast(`${ids.length} items copied`);
+        return;
+      }
+      if (sel?.kind !== 'item') return;
+      const it = store.item(sel.id);
+      const def = ITEM_MAP.get(it.defId);
+      store.checkpoint();
+      const created = cloneItem(it, def);
       store.commit(false);
       store.select({ kind: 'item', id: created.id });
       this.toast('Duplicated');
@@ -371,8 +444,9 @@ export class UI {
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
     });
-    // Copy applies to items and whole rooms
-    $('#selDup').style.display = (isItem || sel?.kind === 'room') ? '' : 'none';
+    // Copy applies to items, whole rooms and multi-selections
+    $('#selDup').style.display =
+      (isItem || sel?.kind === 'room' || sel?.kind === 'multi') ? '' : 'none';
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) $('#props').classList.add('open');
     if (!sel) this.closeDrawer('props');
@@ -473,9 +547,18 @@ export class UI {
         <span class="cat-card-dims">${fmtFtIn(def.w)} × ${fmtFtIn(def.d)} × ${fmtFtIn(def.h)}</span>`;
       card.onclick = () => {
         this.closeDrawer('catalog');
+        // roofs fit themselves over the whole house
+        if (AUTO_ROOF_IDS.has(def.id) && store.project.levels.some(l => l.walls.length)) {
+          const it = autoRoof(store, def.id);
+          if (it) {
+            this.toast(`${def.name} fitted over your home — pick a finish in Edit`);
+            if (store.viewMode === '3d') this.viewer.frameAll();
+            return;
+          }
+        }
         // build mode: in 3D with a room chosen, drop it right in that room
-        // and fly the camera to a working close-up
-        if (store.viewMode === '3d') {
+        // and fly the camera to a working close-up (paths draw instead)
+        if (store.viewMode === '3d' && !def.path) {
           const key = store.selection?.kind === 'room' ? store.selection.id : this._lastRoomKey;
           const room = key && store.room(key);
           if (room && this.viewer.placeInRoom(def.id, room)) {
@@ -586,7 +669,8 @@ export class UI {
 
   selKind() {
     const s = this.store.selection;
-    return s ? `${s.kind}:${s.id}` : 'none';
+    if (!s) return 'none';
+    return s.kind === 'multi' ? `multi:${s.ids.join(',')}` : `${s.kind}:${s.id}`;
   }
 
   renderProps() {
@@ -699,6 +783,18 @@ export class UI {
         store.select({ kind: 'item', id: created.id });
       };
       $('#pDel').onclick = () => store.deleteSelection();
+    } else if (sel.kind === 'multi') {
+      const n = sel.ids.filter(id => store.item(id)).length;
+      panel.innerHTML = `${head(`${n} items selected`)}
+        <div class="props-body">
+          <div class="props-section-title">Drag a box or tap items on the plan to change the group.</div>
+          <div class="btn-row">
+            <button class="action" id="pDup">${icon('copy')} Copy all</button>
+            <button class="action danger" id="pDel">${icon('trash')} Delete all</button>
+          </div>
+        </div>`;
+      $('#pDup').onclick = () => $('#selDup').click();
+      $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) { store.select(null); return; }
@@ -709,6 +805,13 @@ export class UI {
             ${this.lenRow('pThick', 'Thickness', w.thickness)}
             ${this.lenRow('pWH', 'Height', w.height)}
           </div>
+          <div class="props-section-title">Outside face — this wall only</div>
+          <div class="mat-grid" id="matWallExt"></div>
+          <div class="btn-row">
+            <button class="action" id="pExtReset">Match whole exterior</button>
+          </div>
+          <div class="props-section-title">Whole-home exterior finish</div>
+          <div class="mat-grid" id="matExtAll"></div>
           <div class="btn-row">
             <button class="action danger" id="pDel">${icon('trash')} Delete wall</button>
           </div>
@@ -719,29 +822,40 @@ export class UI {
       this.bindLen('pWH', v => {
         store.checkpoint(); w.height = Math.max(120, Math.min(400, Math.round(v))); store.commit(true);
       });
+      this.matGrid('#matWallExt', 'wall', w.extMat || store.project.settings.exteriorWall, id => {
+        store.checkpoint(); w.extMat = id; store.commit(true);
+      }, m => m.group === 'Exterior Siding' || m.group === 'Plaster & Concrete' || m.group === 'Brick & Tile');
+      $('#pExtReset').onclick = () => {
+        store.checkpoint(); delete w.extMat; store.commit(true); this.renderProps();
+        this.toast('This wall now follows the whole-home exterior finish');
+      };
+      this.matGrid('#matExtAll', 'wall', store.project.settings.exteriorWall, id => {
+        store.checkpoint(); store.project.settings.exteriorWall = id; store.commit(true);
+      }, m => m.group === 'Exterior Siding');
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'opening') {
       const o = store.opening(sel.id);
       if (!o) { store.select(null); return; }
-      const isWin = o.type === 'window';
-      panel.innerHTML = `${head(isWin ? 'Window' : 'Door')}
+      const isWin = isWindowType(o.type);
+      const types = OPENING_TYPES.filter(t => (t.kind === 'window') === isWin);
+      const hinged = o.type === 'door' || o.type === 'double' || o.type === 'french';
+      panel.innerHTML = `${head(OPENING_MAP.get(o.type)?.name
+          ? `${OPENING_MAP.get(o.type).name} ${isWin ? 'window' : 'door'}` : (isWin ? 'Window' : 'Door'))}
         <div class="props-body">
-          ${isWin ? '' : `
           <div class="props-section-title">Type</div>
-          <div class="seg-row" id="doorType">
-            <button data-t="door">Hinged</button>
-            <button data-t="doorway">Opening</button>
-            <button data-t="slidingDoor">Sliding</button>
-          </div>`}
+          <div class="chip-row" id="openType">
+            ${types.map(t => `<button class="type-chip${t.id === o.type ? ' active' : ''}" data-t="${t.id}">${t.name}</button>`).join('')}
+          </div>
           <div class="props-grid2">
             ${this.lenRow('pOW', 'Width', o.width)}
             ${this.lenRow('pOH', 'Height', o.height)}
             ${isWin ? this.lenRow('pOS', 'Sill height', o.sill) : ''}
           </div>
-          ${o.type === 'door' ? `
+          <div class="props-section-title">Tip: drag the round handles on the plan to resize it in place.</div>
+          ${hinged ? `
           <div class="btn-row">
             <button class="action" id="pFlip">${icon('rotate')} Flip side</button>
-            <button class="action" id="pSwing">${icon('rotate')} Flip hinge</button>
+            ${o.type === 'door' ? `<button class="action" id="pSwing">${icon('rotate')} Flip hinge</button>` : ''}
           </div>` : ''}
           <div class="btn-row">
             <button class="action danger" id="pDel">${icon('trash')} Delete</button>
@@ -751,15 +865,20 @@ export class UI {
       this.bindLen('pOW', v => structural(() => o.width = Math.max(40, Math.min(300, Math.round(v)))));
       this.bindLen('pOH', v => structural(() => o.height = Math.max(60, Math.min(280, Math.round(v)))));
       if (isWin) this.bindLen('pOS', v => structural(() => o.sill = Math.max(0, Math.min(200, Math.round(v)))));
-      if (!isWin) {
-        document.querySelectorAll('#doorType button').forEach(b => {
-          b.classList.toggle('active', b.dataset.t === o.type);
-          b.onclick = () => { structural(() => o.type = b.dataset.t); this.renderProps(); };
-        });
-      }
-      if (o.type === 'door') {
+      document.querySelectorAll('#openType button').forEach(b => {
+        b.onclick = () => {
+          structural(() => {
+            o.type = b.dataset.t;
+            // remember it as the armed type for the next placement
+            if (isWin) store.windowType = o.type; else store.doorType = o.type;
+          });
+          this.renderProps();
+        };
+      });
+      if (hinged) {
         $('#pFlip').onclick = () => structural(() => o.flip = !o.flip);
-        $('#pSwing').onclick = () => structural(() => o.swing = !o.swing);
+        const sw = $('#pSwing');
+        if (sw) sw.onclick = () => structural(() => o.swing = !o.swing);
       }
       $('#pDel').onclick = () => store.deleteSelection();
     } else if (sel.kind === 'room') {
@@ -851,6 +970,12 @@ export class UI {
       const w = store.wall(sel.id);
       if (!w) return;
       this.setVal('pLen', inValue(wallLength(w)));
+    } else if (sel?.kind === 'opening') {
+      const o = store.opening(sel.id);
+      if (!o) return;
+      this.setVal('pOW', inValue(o.width));
+      this.setVal('pOH', inValue(o.height));
+      if (isWindowType(o.type)) this.setVal('pOS', inValue(o.sill));
     }
   }
 
@@ -922,10 +1047,10 @@ export class UI {
     this.bindNum(id, v => fn(inToCm(v)));
   }
 
-  matGrid(sel, use, current, onPick) {
+  matGrid(sel, use, current, onPick, filter = null) {
     const grid = $(sel);
     if (!grid) return;
-    const list = MATERIALS.filter(m => m.use === use);
+    const list = MATERIALS.filter(m => m.use === use && (!filter || filter(m)));
     const groups = [...new Set(list.map(m => m.group || ''))];
     for (const g of groups) {
       if (g && groups.length > 1) grid.appendChild(el('div', 'mat-group-title', g));
@@ -978,20 +1103,24 @@ export class UI {
         ? 'Walk mode — left side: drag to walk · right side: drag to look'
         : 'Walk mode — WASD / arrows to move · drag to look';
     } else if (store.viewMode === '3d' && store.tool === 'place') {
-      text = `${tap} the ground or a floor to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`;
+      const def = ITEM_MAP.get(store.placeDefId);
+      text = def?.path
+        ? `Drag along the ground to lay the ${def.name.toLowerCase()}`
+        : `${tap} the ground or a floor to place ${def?.name ?? 'the item'}`;
     } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
-      text = `${tap} a wall to place a ${store.tool}`;
+      text = `${tap} a wall to place the ${OPENING_MAP.get(store.tool === 'door' ? store.doorType : store.windowType)?.name.toLowerCase() ?? ''} ${store.tool}`;
     } else if (store.viewMode === '3d') {
-      text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select & move it`;
+      text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture or walls to restyle them`;
     } else {
       const hints = {
         select: store.project.walls.length
           ? `${tap} to select · drag to move · ${zoom}`
           : 'Start with the Wall or Room tool on the left',
+        multi: `Drag a box around items — or ${tap.toLowerCase()} them one by one — then copy or delete the group`,
         wall: 'Drag to draw a wall · start at the end of another to connect',
         room: 'Drag to draw a rectangular room',
-        door: `${tap} a wall to place a door`,
-        window: `${tap} a wall to place a window`,
+        door: `${tap} a wall to place the ${OPENING_MAP.get(store.doorType)?.name.toLowerCase() ?? ''} door`,
+        window: `${tap} a wall to place the ${OPENING_MAP.get(store.windowType)?.name.toLowerCase() ?? ''} window`,
         place: ITEM_MAP.get(store.placeDefId)?.path
           ? `Drag along the plan to lay the ${ITEM_MAP.get(store.placeDefId).name.toLowerCase()}`
           : `${tap} the plan to place ${ITEM_MAP.get(store.placeDefId)?.name ?? 'the item'}`

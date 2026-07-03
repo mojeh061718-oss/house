@@ -13,8 +13,10 @@ push to this branch. Vite + vanilla JS + three.js. No frameworks, no binary
 assets except five CC0 JPGs in `public/tex/` (ambientCG, attributed in
 README).
 
-- Branch: `claude/mobile-home-design-app-l2mc9l` (never push elsewhere)
-- Current version: **2.10.0**, last commit `a9efcef`, live and verified
+- Branch: work continues on `claude/md-handoff-tasks-mf6tye` (added to the
+  deploy workflow's trigger branches; `claude/mobile-home-design-app-l2mc9l`
+  holds the pre-2.11 history)
+- Current version: **2.11.0**
 - Deploy: `.github/workflows/deploy.yml` builds and force-pushes `dist/`
   to `gh-pages` on push. Verify by polling
   `git fetch origin gh-pages && git log -1 --format=%s origin/gh-pages`
@@ -104,90 +106,43 @@ scripts die with the container, so recreate from this description if gone
 
 ## CURRENT TASK LIST (user's words, my notes)
 
-The user's latest request, verbatim numbering:
+All eight numbered tasks are **DONE as of v2.11.0**:
 
-1. ~~Continue the last three items~~ — **DONE in v2.10.0** (room
-   duplication, Home Shells presets incl. 3 barndominiums + 2 container
-   homes + hillside home, shipping-container & grass-hill items).
+1. ~~Continue the last three items~~ — done in v2.10.0 (room duplication,
+   Home Shells presets, shipping-container & grass-hill items).
+2. ~~Resizable doors & windows~~ — jamb-end drag handles in the 2D editor
+   (`editor2d openingHandles`/`resizeOpening`), clamped 40–300 cm and kept
+   inside the wall; props fields live-update during the drag.
+3. ~~Door/window type pickers~~ — `core/openings.js` registry; rail Door/
+   Window buttons open a popover (`ui showOpeningPop`), last-used type
+   stays armed (`store.doorType/windowType`). New types: double, french,
+   pocket, garage; casement, slidingWindow, picture — rendered in
+   `arch3d buildOpeningModel` (3D) and `editor2d drawOpenings` (2D plan
+   symbols). Props panel offers the full type chip row.
+4. ~~Selectable exterior~~ — `viewer3d castArchSelection` picks opening >
+   room > exterior wall face on tap; wall props panel has an "Outside
+   face" grid writing `wall.extMat` (consumed in `arch3d buildWalls` +
+   top cap), a reset button, and the whole-home exterior grid.
+5. ~~Paths flow rework~~ — 3D finger-down-on-ground draws a stroke
+   (`viewer3d` gesture kind 'path' + line preview, shared
+   `placement.createPathItem`); textures follow the stroke in 3D
+   (`arch3d pathSegmentUV`, rotated elbow caps) and in 2D
+   (`editor2d strokePath` fills per-segment in a rotated frame with
+   run-length continuity).
+6. ~~Multi-select~~ — new "Group" rail tool: marquee drag or tap-to-toggle
+   builds `{kind:'multi', ids:[]}`; FAB Copy/Delete act on the group;
+   `store.deleteSelection` handles multi; 3D selection box unions the
+   group. Single-select unchanged.
+7. ~~Grid scale labels~~ — `editor2d drawRulers`: ft/in labels along
+   top/left edges (spacing adapts to zoom) + a "1 square = X" chip.
+8. ~~Auto-fit roofs~~ — `core/autoroof.js autoRoof`: tapping a roof
+   catalog card removes old primary roofs and fits the new one over the
+   topmost built level's footprint (+40 cm eaves, ridge on the long axis,
+   h = 0.28·short side clamped 140–330, elevation −6 cm hides the wall
+   seam, level-offset aware). Falls back to free placement with no walls.
 
-2. **Resizable doors & windows.** When a door/window is selected, let the
-   user resize it. The opening props panel (`ui.js`, `sel.kind ===
-   'opening'`) already edits width/height/sill numerically — add drag
-   handles in the 2D editor (like item resize handles: grab the jamb ends
-   to change `o.width`, clamp to wall length minus margins, checkpoint on
-   grab, commit(true)). Consider a min of ~40 cm and keep `t` clamped so
-   the opening stays inside the wall.
-
-3. **Door/window type pickers on the tool rail.** Treat the Door and
-   Window rail buttons as drawers: tapping them opens a small popover to
-   choose a type first, then place with the normal snap flow (2D and 3D
-   tap-to-place both already work via `placeOpeningAt`). Existing opening
-   types: `door`, `doorway`, `slidingDoor`, `window`. Add more variants:
-   double door, French/glass door, garage door, pocket door; picture,
-   sliding, casement, bay(?) windows. Opening rendering lives in
-   `arch3d.js` (3D) and `editor2d.js drawOpenings` + `plansymbols` (2D).
-   Store shape: openings have `{type, width, height, sill, flip, swing}` —
-   extend `type` values and render accordingly. Keep the one-tap flow fast:
-   last-used type should stay armed.
-
-4. **Selectable exterior.** You currently cannot tap the outside face of a
-   wall in 3D to restyle it. `castWall` (viewer3d) already finds the wall —
-   add: when the tapped wall face is exterior (no room on that side — use
-   room polygons + face normal), select the wall and open a props panel
-   that offers the **Exterior Siding** material group (per-wall override,
-   e.g. `wall.extMat`, consumed in `arch3d buildWalls` where it currently
-   uses `settings.exteriorWall` for outward faces). Also give the project
-   settings exterior grid a shortcut from that panel.
-
-5. **Paths flow rework (sidewalks/driveways/water).** Wanted flow: tap the
-   asset card → finger down on the plan **immediately starts drawing**,
-   never stops until finger lift, and **the texture follows the stroke
-   direction**. Today: `pathDraw` mode already does touch-down→draw→lift in
-   2D (`editor2d downPlace`). Missing: (a) same gesture in **3D** (start a
-   pathDraw on ground raycast instead of tap-to-place a straight seed);
-   (b) **oriented texture**: `buildPathModel` boxes are axis-rotated but
-   UVs come from `boxWorldUV` (world-planar), so patterns don't follow the
-   run — rewrite segment UVs so U runs along the segment direction
-   (compute per-segment UVs manually instead of boxWorldUV; scale by
-   material `scale`); do the same for the 2D pattern by rotating
-   `pat.setTransform` per segment (draw each segment separately with a
-   rotated pattern matrix instead of one big stroke).
-
-6. **Multi-select & group operations.** Highlight/select multiple items to
-   copy or delete as a group. Suggested: long-press (or a new "Select
-   multiple" mode via the rail) → `store.selection` today is a single
-   `{kind, id}` — extend to support `{kind:'multi', ids:[...]}`; a
-   marquee/lasso drag in `editor2d` collecting items whose centers fall in
-   the rect; FAB shows Copy/Delete for the group; `deleteSelection` and
-   duplication loop over ids. Keep single-select behavior unchanged.
-
-7. **Grid scale labels in 2D.** The grid has no numeric reference. Add
-   ruler labels along the top/left edge (screen-space, in `render()` after
-   world drawing): feet at major lines (grid majors are every 100 cm), a
-   scale chip (e.g. "1 square = 8 in / 3.3 ft") adapting to `view.scale`
-   like the step logic in `drawGrid` (20/100/500 cm steps).
-
-8. **Auto-fit roofs (high priority).** Placing a roof leaves gaps and the
-   user must hand-size it — they want: pick roof type/material → the app
-   automatically covers the house. Implement `autoRoof(store, roofDefId,
-   palette)`: compute the bounding rect of the ACTIVE level's exterior
-   footprint (bbox of `detectRooms` union or of all walls), add eave
-   overhang (~40 cm each side), delete existing roof items (plan.type
-   'roof'), place `roof_gable/hip/shed/flat` with `w/d` = footprint + 2·overhang,
-   `h` proportional (~0.28·min(w,d) clamped 140–330), `elevation` = top of
-   the highest level (levels.length·wallHeight + (levels.length−1)·30 — see
-   `levelY`), rotation along the long axis. Trigger: tapping a roof card in
-   the catalog should auto-fit instead of free-placing (fall back to free
-   placement when there are no walls). Also fix the visible seam: extend the
-   fascia/prism base ~6 cm below `elevation` so it overlaps the wall top.
-   Note roofs are items on the ACTIVE level but poseItem adds `levelY(active)`
-   to elevation — account for which level the user is on (probably always
-   roof relative to ground: use absolute elevation minus levelY, or place
-   while top level active).
-
-Also on the longer wishlist (approved earlier, not started): interior
-second-floor connections for stairs (cut ceiling openings), garage door as
-an opening type (pairs with task 3).
+Still on the longer wishlist (approved earlier, not started): interior
+second-floor connections for stairs (cut ceiling openings); bay windows.
 
 ## User preferences worth remembering
 

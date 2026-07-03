@@ -38,6 +38,30 @@ function poseAgainstWall(near, x, y, depth, gap = 0.5) {
  * @param x,y     cursor/drag position (item center, cm)
  * @param opts    { rot: current rotation, fine: 2cm grid instead of 10cm }
  */
+/**
+ * Create a path item (sidewalk/driveway/gravel/water) from a drawn stroke of
+ * absolute plan points. Shared by the 2D editor and the 3D ground-draw flow.
+ * Takes its own undo checkpoint; returns the created item.
+ */
+export function createPathItem(store, def, pts) {
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const p of pts) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  const width = def.path.width;
+  store.checkpoint();
+  const it = store.addItem(def.id, (minX + maxX) / 2, (minY + maxY) / 2, 0, def);
+  it.path = pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+  it.pw = width;
+  it.w = Math.max(maxX - minX + width, width);
+  it.d = Math.max(maxY - minY + width, width);
+  store.commit(false);
+  store.setTool('select');
+  store.select({ kind: 'item', id: it.id });
+  return it;
+}
+
 export function snapPose(walls, def, x, y, opts = {}) {
   const grid = opts.fine ? 2 : GRID;
   const free = {

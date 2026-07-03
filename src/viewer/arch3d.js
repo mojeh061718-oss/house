@@ -55,21 +55,35 @@ export function buildPathModel(it, def) {
     g.add(mesh);
     return mesh;
   };
+  let run = 0; // distance laid so far, so the pattern flows continuously
   for (let i = 1; i < rel.length; i++) {
     const a = rel[i - 1], b = rel[i];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
     if (len < 1) continue;
     const geo = new THREE.BoxGeometry(len, topY, width);
-    if (!isWater) boxWorldUV(geo, new THREE.Vector3((a.x + b.x) / 2, topY / 2, (a.y + b.y) / 2), scale);
+    // the texture follows the stroke: U runs along the segment (continuing
+    // from the previous one), V runs across its width
+    if (!isWater) pathSegmentUV(geo, len, run, scale);
     const mesh = add(new THREE.Mesh(geo, mat));
     mesh.position.set((a.x + b.x) / 2, topY / 2, (a.y + b.y) / 2);
     mesh.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+    run += len;
   }
-  // round caps and elbows
-  for (const p of rel) {
+  // round caps and elbows, turned to match the local run direction
+  for (let i = 0; i < rel.length; i++) {
+    const p = rel[i];
+    const q = rel[i + 1] || rel[i - 1] || { x: p.x + 1, y: p.y };
     const geo = new THREE.CylinderGeometry(width / 2, width / 2, topY - 0.2, 22);
+    if (!isWater) {
+      const uv = geo.attributes.uv, pos = geo.attributes.position;
+      for (let v = 0; v < uv.count; v++) {
+        uv.setXY(v, pos.getX(v) / scale, pos.getZ(v) / scale);
+      }
+      uv.needsUpdate = true;
+    }
     const mesh = add(new THREE.Mesh(geo, mat));
     mesh.position.set(p.x, (topY - 0.2) / 2, p.y);
+    mesh.rotation.y = -Math.atan2(q.y - p.y, q.x - p.x);
   }
   if (isWater) {
     // dark stream bed under the water surface
@@ -101,6 +115,23 @@ let _bedMat = null;
 function solidMat(hex) {
   if (!_bedMat) _bedMat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.95 });
   return _bedMat;
+}
+
+/** UVs for one path segment box: U along the run (offset by the distance
+ *  already laid), V across the width — so patterns follow the stroke. */
+function pathSegmentUV(geo, len, runStart, scaleCm) {
+  const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const u = runStart + pos.getX(i) + len / 2; // distance along the whole path
+    const ny = Math.abs(nor.getY(i));
+    // top/bottom faces span the width; side faces span the (thin) height
+    const v = ny > 0.5 ? pos.getZ(i) : pos.getY(i);
+    uv.setXY(i, u / scaleCm, v / scaleCm);
+  }
+  uv.needsUpdate = true;
+  return geo;
 }
 
 /** Remap a BoxGeometry's UVs to world units / textureScale (planar per axis). */
@@ -165,45 +196,116 @@ function bar(parent, mat, w, h, d, x, y, z) {
   return mesh;
 }
 
+/** One hinged leaf (panelled slab + knob), hinge at local x=0, opens toward +x. */
+function doorLeaf(lw, h, jamb, glass = false) {
+  const { doorMat, glassMat, handleMat } = doorMats();
+  const leaf = new THREE.Group();
+  if (glass) {
+    // French door: slim stiles/rails around a full glass lite
+    const stile = new THREE.MeshStandardMaterial({ color: '#e6e1d6', roughness: 0.5 });
+    bar(leaf, stile, lw, 10, 4.5, lw / 2, 5, 0);
+    bar(leaf, stile, lw, 14, 4.5, lw / 2, h - jamb - 7, 0);
+    bar(leaf, stile, 9, h - jamb, 4.5, 4.5, (h - jamb) / 2, 0);
+    bar(leaf, stile, 9, h - jamb, 4.5, lw - 4.5, (h - jamb) / 2, 0);
+    bar(leaf, glassMat, lw - 16, h - jamb - 22, 1.4, lw / 2, (h - jamb) / 2, 0);
+    bar(leaf, stile, lw - 16, 2.5, 3, lw / 2, (h - jamb) / 2, 0); // muntin
+  } else {
+    bar(leaf, doorMat, lw, h - jamb, 4.5, lw / 2, (h - jamb) / 2, 0);
+    for (let i = 0; i < 2; i++) {
+      bar(leaf, new THREE.MeshStandardMaterial({ color: '#d2ccc0', roughness: 0.5 }),
+        lw - 18, (h - jamb) / 2 - 22, 1.2, lw / 2, (h - jamb) * (0.28 + i * 0.47), 2.8);
+    }
+  }
+  const knobY = 96;
+  bar(leaf, handleMat, 3, 3, 3, lw - 8, knobY, 4);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 10), handleMat);
+  knob.position.set(lw - 8, knobY, 6.5);
+  leaf.add(knob);
+  return leaf;
+}
+
 /** 3D model for an opening, built in wall-local space (x along wall, z across). */
 function buildOpeningModel(o, thickness) {
   const g = new THREE.Group();
-  const { frameMat, doorMat, glassMat, handleMat } = doorMats();
+  const { frameMat, glassMat, handleMat } = doorMats();
   const w = o.width, h = o.height, sill = o.sill || 0;
   const jamb = 5, t = thickness + 2;
+  const windows = new Set(['window', 'casement', 'slidingWindow', 'picture']);
 
-  if (o.type === 'window') {
+  if (windows.has(o.type)) {
     bar(g, frameMat, w + 4, jamb, t, 0, sill + h - jamb / 2, 0);       // header
     bar(g, frameMat, w + 8, jamb, t + 4, 0, sill + jamb / 2 - 1, 0);   // sill
     bar(g, frameMat, jamb, h, t, -w / 2 + jamb / 2, sill + h / 2, 0);
     bar(g, frameMat, jamb, h, t, w / 2 - jamb / 2, sill + h / 2, 0);
-    bar(g, glassMat, w - jamb, h - jamb, 1, 0, sill + h / 2, 0);
-    bar(g, frameMat, 3, h - jamb, 4, 0, sill + h / 2, 0);              // mullion
-    bar(g, frameMat, w - jamb, 3, 4, 0, sill + h / 2, 0);              // transom
+    if (o.type === 'slidingWindow') {
+      // two offset glass sashes, like a small sliding door
+      bar(g, glassMat, w * 0.52, h - jamb * 2, 1.2, -w * 0.24, sill + h / 2, 2);
+      bar(g, glassMat, w * 0.52, h - jamb * 2, 1.2, w * 0.24, sill + h / 2, -2);
+      bar(g, frameMat, 3.5, h - jamb * 2, 4, 0, sill + h / 2, 2);
+      bar(g, frameMat, 3.5, h - jamb * 2, 4, 0, sill + h / 2, -2);
+    } else if (o.type === 'casement') {
+      // single sash cracked open on its hinge side
+      const sash = new THREE.Group();
+      const sw = w - jamb * 2;
+      bar(sash, glassMat, sw - 4, h - jamb * 2 - 4, 1.2, sw / 2, sill + h / 2, 0);
+      bar(sash, frameMat, sw, 4, 3.5, sw / 2, sill + jamb + 1, 0);
+      bar(sash, frameMat, sw, 4, 3.5, sw / 2, sill + h - jamb - 1, 0);
+      bar(sash, frameMat, 4, h - jamb * 2, 3.5, 2, sill + h / 2, 0);
+      bar(sash, frameMat, 4, h - jamb * 2, 3.5, sw - 2, sill + h / 2, 0);
+      bar(sash, handleMat, 2.5, 10, 2.5, sw - 5, sill + h / 2, 3);
+      sash.position.set(-w / 2 + jamb, 0, 0);
+      sash.rotation.y = -0.3;
+      g.add(sash);
+    } else {
+      bar(g, glassMat, w - jamb, h - jamb, 1, 0, sill + h / 2, 0);
+      if (o.type === 'window') {
+        bar(g, frameMat, 3, h - jamb, 4, 0, sill + h / 2, 0);          // mullion
+        bar(g, frameMat, w - jamb, 3, 4, 0, sill + h / 2, 0);          // transom
+      }
+      // picture: one clean pane, no dividers
+    }
   } else {
     // door family: jambs + header
     bar(g, frameMat, w + 6, jamb, t, 0, h - jamb / 2 + 2, 0);
     bar(g, frameMat, jamb, h, t, -w / 2 - 0.5, h / 2, 0);
     bar(g, frameMat, jamb, h, t, w / 2 + 0.5, h / 2, 0);
     if (o.type === 'door') {
-      // hinged panel, slightly ajar
-      const leaf = new THREE.Group();
-      const lw = w - jamb;
-      bar(leaf, doorMat, lw, h - jamb, 4.5, lw / 2, (h - jamb) / 2, 0);
-      // inset panels
-      for (let i = 0; i < 2; i++) {
-        bar(leaf, new THREE.MeshStandardMaterial({ color: '#d2ccc0', roughness: 0.5 }),
-          lw - 18, (h - jamb) / 2 - 22, 1.2, lw / 2, (h - jamb) * (0.28 + i * 0.47), 2.8);
-      }
-      const knobY = 96;
-      bar(leaf, handleMat, 3, 3, 3, lw - 8, knobY, 4);
-      const knob = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 10), handleMat);
-      knob.position.set(lw - 8, knobY, 6.5);
-      leaf.add(knob);
+      const leaf = doorLeaf(w - jamb, h, jamb);
       leaf.position.set(-w / 2 + jamb / 2, 0, (o.flip ? -1 : 1) * 1);
       leaf.rotation.y = (o.flip ? 1 : -1) * (o.swing ? -0.45 : 0.45);
       if (o.swing) { leaf.position.x = w / 2 - jamb / 2; leaf.scale.x = -1; }
       g.add(leaf);
+    } else if (o.type === 'double' || o.type === 'french') {
+      // two leaves meeting at the middle, both slightly ajar
+      const lw = w / 2 - jamb / 2;
+      const glass = o.type === 'french';
+      const left = doorLeaf(lw, h, jamb, glass);
+      left.position.set(-w / 2 + jamb / 2, 0, (o.flip ? -1 : 1) * 1);
+      left.rotation.y = (o.flip ? 1 : -1) * 0.35;
+      const right = doorLeaf(lw, h, jamb, glass);
+      right.position.set(w / 2 - jamb / 2, 0, (o.flip ? -1 : 1) * 1);
+      right.scale.x = -1;
+      right.rotation.y = (o.flip ? -1 : 1) * 0.35;
+      g.add(left, right);
+    } else if (o.type === 'pocket') {
+      // flat panel half-slid into its wall cavity
+      const leaf = doorLeaf(w - jamb, h, jamb);
+      leaf.position.set(-w * 0.55, 0, 0);
+      g.add(leaf);
+    } else if (o.type === 'garage') {
+      // sectional panels with a window row up top
+      const panelMat = new THREE.MeshStandardMaterial({ color: '#e2ddd2', roughness: 0.55 });
+      const rows = 4;
+      const ph = (h - jamb - 4) / rows;
+      for (let i = 0; i < rows; i++) {
+        bar(g, panelMat, w - jamb, ph - 2.5, 5, 0, jamb + ph * i + ph / 2, 0);
+        if (i === rows - 1) {
+          for (let k = -1.5; k <= 1.5; k++) {
+            bar(g, glassMat, w / 5.5, ph * 0.45, 1.5, k * (w / 4.6), jamb + ph * i + ph / 2, 3);
+          }
+        }
+      }
+      bar(g, handleMat, 14, 3, 3, 0, jamb + ph * 0.5, 3.5);
     } else if (o.type === 'slidingDoor') {
       bar(g, glassMat, w * 0.52, h - jamb, 1.2, -w * 0.24, (h - jamb) / 2, 2.4);
       bar(g, glassMat, w * 0.52, h - jamb, 1.2, w * 0.24, (h - jamb) / 2, -2.4);
@@ -253,7 +355,7 @@ export function buildWalls(project, rooms) {
       const room = roomAt(rooms, probeX, probeY);
       const matId = room
         ? (roomStyles[room.key]?.wall || settings.defaultWall)
-        : settings.exteriorWall;
+        : (wall.extMat || settings.exteriorWall);
       const mat = archMat(matId);
       const roomKey = room?.key || null;
       // z offset of this slab in local space: local +z corresponds to plan normal?
@@ -289,8 +391,8 @@ export function buildWalls(project, rooms) {
     }
 
     // top cap
-    const capMat = archMat(settings.exteriorWall);
-    wallBox(wg, capMat, settings.exteriorWall, len, 2.5, th, 0, H, 0);
+    const capId = wall.extMat || settings.exteriorWall;
+    wallBox(wg, archMat(capId), capId, len, 2.5, th, 0, H, 0);
 
     // opening models (tagged so taps on a door/window still find the wall)
     for (const { o, c } of ops) {
