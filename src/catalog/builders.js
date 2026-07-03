@@ -223,6 +223,32 @@ export function buildPond(w, d) {
   return g;
 }
 
+/** Field of instanced grass blades at true size — meadow / crop looks. */
+export function buildTallGrass(pal, w, d) {
+  const g = G();
+  const H = pal.height || 60;
+  const count = Math.min(2600, Math.max(160, Math.round((w * d) / 240)));
+  const geo = new THREE.ConeGeometry(2.4, 1, 4, 1);
+  geo.translate(0, 0.5, 0); // base at y=0 so height scaling grows upward
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 });
+  const mesh = new THREE.InstancedMesh(geo, mat, count);
+  const dummy = new THREE.Object3D();
+  const cBase = new THREE.Color(pal.base), cTip = new THREE.Color(pal.tips), c = new THREE.Color();
+  let sd = 137;
+  const rand = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  for (let i = 0; i < count; i++) {
+    dummy.position.set((rand() - 0.5) * (w - 10), 0, (rand() - 0.5) * (d - 10));
+    dummy.scale.set(0.8 + rand() * 0.8, H * (0.6 + rand() * 0.6), 0.8 + rand() * 0.8);
+    dummy.rotation.set((rand() - 0.5) * 0.32, rand() * Math.PI, (rand() - 0.5) * 0.32);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+    mesh.setColorAt(i, c.copy(cBase).lerp(cTip, rand()));
+  }
+  mesh.receiveShadow = true;
+  g.add(mesh);
+  return g;
+}
+
 export function G() {
   return new THREE.Group();
 }

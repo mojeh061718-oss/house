@@ -101,4 +101,5 @@ PavingStones128, RoofingTiles001, RoofingTiles007, WoodFloor041,
 WoodFloor044, WoodFloor064, WoodFloor070, Planks023A, Marble016, Marble021,
 Onyx013, Travertine013, Terrazzo018, Tiles040, Tiles078, Tiles142,
 Carpet012, CorrugatedSteel009, Bricks085, Bricks097, PavingStones146,
-Ground080. All other textures are generated procedurally at runtime.
+Ground080, Grass001, Grass003, Grass005, Grass007. All other textures are
+generated procedurally at runtime.

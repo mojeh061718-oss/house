@@ -790,7 +790,11 @@ MATERIALS.push(
   { id: 'real_brick_aged', group: 'Brick & Tile', name: 'Aged Red Brick · Photo', use: 'wall', file: 'tex/bricks085.jpg', scale: 220, rough: 0.9, placeholder: '#9c5540' },
   { id: 'real_brick_rustic', group: 'Brick & Tile', name: 'Rustic Brick · Photo', use: 'wall', file: 'tex/bricks097.jpg', scale: 220, rough: 0.9, placeholder: '#8d5038' },
   { id: 'real_basket_pavers', name: 'Basket Pavers · Photo', use: 'ground', file: 'tex/pavingstones146.jpg', scale: 300, rough: 0.85, placeholder: '#c8a878' },
-  { id: 'real_sand', name: 'Sand · Photo', use: 'ground', file: 'tex/ground080.jpg', scale: 360, rough: 0.95, placeholder: '#cdb37c' }
+  { id: 'real_sand', name: 'Sand · Photo', use: 'ground', file: 'tex/ground080.jpg', scale: 360, rough: 0.95, placeholder: '#cdb37c' },
+  { id: 'real_grass_dark', name: 'Deep Green Lawn · Photo', use: 'ground', file: 'tex/grass001.jpg', scale: 380, rough: 1.0, placeholder: '#3f5c33' },
+  { id: 'real_grass_farm', name: 'Farm Field · Photo', use: 'ground', file: 'tex/grass003.jpg', scale: 440, rough: 1.0, placeholder: '#6a7040' },
+  { id: 'real_grass_bright', name: 'Spring Lawn · Photo', use: 'ground', file: 'tex/grass005.jpg', scale: 380, rough: 1.0, placeholder: '#69954a' },
+  { id: 'real_grass_patchy', name: 'Patchy Yard · Photo', use: 'ground', file: 'tex/grass007.jpg', scale: 400, rough: 1.0, placeholder: '#5f7342' }
 );
 
 export const MATERIAL_MAP = new Map(MATERIALS.map(m => [m.id, m]));

@@ -56,6 +56,9 @@ import('./core/openings.js').then(m => {
 import('./core/autoroof.js').then(m => {
   window.homestudio.autoRoof = m.autoRoof;
 });
+import('./core/textures.js').then(m => {
+  window.homestudio.MATERIALS = m.MATERIALS;
+});
 
 // PWA: register the service worker in production builds
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

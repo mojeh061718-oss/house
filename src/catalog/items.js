@@ -3,7 +3,8 @@
 // symbols and selectable finish palettes.
 import {
   G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel, prism, pyramid,
-  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond
+  solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond,
+  buildTallGrass
 } from './builders.js';
 
 export const CATEGORIES = [
@@ -914,6 +915,17 @@ export const ITEMS = [
     areaDraw: true, palettes: null, plan: { type: 'pond' },
     build: () => buildWaterArea(400, 300),
     buildSized: (p, w, d) => buildWaterArea(w, d)
+  },
+  {
+    id: 'grass_patch', name: 'Tall Grass', cat: 'outdoor', w: 300, d: 220, h: 70, noShadow: true,
+    areaDraw: true, plan: { type: 'slab' },
+    palettes: [
+      { name: 'Meadow', chip: '#5d7a37', base: '#42592a', tips: '#82a04c', height: 55 },
+      { name: 'Wheat Field', chip: '#c2a45c', base: '#997b3e', tips: '#dcc478', height: 80 },
+      { name: 'Prairie', chip: '#8a8a4e', base: '#5f6b34', tips: '#b0ac64', height: 95 }
+    ],
+    build: (p) => buildTallGrass(p, 300, 220),
+    buildSized: (p, w, d) => buildTallGrass(p, w, d)
   },
   {
     id: 'mailbox', name: 'Mailbox', cat: 'outdoor', w: 30, d: 55, h: 115,

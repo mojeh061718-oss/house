@@ -16,7 +16,12 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.15.0** — premium pack: 58 new catalog items across
+- Current version: **2.15.1** — grass pass: 4 new photo ground materials
+  (Deep Green Lawn / Farm Field / Spring Lawn / Patchy Yard, grass001/003/
+  005/007.jpg) and a draw-an-area "Tall Grass" outdoor item (buildTallGrass
+  in builders.js: instanced cone blades, Meadow / Wheat Field / Prairie
+  palettes; catalog now 176 items). window.homestudio also exposes MATERIALS.
+- v2.15.0 — premium pack: 58 new catalog items across
   every category (search "PREMIUM PACK" in items.js; sectional/chesterfield,
   canopy & bunk beds, crib, island+stools, appliances, freestanding tub,
   walk-in shower, double vanity, farm table, buffet, L-desk, exec chair,
