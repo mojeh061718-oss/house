@@ -713,6 +713,8 @@ export const MATERIALS = [
   { id: 'stucco_warm', group: 'Exterior Siding', name: 'Stucco', use: 'wall', gen: 'concrete', scale: 240, rough: 0.9, params: { seed: 128, base: '#ded2ba' } },
   { id: 'stone_veneer', group: 'Exterior Siding', name: 'Stacked Stone', use: 'wall', gen: 'stone', scale: 220, rough: 0.9, params: { seed: 129 } },
   { id: 'cedar_shake', group: 'Exterior Siding', name: 'Cedar Shake', use: 'wall', gen: 'shingles', scale: 160, rough: 0.85, params: { seed: 130, base: '#9c7a56', rows: 6, tabs: 8 } },
+  { id: 'corrugated_gray', group: 'Exterior Siding', name: 'Corrugated Steel', use: 'wall', gen: 'boardbatten', scale: 70, rough: 0.5, params: { seed: 136, base: '#8e9399', boards: 4 } },
+  { id: 'corrugated_white', group: 'Exterior Siding', name: 'Corrugated White', use: 'wall', gen: 'boardbatten', scale: 70, rough: 0.55, params: { seed: 137, base: '#dcd9d2', boards: 4 } },
 
   // Roofing (consumed by roof items, not the wall pickers)
   { id: 'shingle_charcoal', name: 'Charcoal Shingle', use: 'internal', gen: 'shingles', scale: 180, rough: 0.9, params: { seed: 131, base: '#4b4d51' } },

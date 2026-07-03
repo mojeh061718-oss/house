@@ -1850,6 +1850,58 @@ export const ITEMS = [
     }
   },
 
+  {
+    id: 'shipping_container', name: 'Shipping Container', cat: 'outdoor', w: 244, d: 1220, h: 260,
+    palettes: [
+      { name: 'Rust Red', chip: '#8d3a28', body: '#8d3a28' },
+      { name: 'Ocean Blue', chip: '#2e4a68', body: '#2e4a68' },
+      { name: 'Forest', chip: '#3f5c40', body: '#3f5c40' },
+      { name: 'Grey', chip: '#6d7278', body: '#6d7278' }
+    ],
+    plan: { type: 'box' },
+    build: (p) => {
+      const g = G();
+      const paint = solid(p.body, 0.55);
+      const trim = solid('#33363a', 0.5);
+      box(g, paint, 232, 252, 1210, 0, 4, 0);
+      box(g, trim, 240, 6, 1218, 0, 0, 0);
+      box(g, trim, 240, 6, 1218, 0, 252, 0);
+      // corrugation ribs down both long sides
+      for (let z = -570; z <= 570; z += 60) {
+        box(g, paint, 8, 244, 22, -119, 4, z);
+        box(g, paint, 8, 244, 22, 119, 4, z);
+      }
+      // corner castings
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const sy of [0, 242]) {
+        box(g, trim, 20, 18, 20, sx * 112, sy, sz * 601);
+      }
+      // cargo doors with lock rods on the front end
+      box(g, paint, 112, 240, 8, -58, 6, 606);
+      box(g, paint, 112, 240, 8, 58, 6, 606);
+      for (const rx of [-88, -30, 30, 88]) {
+        cyl(g, metal('#b9bdc4', 0.35), 2.2, 232, rx, 8, 611);
+        box(g, metal('#b9bdc4', 0.35), 10, 4, 6, rx + 8, 120, 611);
+      }
+      return g;
+    }
+  },
+  {
+    id: 'hill_mound', name: 'Grass Hill', cat: 'outdoor', w: 800, d: 500, h: 200, noShadow: true,
+    palettes: null, plan: { type: 'hedge' },
+    build: () => {
+      const g = G();
+      const mound = sphere(g, tex('grass', 5, 3), 250, 0, 0, 0, { seg: 28 });
+      mound.scale.set(1.6, 0.8, 1.0);
+      mound.position.y = -18;   // settle into the ground for a soft edge
+      mound.receiveShadow = true;
+      // boulders + a shrub so it reads as landscape, not a bump
+      sphere(g, solid('#8a8478', 0.95), 26, -290, 0, 130, { sy: 0.6, seg: 10 });
+      sphere(g, solid('#75705f', 0.95), 18, 250, 0, -150, { sy: 0.65, seg: 10 });
+      foliage(g, '#3d5c2e', '#4a7038', -240, 30, -140, 26, 6, 91);
+      return g;
+    }
+  },
+
   // ======================= GARDEN & FLOWERS =======================
   {
     id: 'sunflower', name: 'Sunflower', cat: 'outdoor', w: 60, d: 60, h: 180,

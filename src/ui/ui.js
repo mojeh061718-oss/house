@@ -9,6 +9,7 @@ import { wallLength, pointInPolygon } from '../core/geometry.js';
 import { fmtFtIn, fmtArea, inValue, inToCm } from '../core/units.js';
 import { THEMES, applyTheme } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
+import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -314,7 +315,7 @@ export class UI {
         <button class="fab mini flip item-only" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
         <button class="fab mini item-only" id="selShrink" title="Smaller">${ICONS.minus}<span>Smaller</span></button>
         <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
-        <button class="fab mini item-only" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
+        <button class="fab mini" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
         <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
         <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
       </div>
@@ -343,6 +344,7 @@ export class UI {
     });
     $('#selDup').onclick = () => {
       const sel = store.selection;
+      if (sel?.kind === 'room') { this.duplicateRoom(sel.id); return; }
       if (sel?.kind !== 'item') return;
       const it = store.item(sel.id);
       const def = ITEM_MAP.get(it.defId);
@@ -369,6 +371,8 @@ export class UI {
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
     });
+    // Copy applies to items and whole rooms
+    $('#selDup').style.display = (isItem || sel?.kind === 'room') ? '' : 'none';
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) $('#props').classList.add('open');
     if (!sel) this.closeDrawer('props');
@@ -428,7 +432,7 @@ export class UI {
     panel.querySelector('[data-close]').onclick = () => this.closeDrawer('catalog');
 
     const tabs = $('#catTabs');
-    for (const c of [{ id: 'all', name: 'All' }, ...CATEGORIES]) {
+    for (const c of [{ id: 'all', name: 'All' }, { id: 'shells', name: 'Home Shells' }, ...CATEGORIES]) {
       const b = el('button', 'cat-tab', c.name);
       b.dataset.cat = c.id;
       b.onclick = () => {
@@ -447,6 +451,20 @@ export class UI {
     });
     const grid = $('#catGrid');
     grid.innerHTML = '';
+    if (this.activeCat === 'shells') {
+      for (const shell of SHELLS) {
+        const card = el('button', 'cat-card shell-card');
+        card.innerHTML = `
+          <span class="thumb"><canvas></canvas></span>
+          <span class="cat-card-name">${shell.name}</span>
+          <span class="cat-card-dims">${fmtFtIn(shell.size[0])} × ${fmtFtIn(shell.size[1])}</span>
+          <span class="shell-desc">${shell.desc}</span>`;
+        drawShellPreview(card.querySelector('canvas'), shell);
+        card.onclick = () => this.addShell(shell);
+        grid.appendChild(card);
+      }
+      return;
+    }
     for (const def of ITEMS.filter(i => this.activeCat === 'all' || i.cat === this.activeCat)) {
       const card = el('button', 'cat-card');
       card.innerHTML = `
@@ -471,6 +489,92 @@ export class UI {
       const img = card.querySelector('img');
       setTimeout(() => { img.src = thumbnail(def.id); }, 0);
     }
+  }
+
+  /** Stamp a preset home shell into a clear area of the plan. */
+  addShell(shell) {
+    const store = this.store;
+    let ox = 100, oy = 100;
+    const { walls, items } = store.project;
+    if (walls.length || items.length) {
+      let maxX = -1e9, minY = 1e9;
+      for (const w of walls) { maxX = Math.max(maxX, w.ax, w.bx); minY = Math.min(minY, w.ay, w.by); }
+      for (const it of items) { maxX = Math.max(maxX, it.x + (it.w || 0) / 2); minY = Math.min(minY, it.y - (it.d || 0) / 2); }
+      ox = maxX + 400;
+      oy = Math.max(minY, 0);
+    }
+    stampShell(store, shell, ox, oy);
+    this.closeDrawer('catalog');
+    store.setTool('select');
+    if (store.viewMode !== '2d') store.setViewMode('2d');
+    this.editor.fitToContent();
+    this.toast(`${shell.name} added — every wall and room is editable`);
+  }
+
+  /** Duplicate a room: its walls, openings, furniture and style, offset right. */
+  duplicateRoom(key) {
+    const store = this.store;
+    const room = store.room(key);
+    if (!room) return;
+    let minX = 1e9, maxX = -1e9;
+    for (const p of room.polygon) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }
+    const dx = maxX - minX + 30, dy = 0;
+    const poly = room.polygon;
+    const onBoundary = (x, y) => {
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i], b = poly[(i + 1) % poly.length];
+        const t = Math.max(0, Math.min(1,
+          ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) /
+          Math.max((b.x - a.x) ** 2 + (b.y - a.y) ** 2, 1e-6)));
+        const px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t;
+        if (Math.hypot(x - px, y - py) < 3) return true;
+      }
+      return false;
+    };
+    store.checkpoint();
+    const cloneMap = new Map();
+    for (const w of store.project.walls.slice()) {
+      const mx = (w.ax + w.bx) / 2, my = (w.ay + w.by) / 2;
+      if (onBoundary(mx, my)) {
+        const nw = store.addWall(w.ax + dx, w.ay + dy, w.bx + dx, w.by + dy, w.thickness);
+        nw.height = w.height;
+        cloneMap.set(w.id, nw);
+      }
+    }
+    for (const o of store.project.openings.slice()) {
+      if (!cloneMap.has(o.wallId)) continue;
+      const no = store.addOpening(cloneMap.get(o.wallId).id, o.type, o.t,
+        { width: o.width, height: o.height, sill: o.sill });
+      no.flip = o.flip;
+      no.swing = o.swing;
+    }
+    for (const it of store.project.items.slice()) {
+      if (!pointInPolygon(it.x, it.y, poly)) continue;
+      const def = ITEM_MAP.get(it.defId);
+      if (!def) continue;
+      const ni = store.addItem(it.defId, it.x + dx, it.y + dy, it.rotation, def);
+      Object.assign(ni, { w: it.w, d: it.d, h: it.h, elevation: it.elevation, palette: it.palette });
+      if (it.path) {
+        ni.path = it.path.map(p => ({ x: p.x + dx, y: p.y + dy }));
+        ni.pw = it.pw;
+      }
+    }
+    const oldStyle = store.project.roomStyles[key];
+    store.commit(true);
+    if (oldStyle) {
+      const nr = store.rooms.find(r =>
+        Math.abs(r.centroid.x - (room.centroid.x + dx)) < 25 &&
+        Math.abs(r.centroid.y - (room.centroid.y + dy)) < 25);
+      if (nr) {
+        store.project.roomStyles[nr.key] = {
+          ...oldStyle,
+          name: oldStyle.name ? `${oldStyle.name} copy` : ''
+        };
+        store.commit(false);
+        store.select({ kind: 'room', id: nr.key });
+      }
+    }
+    this.toast('Room duplicated');
   }
 
   // ============================ PROPERTIES ==================================
@@ -679,7 +783,11 @@ export class UI {
           <div class="mat-grid" id="matFloor"></div>
           <div class="props-section-title">Walls</div>
           <div class="mat-grid" id="matWall"></div>
+          <div class="btn-row">
+            <button class="action" id="roomDup">${icon('copy')} Duplicate room</button>
+          </div>
         </div>`;
+      $('#roomDup').onclick = () => this.duplicateRoom(sel.id);
       $('#roomName').addEventListener('change', e => {
         store.checkpoint();
         store.roomStyle(sel.id).name = e.target.value;

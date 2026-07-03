@@ -584,6 +584,14 @@ canvas { display: block; }
 .cat-card .thumb img { width: 100%; height: 100%; object-fit: contain; }
 .cat-card-name { display: block; font-size: 12px; font-weight: 650; }
 .cat-card-dims { display: block; font-size: 10.5px; color: var(--text-dim); margin-top: 2px; }
+.shell-card .thumb canvas { width: 100%; height: 100%; }
+.shell-desc {
+  display: block;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
 
 /* ---- properties ---- */
 .props-body {
