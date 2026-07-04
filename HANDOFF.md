@@ -16,7 +16,18 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.15.1** — grass pass: 4 new photo ground materials
+- Current version: **2.15.2** (dev branch only, not yet on live) — (1) movable
+  rooms: in 2D, tap a room to select it, then press-and-drag inside it to move
+  the whole room — its walls (openings ride along) plus the furniture standing
+  in it. `dragRoom` mode in editor2d.js; selection re-glues to the room after
+  each move since room keys are centroid-based. Shared walls move too (fine for
+  standalone rooms; deforms a neighbor if they share a wall). (2) Straight-line
+  paths: drawing any path (gravel/sidewalk/driveway/stream/fence) is now a
+  clean rubber-band segment from press to release (angle-snapped to 45°, length
+  to grid) instead of a freehand trail — in both 2D (snapPathEnd) and 3D
+  (straightPathEnd + updatePathPreview). pathDraw mode changed from {pts:[]} to
+  {start,cur} in both editor2d.js and viewer3d.js.
+- v2.15.1 — grass pass: 4 new photo ground materials
   (Deep Green Lawn / Farm Field / Spring Lawn / Patchy Yard, grass001/003/
   005/007.jpg) and a draw-an-area "Tall Grass" outdoor item (buildTallGrass
   in builders.js: instanced cone blades, Meadow / Wheat Field / Prairie

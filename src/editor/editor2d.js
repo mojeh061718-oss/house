@@ -286,6 +286,15 @@ export class Editor2D {
     return { sx: p.x, sy: p.y };
   }
 
+  /** Straighten a path stroke into one clean segment from `start`, with the
+   *  angle snapped to 45° steps and the length snapped to the grid. */
+  snapPathEnd(start, x, y) {
+    const dx = x - start.x, dy = y - start.y;
+    const len = Math.round(Math.hypot(dx, dy) / GRID) * GRID;
+    const ang = snapAngle(Math.atan2(dy, dx));
+    return { x: start.x + Math.cos(ang) * len, y: start.y + Math.sin(ang) * len };
+  }
+
   onDown(e) {
     try { this.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
     const { sx, sy } = this.evtPos(e);
@@ -422,8 +431,28 @@ export class Editor2D {
         linkedA: this.coincidentEndpoints(wall.ax, wall.ay, hit.id),
         linkedB: this.coincidentEndpoints(wall.bx, wall.by, hit.id)
       };
+    } else if (hit?.kind === 'room' && sel?.kind === 'room' && sel.id === hit.id) {
+      // second press on the already-selected room → drag the whole room:
+      // its walls (openings ride along) plus the furniture standing inside it
+      const room = store.room(hit.id);
+      if (room) {
+        store.checkpoint();
+        this.mode = {
+          name: 'dragRoom', id: hit.id, startX: w.x, startY: w.y, moved: false, dragging: true,
+          cx0: room.centroid.x, cy0: room.centroid.y,
+          walls: [...room.wallIds].map(id => {
+            const wl = store.wall(id);
+            return wl && { id, ax: wl.ax, ay: wl.ay, bx: wl.bx, by: wl.by };
+          }).filter(Boolean),
+          items: store.project.items
+            .filter(it => !it.locked && (it.elevation || 0) < 200 && pointInPolygon(it.x, it.y, room.polygon))
+            .map(it => ({ id: it.id, x: it.x, y: it.y, path: it.path ? it.path.map(p => ({ x: p.x, y: p.y })) : null }))
+        };
+        return;
+      }
+      this.mode = { name: 'pan', sx, sy, vx: this.view.x, vy: this.view.y, clickHit: hit, clickW: w };
     } else {
-      // empty space or room → pan; decide on pointerup whether it was a click
+      // empty space or an unselected room → pan; a tap (no drag) selects on release
       this.mode = {
         name: 'pan', sx, sy, vx: this.view.x, vy: this.view.y,
         clickHit: hit, clickW: w
@@ -469,7 +498,7 @@ export class Editor2D {
     if (!def) return;
     if (def.path) {
       // paths are laid by dragging: collect the stroke, commit on release
-      this.mode = { name: 'pathDraw', def, pts: [{ x: w.x, y: w.y }], cur: null, dragging: true };
+      this.mode = { name: 'pathDraw', def, start: { x: w.x, y: w.y }, cur: { x: w.x, y: w.y }, dragging: true };
       return;
     }
     if (def.areaDraw) {
@@ -673,6 +702,39 @@ export class Editor2D {
         store.commit(false);
         break;
       }
+      case 'dragRoom': {
+        m.moved = true;
+        const dx = Math.round((w.x - m.startX) / GRID) * GRID;
+        const dy = Math.round((w.y - m.startY) / GRID) * GRID;
+        for (const o of m.walls) {
+          const wl = store.wall(o.id);
+          if (!wl) continue;
+          wl.ax = o.ax + dx; wl.ay = o.ay + dy;
+          wl.bx = o.bx + dx; wl.by = o.by + dy;
+        }
+        for (const o of m.items) {
+          const it = store.item(o.id);
+          if (!it) continue;
+          it.x = o.x + dx; it.y = o.y + dy;
+          if (o.path && it.path) {
+            for (let i = 0; i < it.path.length && i < o.path.length; i++) {
+              it.path[i].x = o.path[i].x + dx;
+              it.path[i].y = o.path[i].y + dy;
+            }
+          }
+        }
+        store.commit(true);
+        // moving the walls re-keys the room (its key is centroid-based), so
+        // glue the selection to whichever room now sits at the expected spot
+        const ex = m.cx0 + dx, ey = m.cy0 + dy;
+        let best = null, bestD = Infinity;
+        for (const r of store.rooms) {
+          const d = Math.hypot(r.centroid.x - ex, r.centroid.y - ey);
+          if (d < bestD) { bestD = d; best = r; }
+        }
+        if (best) { m.id = best.key; store.selection = { kind: 'room', id: best.key }; }
+        break;
+      }
       case 'resizeOpening': {
         const o = store.opening(m.id);
         const wall = o && store.wall(o.wallId);
@@ -692,10 +754,8 @@ export class Editor2D {
         break;
       }
       case 'pathDraw': {
-        const last = m.pts[m.pts.length - 1];
-        const step = Math.max(24, m.def.path.width / 4);
-        if (dist(w.x, w.y, last.x, last.y) >= step) m.pts.push({ x: w.x, y: w.y });
-        m.cur = { x: w.x, y: w.y };
+        // straight rubber-band line from the start, not a freehand trail
+        m.cur = this.snapPathEnd(m.start, w.x, w.y);
         break;
       }
       case 'areaDraw': {
@@ -816,13 +876,9 @@ export class Editor2D {
       }
     }
     if (m.name === 'pathDraw') {
-      const pts = m.pts.slice();
-      if (m.cur && dist(m.cur.x, m.cur.y, pts[pts.length - 1].x, pts[pts.length - 1].y) > 8) {
-        pts.push(m.cur);
+      if (m.cur && dist(m.start.x, m.start.y, m.cur.x, m.cur.y) > 50) {
+        this.commitPath(m.def, [m.start, m.cur]);
       }
-      let len = 0;
-      for (let i = 1; i < pts.length; i++) len += dist(pts[i].x, pts[i].y, pts[i - 1].x, pts[i - 1].y);
-      if (pts.length >= 2 && len > 50) this.commitPath(m.def, pts);
     }
     if (m.name === 'areaDraw') {
       const { def, start: s, cur: c } = m;
@@ -875,6 +931,10 @@ export class Editor2D {
           store.select(cur.length ? { kind: 'multi', ids: cur } : null);
         }
       }
+    }
+    if (m.name === 'dragRoom') {
+      if (m.moved) { store.commit(true); store.emit('selection'); }
+      else { store.undoStack.pop(); store.emit('history'); }
     }
     if (['dragItem', 'dragOpening', 'dragWall', 'dragMulti'].includes(m.name) && m.moved === false) {
       // click without movement — the checkpoint taken on pointerdown is redundant
@@ -1399,9 +1459,8 @@ export class Editor2D {
       this.drawNode(ctx, start.x, start.y, px, start.kind);
       this.drawNode(ctx, preview.x, preview.y, px, preview.kind);
     }
-    if (m.name === 'pathDraw' && m.pts.length) {
-      const pts = m.cur ? [...m.pts, m.cur] : m.pts;
-      this.strokePath(ctx, pts, m.def.path.width, m.def, px, false, 0.65);
+    if (m.name === 'pathDraw' && m.start && m.cur) {
+      this.strokePath(ctx, [m.start, m.cur], m.def.path.width, m.def, px, false, 0.65);
     }
     if (m.name === 'areaDraw' && m.cur) {
       const { start: s, cur: c } = m;

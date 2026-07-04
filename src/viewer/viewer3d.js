@@ -446,6 +446,34 @@ export class Viewer3D {
     this.pathPreview.add(m);
   }
 
+  /** Rebuild the preview as a straight run of dots from start to cur. */
+  updatePathPreview(start, cur, width) {
+    if (!this.pathPreview) return;
+    for (let i = this.pathPreview.children.length - 1; i >= 0; i--) {
+      const c = this.pathPreview.children[i];
+      c.geometry?.dispose();
+      this.pathPreview.remove(c);
+    }
+    const len = Math.hypot(cur.x - start.x, cur.y - start.y);
+    const step = Math.max(20, width / 4);
+    const n = Math.max(1, Math.round(len / step));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      this.addPathPreviewDot(start.x + (cur.x - start.x) * t, start.y + (cur.y - start.y) * t, width);
+    }
+  }
+
+  /** Straight, angle-snapped ground endpoint for a drawn path (matches 2D). */
+  straightPathEnd(start, end) {
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const len = Math.round(Math.hypot(dx, dy) / 10) * 10;
+    let ang = Math.atan2(dy, dx);
+    const step = Math.PI / 4;
+    const snapped = Math.round(ang / step) * step;
+    if (Math.abs(ang - snapped) <= 0.12) ang = snapped;
+    return { x: start.x + Math.cos(ang) * len, y: start.y + Math.sin(ang) * len };
+  }
+
   endPathPreview() {
     if (!this.pathPreview) return;
     this.disposeGroup(this.pathPreview);
@@ -961,7 +989,7 @@ export class Viewer3D {
         const gpt = this.castGround(p);
         if (gpt) {
           this.flight = null;
-          this.gesture = { kind: 'pathDraw', id: e.pointerId, def, pts: [gpt] };
+          this.gesture = { kind: 'pathDraw', id: e.pointerId, def, start: gpt, cur: gpt };
           this.startPathPreview(def);
           this.addPathPreviewDot(gpt.x, gpt.y, def.path.width);
           return;
@@ -1028,12 +1056,8 @@ export class Viewer3D {
     if (g?.kind === 'pathDraw' && g.id === e.pointerId) {
       const gpt = this.castGround(p);
       if (gpt) {
-        const last = g.pts[g.pts.length - 1];
-        const step = Math.max(24, g.def.path.width / 4);
-        if (Math.hypot(gpt.x - last.x, gpt.y - last.y) >= step) {
-          g.pts.push(gpt);
-          this.addPathPreviewDot(gpt.x, gpt.y, g.def.path.width);
-        }
+        g.cur = this.straightPathEnd(g.start, gpt);
+        this.updatePathPreview(g.start, g.cur, g.def.path.width);
       }
       return;
     }
@@ -1134,18 +1158,15 @@ export class Viewer3D {
       }
       if (g.kind === 'pathDraw') {
         this.endPathPreview();
-        let len = 0;
-        for (let i = 1; i < g.pts.length; i++) {
-          len += Math.hypot(g.pts[i].x - g.pts[i - 1].x, g.pts[i].y - g.pts[i - 1].y);
-        }
-        if (g.pts.length >= 2 && len > 50) {
-          const it = createPathItem(this.store, g.def, g.pts);
+        const len = Math.hypot(g.cur.x - g.start.x, g.cur.y - g.start.y);
+        if (len > 50) {
+          const it = createPathItem(this.store, g.def, [g.start, g.cur]);
           this.flyToItem(it);
         } else {
           // a plain tap: drop a short straight starter run there
           const store = this.store;
           store.checkpoint();
-          const it = store.addItem(g.def.id, Math.round(g.pts[0].x), Math.round(g.pts[0].y), 0, g.def);
+          const it = store.addItem(g.def.id, Math.round(g.start.x), Math.round(g.start.y), 0, g.def);
           this.seedDefaultPath(it, g.def);
           store.commit(false);
           store.setTool('select');
