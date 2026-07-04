@@ -16,7 +16,17 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.18.1** (dev branch only, not yet on live) — 5-agent QA
+- Current version: **2.19.0** (dev branch only, not yet on live) — ergonomics
+  batch 1: (1) PLACEMENT FIX — tapping a catalog item now always ARMS
+  tap-to-place ("in your hand"); removed the 3D auto-drop into a room's centroid
+  (ui.js catalog card onclick; placeInRoom now unused). (2) Catalog SEARCH box
+  (#catSearch) filters all items by name across categories (renderCatalogCards
+  helper). (3) "Room" button on the item action bubble (#selRoom) selects the
+  room containing the item — fixes selecting a furnished room. (4) Tap the grass
+  in 3D → selects {kind:'ground'} → props panel shows the ground-cover picker
+  (viewer3d castGround branch; renderProps ground case; syncFabs hides the
+  bubble + auto-opens props for ground).
+- v2.18.1 (dev) — 5-agent QA
   pass fixes. v2.18.0: fixed the floating gap between stacked storeys with a
   solid buildFloorSlab() (arch3d.js) filling the SLAB band. v2.18.1 fixes from
   the QA report: (M1) room-move now only translates walls UNIQUE to the room —

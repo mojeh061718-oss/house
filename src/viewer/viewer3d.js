@@ -1203,6 +1203,9 @@ export class Viewer3D {
             this.store.select({ kind: 'room', id: arch.roomKey });
           } else if (arch?.exteriorWallId && this.store.wall(arch.exteriorWallId)) {
             this.store.select({ kind: 'wall', id: arch.exteriorWallId, exterior: true });
+          } else if (this.castGround(tap)) {
+            // tapped the yard/grass → edit the ground cover
+            this.store.select({ kind: 'ground' });
           } else {
             this.store.select(null);
           }

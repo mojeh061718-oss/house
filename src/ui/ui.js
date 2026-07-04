@@ -561,6 +561,7 @@ export class UI {
         <button class="fab mini item-only" id="selShrink" title="Smaller">${ICONS.minus}<span>Smaller</span></button>
         <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
         <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
+        <button class="fab mini item-only" id="selRoom" title="Select the room this is in">${ICONS.room}<span>Room</span></button>
         <button class="fab mini" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
         <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
         <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
@@ -590,6 +591,13 @@ export class UI {
       it.d = Math.max(10, Math.round(it.d / 1.1));
       it.h = Math.max(10, Math.round(it.h / 1.1));
     });
+    $('#selRoom').onclick = () => {
+      const it = store.selection?.kind === 'item' && store.item(store.selection.id);
+      if (!it) return;
+      const room = store.rooms.find(r => pointInPolygon(it.x, it.y, r.polygon));
+      if (room) { store.select({ kind: 'room', id: room.key }); this.toast('Room selected'); }
+      else this.toast('This item isn’t inside a room');
+    };
     $('#selDup').onclick = () => this.duplicateSelection();
     $('#selEdit').onclick = () => this.toggleDrawer('props');
     $('#selDel').onclick = () => {
@@ -696,7 +704,12 @@ export class UI {
   syncFabs() {
     const sel = this.store.selection;
     const actions = $('#selActions');
-    actions.classList.toggle('hidden', !sel);
+    // ground has no move/delete actions — it's edited straight from its panel
+    actions.classList.toggle('hidden', !sel || sel.kind === 'ground');
+    if (sel?.kind === 'ground') {
+      $('#props').classList.add('open');
+      this.loadSwatchTextures('props');
+    }
     const isItem = sel?.kind === 'item';
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
@@ -782,9 +795,19 @@ export class UI {
         <span>Add furniture</span>
         <button class="tb-btn" data-close="catalog">${ICONS.close}</button>
       </div>
+      <div class="cat-search">
+        <input id="catSearch" type="search" placeholder="Search all furniture…"
+          autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"/>
+      </div>
       <div class="cat-tabs" id="catTabs"></div>
       <div class="cat-grid" id="catGrid"></div>`;
     panel.querySelector('[data-close]').onclick = () => this.closeDrawer('catalog');
+
+    const search = $('#catSearch');
+    search.addEventListener('input', () => {
+      this.catSearch = search.value.trim().toLowerCase();
+      this.renderCatalogGrid();
+    });
 
     const tabs = $('#catTabs');
     for (const c of [{ id: 'all', name: 'All' }, { id: 'shells', name: 'Home Shells' }, ...CATEGORIES]) {
@@ -806,6 +829,17 @@ export class UI {
     });
     const grid = $('#catGrid');
     grid.innerHTML = '';
+    // a search query overrides the active tab and matches item names everywhere
+    const q = this.catSearch || '';
+    if (q) {
+      const hits = ITEMS.filter(i => !i.hidden && i.name.toLowerCase().includes(q));
+      if (!hits.length) {
+        grid.innerHTML = `<p class="cat-empty">No furniture matches “${q}”.</p>`;
+        return;
+      }
+      this.renderCatalogCards(grid, hits);
+      return;
+    }
     if (this.activeCat === 'shells') {
       for (const shell of SHELLS) {
         const card = el('button', 'cat-card shell-card');
@@ -820,7 +854,14 @@ export class UI {
       }
       return;
     }
-    for (const def of ITEMS.filter(i => !i.hidden && (this.activeCat === 'all' || i.cat === this.activeCat))) {
+    const items = ITEMS.filter(i => !i.hidden && (this.activeCat === 'all' || i.cat === this.activeCat));
+    this.renderCatalogCards(grid, items);
+  }
+
+  /** Render furniture cards into the grid (shared by tab view and search). */
+  renderCatalogCards(grid, items) {
+    const store = this.store;
+    for (const def of items) {
       const card = el('button', 'cat-card');
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
@@ -839,17 +880,8 @@ export class UI {
           }
           // no walls yet — fall through to normal placement
         }
-        // build mode: in 3D with a room chosen, drop it right in that room
-        // and fly the camera to a working close-up — but paths and area
-        // surfaces are always drawn with the finger, never auto-dropped
-        if (store.viewMode === '3d' && !def.path && !def.areaDraw) {
-          const key = store.selection?.kind === 'room' ? store.selection.id : this._lastRoomKey;
-          const room = key && store.room(key);
-          if (room && this.viewer.placeInRoom(def.id, room)) {
-            this.toast(`${def.name} placed — drag to position`);
-            return;
-          }
-        }
+        // "in your hand": arm the item so the NEXT tap on the plan/3D drops it
+        // exactly where you tap — never auto-dropped into a room's center
         store.setTool('place', def.id);
       };
       grid.appendChild(card);
@@ -1009,6 +1041,16 @@ export class UI {
       this.matGrid('#matExtWall', 'wall', store.project.settings.exteriorWall, id => {
         store.checkpoint(); store.project.settings.exteriorWall = id; store.commit(true);
       });
+    } else if (sel.kind === 'ground') {
+      panel.innerHTML = `${head('Yard / ground')}
+        <div class="props-body">
+          <div class="props-section-title">Ground cover — tap a swatch to change the whole yard</div>
+          <div class="mat-grid" id="matGround"></div>
+        </div>`;
+      this.matGrid('#matGround', 'ground', store.project.settings.groundType || 'grass', id => {
+        store.checkpoint(); store.project.settings.groundType = id; store.commit(true);
+      });
+      this.loadSwatchTextures('props');
     } else if (sel.kind === 'item') {
       const it = store.item(sel.id);
       if (!it) { store.select(null); return; }
