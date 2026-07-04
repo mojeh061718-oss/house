@@ -262,6 +262,30 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       ctx.restore();
       break;
     }
+    case 'grass': {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#8fb26a';
+      rr(ctx, -hw, -hd, w, d, 4);
+      ctx.fill();
+      ctx.stroke();
+      // scattered blades so it never looks like a concrete slab
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = '#54763a';
+      ctx.lineWidth = 1.4;
+      let sd = 7;
+      const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+      const n = Math.max(10, Math.round((w * d) / 3000));
+      for (let i = 0; i < n; i++) {
+        const x = -hw + 8 + rnd() * (w - 16), y = -hd + 8 + rnd() * (d - 16);
+        ctx.beginPath();
+        ctx.moveTo(x, y + 7); ctx.lineTo(x - 4, y - 6);
+        ctx.moveTo(x, y + 7); ctx.lineTo(x + 4, y - 6);
+        ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
     case 'hedge': {
       ctx.fillStyle = '#b9d3a8';
       rr(ctx, -hw, -hd, w, d, Math.min(14, d / 2));

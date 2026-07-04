@@ -346,6 +346,29 @@ export class Editor2D {
     const store = this.store;
     const sel = store.selection;
 
+    // on-object delete badge: one tap on the red × removes the selection,
+    // so a room/piece you just made is never a chore to get rid of
+    if (this._delBadge) {
+      const b = this._delBadge;
+      if (Math.hypot(sx - b.sx, sy - b.sy) <= b.r + 5) {
+        if (!store.deleteSelection() && this.onLockedDelete) this.onLockedDelete();
+        this.requestRender();
+        return;
+      }
+    }
+
+    // a tap on a room's name label selects that room — reliable even when
+    // its floor is covered in furniture (which would otherwise grab the tap)
+    if (this._roomLabels) {
+      for (const lb of this._roomLabels) {
+        if (sx >= lb.minX && sx <= lb.maxX && sy >= lb.minY && sy <= lb.maxY) {
+          store.select({ kind: 'room', id: lb.key });
+          this.requestRender();
+          return;
+        }
+      }
+    }
+
     // 0. jamb-end resize handles of current opening selection
     if (sel?.kind === 'opening') {
       const o = store.opening(sel.id);
@@ -539,6 +562,7 @@ export class Editor2D {
 
   /** Position + rotation for placing an item, snapping to walls where sensible. */
   placePose(w, def, opts = {}) {
+    if (!this.store.snapEnabled) opts = { ...opts, noSnap: true };
     return snapPose(this.store.project.walls, def, w.x, w.y, opts);
   }
 
@@ -1114,6 +1138,74 @@ export class Editor2D {
     this.drawRoomLabels(ctx);
     this.drawDimensions(ctx);
     this.drawSelectionHandles(ctx);
+    this.drawDeleteBadge(ctx);
+  }
+
+  /** Screen-space bounding box of the current selection, or null. */
+  selectionScreenBox() {
+    const store = this.store;
+    const sel = store.selection;
+    const pts = [];
+    const addBox = (cx, cy, w, d, rot) => {
+      const co = Math.cos(rot), si = Math.sin(rot), hw = w / 2, hd = d / 2;
+      for (const [ox, oy] of [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]])
+        pts.push({ x: cx + ox * co - oy * si, y: cy + ox * si + oy * co });
+    };
+    const addItem = (it) => {
+      if (it.path) { for (const p of it.path) pts.push(p); }
+      else addBox(it.x, it.y, it.w, it.d, it.rotation);
+    };
+    if (sel?.kind === 'item') {
+      const it = store.item(sel.id); if (!it) return null; addItem(it);
+    } else if (sel?.kind === 'multi') {
+      for (const id of sel.ids) { const it = store.item(id); if (it) addItem(it); }
+    } else if (sel?.kind === 'room') {
+      const r = store.room(sel.id); if (!r) return null; for (const p of r.polygon) pts.push(p);
+    } else if (sel?.kind === 'wall') {
+      const w = store.wall(sel.id); if (!w) return null;
+      pts.push({ x: w.ax, y: w.ay }, { x: w.bx, y: w.by });
+    } else if (sel?.kind === 'opening') {
+      const o = store.opening(sel.id); const w = o && store.wall(o.wallId);
+      if (!w) return null; pts.push(wallPoint(w, o.t));
+    } else return null;
+    if (!pts.length) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      const s = this.toScreen(p.x, p.y);
+      if (s.x < minX) minX = s.x; if (s.y < minY) minY = s.y;
+      if (s.x > maxX) maxX = s.x; if (s.y > maxY) maxY = s.y;
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  /** A one-tap red delete badge floating at the selection's top-right. */
+  drawDeleteBadge(ctx) {
+    this._delBadge = null;
+    const store = this.store;
+    if (store.tool !== 'select') return;
+    const box = this.selectionScreenBox();
+    if (!box) return;
+    const r = 13;
+    const sx = Math.min(box.maxX + r + 2, this.canvas.offsetWidth - r - 4);
+    const sy = Math.max(box.minY - r - 2, r + 4);
+    this._delBadge = { sx, sy, r };
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#e5484d';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    const k = r * 0.4;
+    ctx.beginPath();
+    ctx.moveTo(sx - k, sy - k); ctx.lineTo(sx + k, sy + k);
+    ctx.moveTo(sx + k, sy - k); ctx.lineTo(sx - k, sy + k);
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawGrid(ctx, W, H, px) {
@@ -1686,20 +1778,33 @@ export class Editor2D {
   }
 
   drawRoomLabels(ctx) {
+    this._roomLabels = [];
     if (this.view.scale < 0.12) return;
     const store = this.store;
     for (const r of store.rooms) {
       const style = store.project.roomStyles[r.key];
       const name = style?.name || 'Room';
-      const s = this.toScreen(r.centroid.x, r.centroid.y);
+      // sit the label just inside the top wall rather than dead-center, where
+      // furniture usually is — keeps the name/area readable
+      let minY = Infinity;
+      for (const p of r.polygon) if (p.y < minY) minY = p.y;
+      const labelY = Math.min(r.centroid.y, minY + 45);
+      const s = this.toScreen(r.centroid.x, labelY);
       const area = fmtArea(r.area);
       ctx.textAlign = 'center';
       ctx.font = '600 13px system-ui, sans-serif';
+      const tw = Math.max(ctx.measureText(name).width, 34);
       ctx.fillStyle = 'rgba(40,44,52,0.82)';
       ctx.fillText(name, s.x, s.y - 3);
       ctx.font = '11px system-ui, sans-serif';
       ctx.fillStyle = 'rgba(40,44,52,0.55)';
       ctx.fillText(area, s.x, s.y + 12);
+      // remember the label's screen box so a tap on it selects the room —
+      // an easy target even when furniture covers the room's interior
+      this._roomLabels.push({
+        key: r.key, minX: s.x - tw / 2 - 6, maxX: s.x + tw / 2 + 6,
+        minY: s.y - 16, maxY: s.y + 16
+      });
     }
   }
 

@@ -670,6 +670,28 @@ canvas { display: block; }
   padding: 12px;
   align-content: start;
 }
+.cat-section {
+  grid-column: 1 / -1;
+  margin: 2px 2px -2px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cat-recent {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 4px;
+  scroll-snap-type: x proximity;
+}
+.cat-recent .cat-card {
+  flex: 0 0 46%;
+  scroll-snap-align: start;
+}
 .cat-card {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -1168,6 +1190,9 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 }
 .view-fit svg { width: 19px; height: 19px; }
 .view-fit:active { transform: scale(0.94); color: var(--text); }
+/* snap toggle sits just under the fit button */
+.view-snap { top: 62px; }
+.view-snap.active { color: #fff; background: var(--accent); border-color: var(--accent); }
 
 /* shape picker for drawn paths & water (line / free / rectangle / circle) */
 .shape-bar {
@@ -1200,7 +1225,19 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .shape-btn svg { width: 20px; height: 20px; }
 .shape-btn:hover { color: var(--text); background: var(--panel-2); }
 .shape-btn.active { background: var(--accent); color: #fff; }
+.shape-div {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 2px;
+  background: var(--border);
+}
+.shape-btn.wsel {
+  width: 34px;
+  font: 700 14px system-ui, sans-serif;
+  color: var(--text-dim);
+}
 #app.compact .shape-btn { width: 38px; height: 34px; }
+#app.compact .shape-btn.wsel { width: 30px; }
 
 .fab.mini.locked { background: #d9a514; border-color: #d9a514; color: #1d2129; }
 .fab.mini.locked span { color: #1d2129; }

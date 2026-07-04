@@ -69,7 +69,8 @@ export function createPathItem(store, def, pts) {
     minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
     minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
   }
-  const width = def.path.width;
+  const scale = store.drawWidthScale || 1;
+  const width = Math.max(4, Math.min(600, Math.round(def.path.width * scale)));
   store.checkpoint();
   const it = store.addItem(def.id, (minX + maxX) / 2, (minY + maxY) / 2, 0, def);
   it.path = pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
@@ -90,13 +91,17 @@ export function createPathItem(store, def, pts) {
  * @param opts    { rot: current rotation, fine: 2cm grid instead of 10cm }
  */
 export function snapPose(walls, def, x, y, opts = {}) {
-  const grid = opts.fine ? 2 : GRID;
+  const grid = opts.noSnap ? 1 : (opts.fine ? 2 : GRID);
   const free = {
     x: Math.round(x / grid) * grid,
     y: Math.round(y / grid) * grid,
     rot: opts.rot ?? 0,
     snapped: false
   };
+
+  // snapping off: drop exactly where the finger is, ignore walls entirely
+  // (wall/ceiling mounts still need a host to attach to)
+  if (opts.noSnap && def?.mount !== 'wall' && def?.mount !== 'ceiling') return free;
 
   if (def?.mount === 'ceiling') return free;
 

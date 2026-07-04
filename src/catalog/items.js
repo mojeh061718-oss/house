@@ -918,7 +918,7 @@ export const ITEMS = [
   },
   {
     id: 'grass_patch', name: 'Tall Grass', cat: 'outdoor', w: 300, d: 220, h: 70, noShadow: true,
-    areaDraw: true, plan: { type: 'slab' },
+    areaDraw: true, plan: { type: 'grass' },
     palettes: [
       { name: 'Meadow', chip: '#5d7a37', base: '#42592a', tips: '#82a04c', height: 55 },
       { name: 'Wheat Field', chip: '#c2a45c', base: '#997b3e', tips: '#dcc478', height: 80 },

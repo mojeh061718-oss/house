@@ -80,6 +80,63 @@ export const SHELLS = [
     }
   },
   {
+    id: 'studio_suite',
+    name: 'Studio Suite 24×24',
+    desc: 'One open living space with a private bath — the simplest starter',
+    size: [730, 730],
+    build(api) {
+      api.settings({ wallHeight: 280 });
+      const n = api.wall(0, 0, 730, 0, EXT);
+      const e = api.wall(730, 0, 730, 730, EXT);
+      const s = api.wall(730, 730, 0, 730, EXT);
+      const w = api.wall(0, 730, 0, 0, EXT);
+      // one corner walled off as a bathroom
+      const bw = api.wall(500, 730, 500, 480, INT);
+      const bn = api.wall(500, 480, 730, 480, INT);
+      api.opening(s, 'door', 0.25, { width: 100 });
+      api.opening(s, 'window', 0.7, { width: 180 });
+      api.opening(w, 'window', 0.4, { width: 180 });
+      api.opening(n, 'window', 0.5, { width: 200 });
+      api.opening(bw, 'door', 0.5);
+      api.room(300, 350, 'Studio', 'wide_oak');
+      api.room(615, 610, 'Bath', 'tile_white', 'tile_bath');
+      api.item('roof_hip', 365, 365, 0, { w: 850, d: 850, h: 220, elevation: 280, palette: 0 });
+      api.item('patio', 200, 830, 0, { w: 320, d: 160 });
+    }
+  },
+  {
+    id: 'ranch_starter',
+    name: 'Ranch Starter 40×28',
+    desc: 'Living/kitchen open plan, two bedrooms and a shared bath',
+    size: [1220, 850],
+    build(api) {
+      api.settings({ wallHeight: 275 });
+      const n = api.wall(0, 0, 1220, 0, EXT);
+      const e = api.wall(1220, 0, 1220, 850, EXT);
+      const s = api.wall(1220, 850, 0, 850, EXT);
+      const w = api.wall(0, 850, 0, 0, EXT);
+      const spine = api.wall(740, 0, 740, 850, INT);
+      const bedSplit = api.wall(740, 425, 1220, 425, INT);
+      const bath = api.wall(740, 250, 980, 250, INT);
+      api.wall(980, 0, 980, 250, INT);
+      api.opening(s, 'door', 0.3, { width: 100 });
+      api.opening(s, 'window', 0.65, { width: 220 });
+      api.opening(w, 'window', 0.5, { width: 200 });
+      api.opening(n, 'window', 0.2, { width: 180 });
+      api.opening(e, 'window', 0.25, { width: 140 });
+      api.opening(e, 'window', 0.75, { width: 140 });
+      api.opening(spine, 'doorway', 0.15, { width: 100 });
+      api.opening(bedSplit, 'door', 0.85);
+      api.opening(bath, 'door', 0.5);
+      api.room(370, 425, 'Living / Kitchen', 'honey_pine');
+      api.room(980, 620, 'Bedroom 1', 'carpet_beige');
+      api.room(1100, 130, 'Bedroom 2', 'carpet_gray');
+      api.room(860, 130, 'Bath', 'tile_white', 'tile_bath');
+      api.item('roof_gable', 610, 425, 0, { w: 1360, d: 1030, h: 280, elevation: 275, palette: 0 });
+      api.item('patio', 300, 950, 0, { w: 380, d: 180 });
+    }
+  },
+  {
     id: 'barndo_porch',
     name: 'Barndominium + Porch',
     desc: 'Timber-roof barndo with a full-width covered front porch',

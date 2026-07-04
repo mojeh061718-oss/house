@@ -43,7 +43,10 @@ export const ICONS = {
   shapeLine: svg('<path d="M5 19 19 5"/><circle cx="5" cy="19" r="1.6" fill="currentColor"/><circle cx="19" cy="5" r="1.6" fill="currentColor"/>'),
   shapeFree: svg('<path d="M4 15c1.8-4.5 3.4-4.5 5 0s3.2 3.8 5-0.5 3-3 5-1.5"/>'),
   shapeRect: svg('<rect x="5" y="6.5" width="14" height="11" rx="1.5"/>'),
-  shapeCircle: svg('<circle cx="12" cy="12" r="7.5"/>')
+  shapeCircle: svg('<circle cx="12" cy="12" r="7.5"/>'),
+  wand: svg('<path d="M15 4V2M15 10V8M12 6h2M18 6h2"/><path d="M4 20 14.5 9.5l1 1L5 21z"/><path d="m13.5 7.5 3 3"/>'),
+  star: svg('<path d="M12 3.5l2.5 5.3 5.8.8-4.2 4 1 5.7L12 21.6 6.9 22l1-5.7-4.2-4 5.8-.8z"/>'),
+  magnet: svg('<path d="M6 4v7a6 6 0 0 0 12 0V4"/><path d="M6 8h4M14 8h4"/><path d="M6 4h4M14 4h4"/>')
 };
 
 export function icon(name) {

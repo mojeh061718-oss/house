@@ -95,6 +95,8 @@ export class Store {
     this.doorType = 'door';    // last-used opening types stay armed
     this.windowType = 'window';
     this.drawShape = 'line';   // path draw mode: line | free | rect | circle
+    this.drawWidthScale = 1;   // path/area draw width: 0.6 narrow | 1 std | 1.5 wide
+    this.snapEnabled = true;   // when false, drop items exactly where tapped
     this.viewMode = '2d';      // 2d | 3d | split
     this.undoStack = [];
     this.redoStack = [];

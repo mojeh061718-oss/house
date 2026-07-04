@@ -20,6 +20,7 @@ export class Viewer3D {
     this.store = store;
     this.walkMode = false;
     this.showCeilings = false;
+    this.hideRoof = false;      // "Roof" button hides roof items to peek inside
     this.needsRebuild = true;
     this.itemGroups = new Map();
 
@@ -232,6 +233,27 @@ export class Viewer3D {
   }
 
   /** Stairwell cut-outs cast by a level's stairs/elevators (world rects). */
+  /** A rectangular pseudo-room spanning the bounding box of a level's walls,
+   *  used to give open-plan upper storeys a floor when no closed room exists. */
+  floorFootprintRoom(walls) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const w of walls) {
+      minX = Math.min(minX, w.ax, w.bx); maxX = Math.max(maxX, w.ax, w.bx);
+      minY = Math.min(minY, w.ay, w.by); maxY = Math.max(maxY, w.ay, w.by);
+    }
+    if (!isFinite(minX) || maxX - minX < 1 || maxY - minY < 1) return null;
+    return {
+      key: '__footprint__',
+      polygon: [
+        { x: minX, y: minY }, { x: maxX, y: minY },
+        { x: maxX, y: maxY }, { x: minX, y: maxY }
+      ],
+      centroid: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+      area: (maxX - minX) * (maxY - minY),
+      wallIds: new Set()
+    };
+  }
+
   stairHoles(lvl) {
     const holes = [];
     for (const it of lvl.items) {
@@ -268,6 +290,15 @@ export class Viewer3D {
       };
       const rooms = i === active ? this.store.rooms
         : detectRooms(lvl.walls).map(r => (r.key = roomKey(r), r));
+      // open-plan upper storeys whose walls don't close into a room would
+      // otherwise get NO floor and appear to float over a gap — fall back to a
+      // slab spanning the level's wall footprint so there's always ground to
+      // stand on (floors + structural slab only; walls/ceilings stay as-is)
+      let floorRooms = rooms;
+      if (i > 0 && !rooms.length && lvl.walls.length) {
+        const fb = this.floorFootprintRoom(lvl.walls);
+        if (fb) floorRooms = [fb];
+      }
       // stairs on the level below cut an opening in this level's floor;
       // stairs on this level cut its ceiling (when a floor exists above)
       const floorHoles = i > 0 ? this.stairHoles(project.levels[i - 1]) : [];
@@ -275,7 +306,7 @@ export class Viewer3D {
       g.position.y = this.levelY(i);
       g.userData.level = i;
       guard(() => g.add(buildWalls(shim, rooms)), 'walls');
-      guard(() => g.add(buildFloors(shim, rooms, floorHoles)), 'floors');
+      guard(() => g.add(buildFloors(shim, floorRooms, floorHoles)), 'floors');
       if ((this.showCeilings || this.walkMode) && i === active) {
         const ceilHoles = i < project.levels.length - 1 ? this.stairHoles(lvl) : [];
         guard(() => g.add(buildCeilings(shim, rooms, ceilHoles)), 'ceilings');
@@ -283,7 +314,7 @@ export class Viewer3D {
       // upper levels sit on a solid structural slab that fills the gap down to
       // the storey below, so the floors read as one connected building
       if (i > 0) {
-        guard(() => g.add(buildFloorSlab(shim, rooms, floorHoles, SLAB)), 'slab');
+        guard(() => g.add(buildFloorSlab(shim, floorRooms, floorHoles, SLAB)), 'slab');
       }
       this.archGroup.add(g);
     }
@@ -307,6 +338,7 @@ export class Viewer3D {
     for (const it of this.store.project.levels[li].items) {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
+      if (this.hideRoof && def.plan?.type === 'roof') continue; // peek inside
       try {
         const isPath = def.path && it.path?.length >= 2;
         // size-true builders (decks, pools, pads) rebuild at the item's real
@@ -580,6 +612,11 @@ export class Viewer3D {
 
   setCeilings(on) {
     this.showCeilings = on;
+    this.needsRebuild = true;
+  }
+
+  setHideRoof(on) {
+    this.hideRoof = on;
     this.needsRebuild = true;
   }
 
@@ -909,12 +946,13 @@ export class Viewer3D {
   /** Paths placed by a 3D tap start as a short straight run (drawn freely in 2D). */
   seedDefaultPath(it, def) {
     const L = Math.max(def.w, 240);
+    const pw = Math.max(4, Math.min(600, Math.round(def.path.width * (this.store.drawWidthScale || 1))));
     it.path = [{ x: Math.round(it.x - L / 2), y: Math.round(it.y) },
                { x: Math.round(it.x + L / 2), y: Math.round(it.y) }];
-    it.pw = def.path.width;
+    it.pw = pw;
     it.rotation = 0;
-    it.w = L + def.path.width;
-    it.d = def.path.width;
+    it.w = L + pw;
+    it.d = pw;
   }
 
   /** Tap-to-place doors/windows on a wall in 3D. */

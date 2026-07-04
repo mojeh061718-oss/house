@@ -16,7 +16,48 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.19.0** (dev branch only, not yet on live) — ergonomics
+- Current version: **2.20.0** (dev branch only, not yet on live) — ergonomics
+  batch 2 (plan items 2–15). Everything below ships to `/house/dev/` only.
+  - **Item 2 — Furnish this room:** room-only `#selFurnish` bubble button →
+    `furnishSelectedRoom()` auto-lays furniture for the selected room (wand icon).
+  - **Item 4 — On-object delete + clearer selection:** a red × delete badge floats
+    at the selection's top-right on the 2D canvas (`editor2d.drawDeleteBadge` /
+    `selectionScreenBox`); tapping it calls `store.deleteSelection()` (hit-tested
+    at the top of `downSelect`; locked → `onLockedDelete` toast wired from ui.js).
+  - **Item 5 — Recently-used row:** `ui.recentIds` (persisted to
+    `localStorage['hcs.recentItems']`, max 12) rendered as a horizontal "Recently
+    used" strip atop the **All** tab; `recordRecent()` fires when a catalog card
+    is tapped. CSS `.cat-section`/`.cat-recent`.
+  - **Item 6 — Tap a room's name label to select the room:** `drawRoomLabels`
+    records each label's screen box in `this._roomLabels`; `downSelect` hit-tests
+    them before furniture, so a covered room is still selectable.
+  - **Item 7 — Snapping toggle:** floating magnet button `#btnSnap` (2D only, under
+    the fit button) flips `store.snapEnabled`; when off, `snapPose`/`placePose`
+    take `noSnap:true` and drop items exactly where tapped (wall/ceiling mounts
+    still need a host). New `magnet` icon.
+  - **Item 8 — Hide-roof toggle:** `#btnCeil` now toggles `viewer.setHideRoof`
+    (rebuildItems skips `def.plan.type==='roof'` when `hideRoof`).
+  - **Item 9 — Draw-time path width:** `store.drawWidthScale` (0.6/1/1.5) set by
+    S/M/L buttons in the shape bar; `createPathItem` + `seedDefaultPath` scale
+    `def.path.width` (clamped 4–600). Only shows for path tools.
+  - **Item 10 — Distinct grass symbol:** `grass_patch` plan type `slab`→`grass`;
+    new `case 'grass'` in plansymbols.js (green fill + scattered blades).
+  - **Item 11 — Two new starter shells:** `studio_suite` (24×24 studio+bath) and
+    `ranch_starter` (40×28, 4 rooms) in shells.js. Both verified to stamp cleanly.
+  - **Item 12 — Auto view-all after adding a roof** (autoRoof path in ui.js).
+  - **Item 13 — Duplicating a locked item** toasts "Copy added unlocked …".
+  - **Item 14 — Room label sits inside the top wall** (off the furniture).
+  - **Item 15 — Open-plan upper floors get a floor:** when an upper level (i>0)
+    has walls but `detectRooms` finds no closed room, `viewer3d.floorFootprintRoom`
+    builds a bbox pseudo-room used for `buildFloors`+`buildFloorSlab` so there's
+    always a walkable surface (no floating gap).
+  - **Item 3 (drag-drop from catalog):** intentionally delivered the mobile-native
+    way — tap-to-place ("in hand") + the new recent row + existing Copy — rather
+    than adding HTML5 drag, which is worse on iPhone and would re-add the "random
+    placement" feel the user disliked. No new button (clutter).
+  - Regression-tested with Playwright (all logic + DOM checks pass, no console
+    errors); both new shells stamp without error.
+- v2.19.0 (dev) — ergonomics
   batch 1: (1) PLACEMENT FIX — tapping a catalog item now always ARMS
   tap-to-place ("in your hand"); removed the 3D auto-drop into a room's centroid
   (ui.js catalog card onclick; placeInRoom now unused). (2) Catalog SEARCH box

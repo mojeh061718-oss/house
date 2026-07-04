@@ -33,6 +33,7 @@ export class UI {
     this.viewer = viewer;
     this.onHome = onHome;
     this.activeCat = 'living';
+    this.recentIds = this.loadRecents();
     this.wide = window.matchMedia('(min-width: 1100px)');
     this.coarse = window.matchMedia('(pointer: coarse)').matches;
     this._hintTimer = null;
@@ -42,6 +43,11 @@ export class UI {
     this.buildCatalog();
     this.buildFabs();
     this.buildLevelBar();
+
+    // the 2D canvas's on-object delete badge shares the same "locked" hint
+    this.editor.onLockedDelete = () => {
+      if (this.selectionLocked()) this.toast('Locked — tap the padlock to unlock');
+    };
 
     // compact chrome on short screens (phones, incl. the rotated-portrait
     // mode where CSS media queries see the wrong axis)
@@ -104,7 +110,7 @@ export class UI {
       <span class="tb-seg" id="threeDControls">
         <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}<span class="tb-lbl">Sun</span></button>
         <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}<span class="tb-lbl">Walk</span></button>
-        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}<span class="tb-lbl">Roof</span></button>
+        <button class="tb-btn" id="btnCeil" title="Show or hide the roof">${ICONS.ceiling}<span class="tb-lbl">Roof</span></button>
       </span>
       <button class="tb-btn tb-menu" id="btnMenu" title="Project menu">${ICONS.menu}</button>
       <div class="day-pop hidden" id="dayPop">
@@ -143,8 +149,9 @@ export class UI {
       this.showHint();
     };
     $('#btnCeil').onclick = () => {
-      this.viewer.setCeilings(!this.viewer.showCeilings);
-      $('#btnCeil').classList.toggle('active', this.viewer.showCeilings);
+      this.viewer.setHideRoof(!this.viewer.hideRoof);
+      $('#btnCeil').classList.toggle('active', this.viewer.hideRoof);
+      this.toast(this.viewer.hideRoof ? 'Roof hidden — peek inside' : 'Roof shown');
     };
 
     // time-of-day popover
@@ -298,6 +305,9 @@ export class UI {
     });
     $('#viewport').dataset.mode = mode;
     $('#threeDControls').style.display = mode === '2d' ? 'none' : '';
+    // snapping only matters while placing on the plan
+    const snapBtn = $('#btnSnap');
+    if (snapBtn) snapBtn.style.display = mode === '3d' ? 'none' : '';
     // rail stays in 3D too (doors/windows placeable there); drawing tools
     // switch back to the plan where drawing happens
     document.querySelectorAll('#toolrail .tool').forEach(b => {
@@ -359,22 +369,47 @@ export class UI {
     };
     $('#viewport').appendChild(fit);
 
+    // snapping toggle (2D only): flip off to drop a piece exactly where you
+    // tap, on when you want it to line up with walls and the grid
+    const snap = el('button', 'view-fit view-snap', ICONS.magnet);
+    snap.id = 'btnSnap';
+    snap.title = 'Snapping on/off';
+    snap.classList.toggle('active', store.snapEnabled);
+    snap.onclick = () => {
+      store.snapEnabled = !store.snapEnabled;
+      snap.classList.toggle('active', store.snapEnabled);
+      this.toast(store.snapEnabled ? 'Snapping on' : 'Snapping off — free placement');
+    };
+    $('#viewport').appendChild(snap);
+
     // shape picker for drawn paths/water: line / free / rectangle / circle
     const shapeBar = el('div', 'shape-bar');
     shapeBar.id = 'shapeBar';
     shapeBar.hidden = true;
     const sh = (id, ic, title) =>
       `<button class="shape-btn" data-shape="${id}" title="${title}">${ICONS[ic]}</button>`;
+    const wsel = (scale, label, title) =>
+      `<button class="shape-btn wsel" data-w="${scale}" title="${title}">${label}</button>`;
     shapeBar.innerHTML =
       sh('line', 'shapeLine', 'Straight line') +
       sh('free', 'shapeFree', 'Free draw') +
       sh('rect', 'shapeRect', 'Rectangle') +
-      sh('circle', 'shapeCircle', 'Circle');
-    shapeBar.querySelectorAll('.shape-btn').forEach(b => {
+      sh('circle', 'shapeCircle', 'Circle') +
+      '<span class="shape-div"></span>' +
+      wsel('0.6', 'S', 'Narrow') +
+      wsel('1', 'M', 'Standard width') +
+      wsel('1.5', 'L', 'Wide');
+    shapeBar.querySelectorAll('.shape-btn[data-shape]').forEach(b => {
       b.onclick = () => {
         store.drawShape = b.dataset.shape;
         this.syncShapeBar();
         this.showHint();
+      };
+    });
+    shapeBar.querySelectorAll('.wsel').forEach(b => {
+      b.onclick = () => {
+        store.drawWidthScale = parseFloat(b.dataset.w);
+        this.syncShapeBar();
       };
     });
     $('#viewport').appendChild(shapeBar);
@@ -394,8 +429,10 @@ export class UI {
     const isPath = !!def?.path;
     bar.hidden = !isPath;
     if (isPath) {
-      bar.querySelectorAll('.shape-btn').forEach(b =>
+      bar.querySelectorAll('.shape-btn[data-shape]').forEach(b =>
         b.classList.toggle('active', b.dataset.shape === this.store.drawShape));
+      bar.querySelectorAll('.wsel').forEach(b =>
+        b.classList.toggle('active', parseFloat(b.dataset.w) === (this.store.drawWidthScale || 1)));
     }
   }
 
@@ -562,6 +599,7 @@ export class UI {
         <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
         <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
         <button class="fab mini item-only" id="selRoom" title="Select the room this is in">${ICONS.room}<span>Room</span></button>
+        <button class="fab mini room-only" id="selFurnish" title="Auto-furnish this room">${ICONS.wand}<span>Furnish</span></button>
         <button class="fab mini" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
         <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
         <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
@@ -598,6 +636,7 @@ export class UI {
       if (room) { store.select({ kind: 'room', id: room.key }); this.toast('Room selected'); }
       else this.toast('This item isn’t inside a room');
     };
+    $('#selFurnish').onclick = () => this.furnishSelectedRoom();
     $('#selDup').onclick = () => this.duplicateSelection();
     $('#selEdit').onclick = () => this.toggleDrawer('props');
     $('#selDel').onclick = () => {
@@ -605,6 +644,28 @@ export class UI {
         this.toast('Locked — tap the padlock to unlock');
       }
     };
+  }
+
+  /** One-tap auto-furnish of the selected room using the best-guess layout. */
+  furnishSelectedRoom() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind !== 'room') return;
+    const room = store.room(sel.id);
+    const rect = room && this.roomRect(room);
+    if (!rect) { this.toast('This room can’t be auto-furnished'); return; }
+    const style = store.roomStyle(sel.id);
+    const ftId = guessType(style.name);
+    store.checkpoint();
+    const n = furnishRoom(store, rect, ftId);
+    if (n > 0) {
+      if (!style.name) { const ft = FURNISH_TYPES.find(f => f.id === ftId); if (ft) style.name = ft.name; }
+      store.commit(false);
+      this.toast(`Furnished — ${n} items placed`);
+    } else {
+      store.undoStack.pop(); store.emit('history');
+      this.toast('Room is too small to auto-furnish');
+    }
   }
 
   /** Is the current selection a locked item (or all-locked group)? */
@@ -698,7 +759,9 @@ export class UI {
     const created = store.cloneItem(it, def);
     store.commit(false);
     store.select({ kind: 'item', id: created.id });
-    this.toast('Duplicated');
+    // copies are always movable so you can position them; say so if the
+    // original was locked, instead of silently changing the lock state
+    this.toast(it.locked ? 'Copy added unlocked — lock it once you’ve placed it' : 'Duplicated');
   }
 
   syncFabs() {
@@ -713,6 +776,10 @@ export class UI {
     const isItem = sel?.kind === 'item';
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';
+    });
+    const isRoom = sel?.kind === 'room';
+    actions.querySelectorAll('.room-only').forEach(b => {
+      b.style.display = isRoom ? '' : 'none';
     });
     // padlock: items & groups only; icon mirrors the current state
     const lockBtn = $('#selLock');
@@ -788,6 +855,22 @@ export class UI {
 
   // ============================ CATALOG =====================================
 
+  // ---- recently-used furniture --------------------------------------------
+
+  loadRecents() {
+    try {
+      const raw = localStorage.getItem('hcs.recentItems');
+      const ids = raw ? JSON.parse(raw) : [];
+      return Array.isArray(ids) ? ids.slice(0, 12) : [];
+    } catch { return []; }
+  }
+
+  recordRecent(defId) {
+    if (!defId) return;
+    this.recentIds = [defId, ...this.recentIds.filter(id => id !== defId)].slice(0, 12);
+    try { localStorage.setItem('hcs.recentItems', JSON.stringify(this.recentIds)); } catch {}
+  }
+
   buildCatalog() {
     const panel = $('#catalog');
     panel.innerHTML = `
@@ -854,6 +937,21 @@ export class UI {
       }
       return;
     }
+    // recently-used row: a fast path back to the last things you placed,
+    // shown above the "All" tab so re-adding is one tap, not a hunt
+    if (this.activeCat === 'all' && this.recentIds.length) {
+      const recent = this.recentIds
+        .map(id => ITEMS.find(i => i.id === id && !i.hidden))
+        .filter(Boolean)
+        .slice(0, 8);
+      if (recent.length) {
+        grid.appendChild(el('p', 'cat-section', 'Recently used'));
+        const row = el('div', 'cat-recent');
+        this.renderCatalogCards(row, recent);
+        grid.appendChild(row);
+        grid.appendChild(el('p', 'cat-section', 'All furniture'));
+      }
+    }
     const items = ITEMS.filter(i => !i.hidden && (this.activeCat === 'all' || i.cat === this.activeCat));
     this.renderCatalogCards(grid, items);
   }
@@ -874,6 +972,12 @@ export class UI {
           const roof = autoRoof(store, def.id);
           if (roof) {
             if (store.viewMode === '2d') store.setViewMode('3d');
+            // show every storey so the roof reads as sitting on the house,
+            // not floating above the floor you happened to be on
+            if (store.project.levels.length > 1 && this.viewer.setViewAll) {
+              this.viewer.setViewAll(true);
+              this.syncLevels();
+            }
             this.viewer.frameAll();
             this.toast(`${def.name} fitted over the whole house`);
             return;
@@ -882,6 +986,7 @@ export class UI {
         }
         // "in your hand": arm the item so the NEXT tap on the plan/3D drops it
         // exactly where you tap — never auto-dropped into a room's center
+        this.recordRecent(def.id);
         store.setTool('place', def.id);
       };
       grid.appendChild(card);
