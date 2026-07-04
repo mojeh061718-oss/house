@@ -5,7 +5,7 @@ import { Editor2D } from './editor/editor2d.js';
 import { Viewer3D } from './viewer/viewer3d.js';
 import { UI } from './ui/ui.js';
 import { Home } from './ui/home.js';
-import { getDraft, clearDraft } from './core/projects.js';
+import { clearDraft } from './core/projects.js';
 
 initOrientation();
 
@@ -13,19 +13,11 @@ const store = new Store();
 const editor = new Editor2D(document.getElementById('plan'), store);
 const viewer = new Viewer3D(document.getElementById('view3d'), store);
 
-const home = new Home((data, projectId) => {
-  // offer to pick up unsaved work rescued from a closed/crashed session
-  const draft = getDraft();
-  let usedDraft = false;
-  if (draft && draft.projectId === projectId) {
-    if (confirm('This project has unsaved changes from last time. Continue where you left off?')) {
-      data = draft.data;
-      usedDraft = true;
-    }
-    clearDraft();
-  }
+const home = new Home((data, projectId, opts = {}) => {
   store.loadProject(data, projectId);
-  if (usedDraft) store._savedJson = null; // draft is still unsaved vs the stored copy
+  // resumed unsaved work: mark it dirty so leaving prompts to Save and it
+  // can never silently vanish
+  if (opts.dirty) store._savedJson = null;
   store.setTool('select');
   store.setViewMode('2d');
   requestAnimationFrame(() => {

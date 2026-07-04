@@ -16,7 +16,17 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.15.3** (dev branch only, not yet on live) — finished the
+- Current version: **2.15.4** (dev branch only, not yet on live) — hardened
+  work-safety: unsaved-work recovery now lives as a home-screen banner
+  (home.js draftTip: Resume / Discard) so a brand-new project that was never
+  saved is still recoverable — the old mid-open confirm() couldn't reach it
+  because an unsaved project has no list entry to reopen. Resume loads the
+  draft and marks it dirty (openFn opts.dirty → store._savedJson=null) so
+  leaving always prompts Save. Draft is kept until an explicit Save (clears it)
+  or Discard. NOTE: this also carries the v2.15.3 modal CSS, which is what makes
+  the Back-to-projects Save dialog actually visible — on the stale v2.15.2 build
+  the dialog had no CSS so tapping Home appeared to do nothing.
+- v2.15.3 (dev) — finished the
   save/clear feature: (a) edits no longer autosave into the project; they go to
   a single crash-recovery draft (projects.js saveDraft/getDraft/clearDraft,
   store.saveDraftNow). Leaving via Back to projects when dirty pops a styled

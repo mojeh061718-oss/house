@@ -278,6 +278,19 @@ canvas { display: block; }
 }
 .proj-check svg { width: 18px; height: 18px; }
 .home-action.danger { border-color: var(--danger); color: var(--danger); }
+.home-action.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---- unsaved-work recovery banner ---- */
+.draft-tip {
+  border-color: rgba(56, 132, 255, 0.5);
+  background: linear-gradient(160deg, rgba(56, 132, 255, 0.2), rgba(56, 132, 255, 0.06));
+}
+.draft-actions { display: flex; gap: 8px; margin-left: auto; flex: none; }
+@media (max-width: 560px) {
+  .draft-tip { flex-wrap: wrap; }
+  .draft-actions { width: 100%; }
+  .draft-actions .home-action { flex: 1 1 auto; justify-content: center; }
+}
 
 /* ---- confirm / save-on-exit modal ---- */
 .modal-scrim {

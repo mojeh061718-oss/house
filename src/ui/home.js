@@ -3,7 +3,8 @@ import { ICONS } from './icons.js';
 import { isStandalone } from '../core/orientation.js';
 import {
   listProjects, deleteProject, newProjectId, migrateLegacy,
-  backupToFile, importBackup, isBackup, daysSinceBackup
+  backupToFile, importBackup, isBackup, daysSinceBackup,
+  getDraft, clearDraft
 } from '../core/projects.js';
 import { emptyProject } from '../core/state.js';
 import { detectRooms } from '../core/geometry.js';
@@ -114,8 +115,19 @@ export class Home {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const showInstallTip = isIOS && !isStandalone() &&
       !localStorage.getItem('hs.installTipDismissed');
+    const draft = getDraft();
+    const draftName = draft?.data?.name ? `“${escapeHtml(draft.data.name)}”` : 'your last design';
     home.innerHTML = `
       <div class="home-scroll">
+        ${draft ? `
+        <div class="install-tip draft-tip" id="draftTip">
+          <span>${ICONS.undo}</span>
+          <p><b>Unsaved changes found.</b> ${draftName} has edits that weren't saved yet — pick up where you left off?</p>
+          <span class="draft-actions">
+            <button class="home-action primary" id="draftResume">Resume</button>
+            <button class="home-action" id="draftDiscard">Discard</button>
+          </span>
+        </div>` : ''}
         ${showInstallTip ? `
         <div class="install-tip" id="installTip">
           <span>${ICONS.expand}</span>
@@ -181,6 +193,22 @@ export class Home {
         $('#installTip').remove();
       };
     }
+    // ---- unsaved-work recovery ----
+    $('#draftResume')?.addEventListener('click', () => {
+      const d = getDraft();
+      if (!d) { this.render(); return; }
+      this.hide();
+      // keep the draft until they Save or Don't-save from the studio; mark
+      // the project dirty so leaving always prompts
+      this.openFn(d.data, d.projectId, { dirty: true });
+    });
+    $('#draftDiscard')?.addEventListener('click', () => {
+      if (confirm('Discard the unsaved changes for good?')) {
+        clearDraft();
+        this.render();
+      }
+    });
+
     // ---- project-list multi-select delete ----
     $('#homeSelect')?.addEventListener('click', () => {
       this.selectMode = true; this.selected.clear(); this.render();
