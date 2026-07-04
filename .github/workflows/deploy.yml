@@ -1,18 +1,27 @@
 name: Deploy to GitHub Pages
 
+# Production (main / the app branch) publishes to the site root.
+# The dev branch publishes into a /dev/ subfolder so it gets its own URL
+# (…github.io/house/dev/) without disturbing the live app. Both live on the
+# same gh-pages branch, so every deploy updates ONLY its own slot and leaves
+# the other one untouched.
+
 on:
   push:
     branches:
       - main
       - claude/mobile-home-design-app-l2mc9l
+      - claude/handoff-md-completion-8vnjdh
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Serialize deploys (never cancel an in-flight one) so a prod and a dev
+# deploy can't race each other while both are rewriting gh-pages.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-deploy:
@@ -25,13 +34,35 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Publish dist/ to the gh-pages branch
+      - name: Publish to gh-pages (prod → root, dev branch → /dev)
         run: |
-          cd dist
-          touch .nojekyll
-          git init -b gh-pages
+          set -e
+          if [ "${GITHUB_REF_NAME}" = "claude/handoff-md-completion-8vnjdh" ]; then
+            SLOT=dev
+          else
+            SLOT=root
+          fi
+          REPO="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          rm -rf gh-pages
+          # Start from the currently published site so the other slot survives.
+          if git ls-remote --exit-code --heads "$REPO" gh-pages >/dev/null 2>&1; then
+            git clone --depth 1 --branch gh-pages "$REPO" gh-pages
+          else
+            mkdir gh-pages && (cd gh-pages && git init -b gh-pages)
+          fi
+          cd gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$SLOT" = dev ]; then
+            # Replace only the /dev preview; leave the live root alone.
+            rm -rf dev && mkdir -p dev
+            cp -r ../dist/. dev/
+          else
+            # Replace everything at root EXCEPT the /dev preview (and .git).
+            find . -mindepth 1 -maxdepth 1 ! -name .git ! -name dev -exec rm -rf {} +
+            cp -r ../dist/. ./
+          fi
+          touch .nojekyll
           git add -A
-          git commit -m "Deploy ${GITHUB_SHA::7}"
-          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages
+          git commit -m "Deploy ${SLOT} ${GITHUB_SHA::7}" || echo "no changes to publish"
+          git push "$REPO" gh-pages
