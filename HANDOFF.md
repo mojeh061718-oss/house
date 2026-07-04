@@ -16,7 +16,21 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.16.0** (dev branch only, not yet on live) — shape-picker
+- Current version: **2.17.0** (dev branch only, not yet on live) — durable
+  storage overhaul. Projects/drafts now live in **IndexedDB** (new src/core/
+  idb.js) via an in-memory cache so the read API (listProjects/getProject) stays
+  sync; writes persist async. projects.js: initStorage() opens the DB, migrates
+  existing localStorage data once (keeps the LS copy as passive fallback), and
+  loads the cache; falls back to localStorage entirely if IndexedDB is
+  unavailable. Fixes: (a) the quota handler NO LONGER deletes the oldest project
+  — it calls setStorageFullHandler → ui.toast warning instead; (b) crash drafts
+  are now **per-project** (drafts store keyed by projectId), so switching
+  projects can't clobber another's unsaved work; getDraft(id) or getDraft()
+  (latest) for the home banner. main.js: awaits initStorage before the splash,
+  requests persistent storage at startup + retries on first pointerdown
+  (installed PWA = exempt from iOS 7-day eviction), and stashes a draft on
+  visibilitychange + pagehide + freeze. storageEstimate() exposes usage/persisted.
+- v2.16.0 (dev) — shape-picker
   for drawn paths/water. A floating `.shape-bar` (top-center of the viewport,
   shown by ui.syncShapeBar only while a path tool is armed) offers Line / Free /
   Rectangle / Circle. store.drawShape holds the mode; placement.js shapePolyline

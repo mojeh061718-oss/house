@@ -331,7 +331,7 @@ export class Store {
       const json = JSON.stringify(serializeProject(this.project));
       saveProject(this.currentProjectId, JSON.parse(json));
       this._savedJson = json;
-      clearDraft();
+      clearDraft(this.currentProjectId);
     }
   }
 

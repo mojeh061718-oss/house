@@ -204,7 +204,7 @@ export class Home {
     });
     $('#draftDiscard')?.addEventListener('click', () => {
       if (confirm('Discard the unsaved changes for good?')) {
-        clearDraft();
+        clearDraft(draft?.projectId);
         this.render();
       }
     });

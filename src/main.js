@@ -5,7 +5,7 @@ import { Editor2D } from './editor/editor2d.js';
 import { Viewer3D } from './viewer/viewer3d.js';
 import { UI } from './ui/ui.js';
 import { Home } from './ui/home.js';
-import { clearDraft } from './core/projects.js';
+import { clearDraft, initStorage, setStorageFullHandler } from './core/projects.js';
 
 initOrientation();
 
@@ -33,24 +33,44 @@ const ui = new UI(store, editor, viewer, async () => {
     const choice = await ui.askSave(store.project.name);
     if (choice === 'cancel') return;
     if (choice === 'save') store.saveNow();
-    else clearDraft();
+    else clearDraft(store.currentProjectId);
   }
   home.show();
 });
 
-home.showSplash();
-// photo textures load lazily on first use (cellular-friendly); ask the
-// browser to keep our saved projects out of storage eviction
-navigator.storage?.persist?.().catch(() => { /* best effort */ });
+// warn (never silently delete) if a save is ever rejected for lack of space
+setStorageFullHandler(() => ui.toast('Storage is full — back up & remove old projects'));
+
+// load durable storage (IndexedDB, migrating any old localStorage data) before
+// the home screen reads projects, then reveal the splash
+initStorage().finally(() => home.showSplash());
+
+// keep our projects out of eviction; iOS grants this to installed home-screen
+// apps. Retry on the first interaction, which some browsers require.
+const ensurePersisted = async () => {
+  try {
+    if (navigator.storage?.persisted && navigator.storage?.persist) {
+      if (!(await navigator.storage.persisted())) await navigator.storage.persist();
+    }
+  } catch { /* best effort */ }
+};
+ensurePersisted();
+window.addEventListener('pointerdown', function once() {
+  ensurePersisted();
+  window.removeEventListener('pointerdown', once);
+}, { once: true });
 
 window.addEventListener('resize', () => {
   editor.resize();
   viewer.resize();
 });
-// stash a recovery draft when the app is backgrounded (iOS PWA lifecycle)
+// stash a recovery draft on every lifecycle signal iOS might kill us on
+const stashDraft = () => store.saveDraftNow();
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') store.saveDraftNow();
+  if (document.visibilityState === 'hidden') stashDraft();
 });
+window.addEventListener('pagehide', stashDraft);
+document.addEventListener('freeze', stashDraft);
 
 // expose for debugging in the console
 window.homestudio = { store, editor, viewer, ui, home };
