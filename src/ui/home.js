@@ -12,6 +12,28 @@ import { demoProject, mansionProject } from '../demo.js';
 
 const $ = s => document.querySelector(s);
 
+/** Styled yes/no confirm matching the studio's Save dialog. Resolves true/false. */
+function confirmModal({ title, message, okLabel = 'OK', danger = false }) {
+  return new Promise(resolve => {
+    const scrim = document.createElement('div');
+    scrim.className = 'modal-scrim';
+    scrim.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
+        <div class="modal-row">
+          <button class="modal-btn" data-r="0">Cancel</button>
+          <button class="modal-btn ${danger ? 'danger' : 'primary'}" data-r="1">${escapeHtml(okLabel)}</button>
+        </div>
+      </div>`;
+    scrim.addEventListener('click', e => {
+      const r = e.target.closest('[data-r]')?.dataset.r;
+      if (r != null) { scrim.remove(); resolve(r === '1'); }
+    });
+    document.body.appendChild(scrim);
+  });
+}
+
 /** Draw a small clean plan preview of a stored project onto a canvas. */
 function drawPreview(canvas, project, w, h) {
   const data = project.levels ? project.levels[0] : project;
@@ -202,8 +224,12 @@ export class Home {
       // the project dirty so leaving always prompts
       this.openFn(d.data, d.projectId, { dirty: true });
     });
-    $('#draftDiscard')?.addEventListener('click', () => {
-      if (confirm('Discard the unsaved changes for good?')) {
+    $('#draftDiscard')?.addEventListener('click', async () => {
+      if (await confirmModal({
+        title: 'Discard unsaved changes?',
+        message: 'The unsaved work will be permanently discarded.',
+        okLabel: 'Discard', danger: true
+      })) {
         clearDraft(draft?.projectId);
         this.render();
       }
@@ -216,10 +242,14 @@ export class Home {
     $('#homeSelCancel')?.addEventListener('click', () => {
       this.selectMode = false; this.selected.clear(); this.render();
     });
-    $('#homeDelSel')?.addEventListener('click', () => {
+    $('#homeDelSel')?.addEventListener('click', async () => {
       const ids = [...this.selected];
       if (!ids.length) { this.selectMode = false; this.render(); return; }
-      if (confirm(`Delete ${ids.length} project${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) {
+      if (await confirmModal({
+        title: `Delete ${ids.length} project${ids.length === 1 ? '' : 's'}?`,
+        message: 'This cannot be undone.',
+        okLabel: 'Delete', danger: true
+      })) {
         ids.forEach(id => deleteProject(id));
         this.selectMode = false; this.selected.clear();
         this.render();

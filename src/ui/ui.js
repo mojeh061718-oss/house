@@ -203,9 +203,14 @@ export class UI {
       this.toast('Snapshot saved as PNG');
     };
     $('#mShot').onclick = shoot;
-    $('#mClear').onclick = () => {
+    $('#mClear').onclick = async () => {
       $('#fileMenu').classList.add('hidden');
-      if (!confirm('Clear the entire plan? Every wall, room and item on every floor will be removed. You can tap Undo right after if you change your mind.')) return;
+      const ok = await this.confirm({
+        title: 'Clear the plan?',
+        message: 'Every wall, room and item on every floor will be removed. You can tap Undo right after if you change your mind.',
+        okLabel: 'Clear plan', danger: true
+      });
+      if (!ok) return;
       store.clearPlan();
       this.toast('Plan cleared — Undo brings it back');
     };
@@ -1409,6 +1414,32 @@ export class UI {
       scrim.addEventListener('click', e => {
         const r = e.target.closest('[data-r]')?.dataset.r;
         if (r) { scrim.remove(); resolve(r); }
+      });
+      document.body.appendChild(scrim);
+    });
+  }
+
+  /** Styled yes/no confirm (matches the Save dialog). Resolves true/false. */
+  confirm({ title, message, okLabel = 'OK', danger = false } = {}) {
+    return new Promise(resolve => {
+      const esc = s => String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+      const scrim = document.createElement('div');
+      scrim.className = 'modal-scrim';
+      scrim.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+          <h3>${esc(title)}</h3>
+          <p>${esc(message)}</p>
+          <div class="modal-row">
+            <button class="modal-btn" data-r="0">Cancel</button>
+            <button class="modal-btn ${danger ? 'danger' : 'primary'}" data-r="1">${esc(okLabel)}</button>
+          </div>
+        </div>`;
+      scrim.addEventListener('pointerdown', e => e.stopPropagation());
+      scrim.addEventListener('click', e => {
+        const r = e.target.closest('[data-r]')?.dataset.r;
+        if (r != null) { scrim.remove(); resolve(r === '1'); }
       });
       document.body.appendChild(scrim);
     });

@@ -479,7 +479,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'dishwasher', name: 'Dishwasher', cat: 'kitchen', w: 60, d: 62, h: 86,
+    hidden: true, id: 'dishwasher_legacy', name: 'Dishwasher', cat: 'kitchen', w: 60, d: 62, h: 86,
     palettes: null, plan: { type: 'appliance', label: 'DW' },
     build: () => {
       const g = G();
@@ -928,7 +928,7 @@ export const ITEMS = [
     buildSized: (p, w, d) => buildTallGrass(p, w, d)
   },
   {
-    id: 'mailbox', name: 'Mailbox', cat: 'outdoor', w: 30, d: 55, h: 115,
+    hidden: true, id: 'mailbox_legacy', name: 'Mailbox', cat: 'outdoor', w: 30, d: 55, h: 115,
     palettes: null, plan: { type: 'box' },
     build: () => {
       const g = G();
@@ -1380,7 +1380,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'fire_pit', name: 'Fire Pit', cat: 'outdoor', w: 110, d: 110, h: 45,
+    hidden: true, id: 'fire_pit_legacy', name: 'Fire Pit', cat: 'outdoor', w: 110, d: 110, h: 45,
     palettes: null, plan: { type: 'rings' },
     light: { y: 42, color: '#ff9440', intensity: 1.5, distance: 520 },
     build: () => {
@@ -1431,7 +1431,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'trampoline', name: 'Trampoline', cat: 'outdoor', w: 300, d: 300, h: 92,
+    hidden: true, id: 'trampoline_legacy', name: 'Trampoline', cat: 'outdoor', w: 300, d: 300, h: 92,
     palettes: null, plan: { type: 'rings' },
     build: () => {
       const g = G();
@@ -1599,7 +1599,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'recliner', name: 'Recliner', cat: 'living', w: 92, d: 160, h: 100,
+    hidden: true, id: 'recliner_legacy', name: 'Recliner', cat: 'living', w: 92, d: 160, h: 100,
     palettes: FABRICS, plan: { type: 'sofa', seats: 1 },
     build: (p) => {
       const g = G();
@@ -1722,7 +1722,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'crib', name: 'Baby Crib', cat: 'bedroom', w: 74, d: 134, h: 95,
+    hidden: true, id: 'crib_legacy', name: 'Baby Crib', cat: 'bedroom', w: 74, d: 134, h: 95,
     palettes: WOODS, plan: { type: 'bed' },
     build: (p) => {
       const g = G();
@@ -1786,7 +1786,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'vanity_double', name: 'Double Vanity', cat: 'bathroom', w: 152, d: 52, h: 86,
+    hidden: true, id: 'vanity_double_legacy', name: 'Double Vanity', cat: 'bathroom', w: 152, d: 52, h: 86,
     palettes: WOODS, plan: { type: 'sink' },
     build: (p) => {
       const g = G();
@@ -2520,7 +2520,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'wine_cabinet', name: 'Wine Cabinet', cat: 'kitchen', w: 70, d: 45, h: 130,
+    id: 'wine_cabinet_k', name: 'Wine Cabinet', cat: 'kitchen', w: 70, d: 45, h: 130,
     palettes: WOODS, plan: { type: 'box' },
     build: (p) => {
       const g = G();
@@ -2843,7 +2843,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'mirror_floor', name: 'Leaning Mirror', cat: 'decor', w: 70, d: 12, h: 180,
+    id: 'mirror_leaning', name: 'Leaning Mirror', cat: 'decor', w: 70, d: 12, h: 180,
     palettes: WOODS, plan: { type: 'box' },
     build: (p) => {
       const g = G();

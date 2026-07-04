@@ -255,9 +255,9 @@ export const SHELLS = [
       api.item('roof_flat', 610, 122, 0, { w: 1290, d: 320, h: 26, elevation: 260 });
       // roof deck over the front container
       api.item('patio', 550, 366, 0, { w: 1060, d: 230 });
-      api.item('fence', 550, 470, 0, { w: 1080, d: 8, h: 95 });
-      api.item('fence', 30, 366, Math.PI / 2, { w: 220, d: 8, h: 95 });
-      api.item('fence', 1070, 366, Math.PI / 2, { w: 220, d: 8, h: 95 });
+      api.item('glass_rail', 550, 470, 0, { w: 1080, d: 10, h: 105 });
+      api.item('glass_rail', 30, 366, Math.PI / 2, { w: 220, d: 10, h: 105 });
+      api.item('glass_rail', 1070, 366, Math.PI / 2, { w: 220, d: 10, h: 105 });
       api.item('patio_set', 350, 370, 0);
       api.item('planter_box', 900, 380);
     }

@@ -436,14 +436,21 @@ export class Editor2D {
       // its walls (openings ride along) plus the furniture standing inside it
       const room = store.room(hit.id);
       if (room) {
+        // Only move walls that belong solely to this room. If it shares any
+        // wall with a neighbour (open-plan / partitioned layouts), moving those
+        // walls would tear the shell apart — so move just the furniture inside
+        // and leave every wall anchored. A free-standing room moves in full.
+        const others = store.rooms.filter(r => r !== room);
+        const wallIds = [...room.wallIds];
+        const sharesWall = wallIds.some(id => others.some(r => r.wallIds.has(id)));
+        const walls = sharesWall ? [] : wallIds.map(id => {
+          const wl = store.wall(id);
+          return wl && { id, ax: wl.ax, ay: wl.ay, bx: wl.bx, by: wl.by };
+        }).filter(Boolean);
         store.checkpoint();
         this.mode = {
           name: 'dragRoom', id: hit.id, startX: w.x, startY: w.y, moved: false, dragging: true,
-          cx0: room.centroid.x, cy0: room.centroid.y,
-          walls: [...room.wallIds].map(id => {
-            const wl = store.wall(id);
-            return wl && { id, ax: wl.ax, ay: wl.ay, bx: wl.bx, by: wl.by };
-          }).filter(Boolean),
+          cx0: room.centroid.x, cy0: room.centroid.y, walls,
           items: store.project.items
             .filter(it => !it.locked && (it.elevation || 0) < 200 && pointInPolygon(it.x, it.y, room.polygon))
             .map(it => ({ id: it.id, x: it.x, y: it.y, path: it.path ? it.path.map(p => ({ x: p.x, y: p.y })) : null }))
@@ -736,14 +743,18 @@ export class Editor2D {
         }
         store.commit(true);
         // moving the walls re-keys the room (its key is centroid-based), so
-        // glue the selection to whichever room now sits at the expected spot
-        const ex = m.cx0 + dx, ey = m.cy0 + dy;
-        let best = null, bestD = Infinity;
-        for (const r of store.rooms) {
-          const d = Math.hypot(r.centroid.x - ex, r.centroid.y - ey);
-          if (d < bestD) { bestD = d; best = r; }
+        // glue the selection to whichever room now sits at the expected spot.
+        // When only furniture moved (shared-wall room) the walls — and the key
+        // — stay put, so leave the selection alone.
+        if (m.walls.length) {
+          const ex = m.cx0 + dx, ey = m.cy0 + dy;
+          let best = null, bestD = Infinity;
+          for (const r of store.rooms) {
+            const d = Math.hypot(r.centroid.x - ex, r.centroid.y - ey);
+            if (d < bestD) { bestD = d; best = r; }
+          }
+          if (best) { m.id = best.key; store.selection = { kind: 'room', id: best.key }; }
         }
-        if (best) { m.id = best.key; store.selection = { kind: 'room', id: best.key }; }
         break;
       }
       case 'resizeOpening': {

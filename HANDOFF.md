@@ -16,7 +16,24 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.17.0** (dev branch only, not yet on live) — durable
+- Current version: **2.18.1** (dev branch only, not yet on live) — 5-agent QA
+  pass fixes. v2.18.0: fixed the floating gap between stacked storeys with a
+  solid buildFloorSlab() (arch3d.js) filling the SLAB band. v2.18.1 fixes from
+  the QA report: (M1) room-move now only translates walls UNIQUE to the room —
+  a room sharing walls with the shell moves just its furniture instead of
+  tearing the plan apart (editor2d.js dragRoom); (M2) store.deleteSelection
+  decides deletability BEFORE checkpoint(), so a blocked delete (locked item /
+  all-locked group) is a true no-op — no wiped redo, no empty undo, selection
+  kept, and the FAB shows the "Locked" toast; (M3) recovery-banner buttons no
+  longer clipped (scoped `.install-tip button:not(.home-action)` in styles.css);
+  (P2) degenerate flat Rect/Circle paths fall back to a line (placement.js
+  shapePolyline MIN guard); 9 duplicate catalog item IDs resolved (7 true dups
+  hidden + id'd `_legacy`, mirror_floor→mirror_leaning, wine_cabinet→
+  wine_cabinet_k) so ITEM_MAP has 176 unique ids / 166 visible cards; container
+  shells use `glass_rail` not the deprecated `fence`; Clear-plan + draft-discard
+  + multi-delete confirmations now use a styled modal (ui.confirm / home
+  confirmModal) instead of native confirm().
+- v2.17.0 (dev) — durable
   storage overhaul. Projects/drafts now live in **IndexedDB** (new src/core/
   idb.js) via an in-memory cache so the read API (listProjects/getProject) stays
   sync; writes persist async. projects.js: initStorage() opens the DB, migrates

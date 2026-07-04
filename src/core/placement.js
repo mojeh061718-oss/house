@@ -37,6 +37,10 @@ function poseAgainstWall(near, x, y, depth, gap = 0.5) {
 export function shapePolyline(shape, a, b) {
   const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
   const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+  // a near-flat rectangle/circle is a degenerate doubled-over loop — treat it
+  // as a straight line instead of overlapping coincident geometry
+  const MIN = 24;
+  if ((shape === 'rect' || shape === 'circle') && (x2 - x1 < MIN || y2 - y1 < MIN)) return [a, b];
   if (shape === 'rect') {
     return [
       { x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 },

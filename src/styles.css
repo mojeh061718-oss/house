@@ -153,7 +153,7 @@ canvas { display: block; }
 .install-tip svg { width: 22px; height: 22px; }
 .install-tip p { font-size: 12.5px; color: var(--text); line-height: 1.45; flex: 1; }
 .install-tip b { color: var(--accent); }
-.install-tip button {
+.install-tip button:not(.home-action) {
   flex: none;
   display: grid;
   place-items: center;
@@ -165,8 +165,8 @@ canvas { display: block; }
   color: var(--text-dim);
   cursor: pointer;
 }
-.install-tip button:hover { background: var(--panel-2); color: var(--text); }
-.install-tip button svg { width: 17px; height: 17px; }
+.install-tip button:not(.home-action):hover { background: var(--panel-2); color: var(--text); }
+.install-tip button:not(.home-action) svg { width: 17px; height: 17px; }
 .home-logo {
   display: inline-grid;
   place-items: center;

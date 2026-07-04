@@ -263,16 +263,32 @@ export class Store {
     const sel = this.selection;
     if (!sel) return false;
     const p = this.project;
-    const room = sel.kind === 'room' ? this.room(sel.id) : null;
-    if (sel.kind === 'room' && !room) return false;
     if (!['item', 'multi', 'opening', 'wall', 'room'].includes(sel.kind)) return false;
+    const room = sel.kind === 'room' ? this.room(sel.id) : null;
+
+    // Decide whether anything can actually be removed BEFORE taking a
+    // checkpoint, so a blocked delete (locked item, all-locked group, or a
+    // missing target) is a true no-op: no wiped redo history, no empty undo
+    // entry, selection kept — and the caller can show a "locked" hint.
+    if (sel.kind === 'item') {
+      const it = this.item(sel.id);
+      if (!it || it.locked) return false;
+    } else if (sel.kind === 'multi') {
+      const ids = new Set(sel.ids);
+      if (!p.items.some(i => ids.has(i.id) && !i.locked)) return false;
+    } else if (sel.kind === 'opening') {
+      if (!this.opening(sel.id)) return false;
+    } else if (sel.kind === 'wall') {
+      if (!this.wall(sel.id)) return false;
+    } else if (sel.kind === 'room') {
+      if (!room) return false;
+    }
+
     this.checkpoint();
     const cut = (arr, pred) => {
       for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) arr.splice(i, 1);
     };
     if (sel.kind === 'item') {
-      const it = this.item(sel.id);
-      if (it?.locked) { this.undoStack.pop(); this.emit('history'); return false; }
       cut(p.items, i => i.id === sel.id);
     } else if (sel.kind === 'multi') {
       const ids = new Set(sel.ids);
