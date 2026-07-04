@@ -78,6 +78,8 @@ export class Home {
   /** openFn(data, projectId) puts the studio on screen with that project. */
   constructor(openFn) {
     this.openFn = openFn;
+    this.selectMode = false;      // project-list multi-delete mode
+    this.selected = new Set();
     migrateLegacy();
   }
 
@@ -95,6 +97,8 @@ export class Home {
     const home = $('#home');
     home.classList.remove('hidden');
     $('#studio').classList.add('hidden');
+    this.selectMode = false;
+    this.selected.clear();
     this.render();
   }
 
@@ -126,8 +130,14 @@ export class Home {
             <p>Design your space in 2D &amp; 3D</p>
           </div>
           <span class="home-head-actions">
+            ${this.selectMode ? `
+            <button class="home-action danger" id="homeDelSel">${ICONS.trash}<span>Delete (${this.selected.size})</span></button>
+            <button class="home-action" id="homeSelCancel">${ICONS.close}<span>Cancel</span></button>
+            ` : `
             <button class="home-action" id="homeBackup" title="Save all projects to a file">${ICONS.download}<span>Back up</span></button>
             <button class="home-action" id="homeRestore" title="Restore projects from a backup file">${ICONS.open}<span>Restore</span></button>
+            ${projects.length ? `<button class="home-action" id="homeSelect" title="Select projects to delete">${ICONS.multi}<span>Select</span></button>` : ''}
+            `}
           </span>
         </header>
         ${projects.length && daysSinceBackup() > 14 ? `
@@ -153,11 +163,13 @@ export class Home {
             <span class="proj-meta">Furnished mansion with pool &amp; landscaped yard</span>
           </button>
           ${projects.map(p => `
-          <div class="proj-card saved" data-id="${p.id}" role="button" tabindex="0">
+          <div class="proj-card saved ${this.selected.has(p.id) ? 'sel' : ''}" data-id="${p.id}" role="button" tabindex="0">
             <span class="proj-thumb"><canvas></canvas></span>
             <span class="proj-name">${escapeHtml(p.name)}</span>
             <span class="proj-meta">Edited ${timeAgo(p.updatedAt)}</span>
-            <button class="proj-del" data-del="${p.id}" title="Delete project">${ICONS.trash}</button>
+            ${this.selectMode
+              ? `<span class="proj-check">${ICONS.check}</span>`
+              : `<button class="proj-del" data-del="${p.id}" title="Delete project">${ICONS.trash}</button>`}
           </div>`).join('')}
         </div>
       </div>`;
@@ -169,14 +181,33 @@ export class Home {
         $('#installTip').remove();
       };
     }
-    $('#homeBackup').onclick = async () => {
+    // ---- project-list multi-select delete ----
+    $('#homeSelect')?.addEventListener('click', () => {
+      this.selectMode = true; this.selected.clear(); this.render();
+    });
+    $('#homeSelCancel')?.addEventListener('click', () => {
+      this.selectMode = false; this.selected.clear(); this.render();
+    });
+    $('#homeDelSel')?.addEventListener('click', () => {
+      const ids = [...this.selected];
+      if (!ids.length) { this.selectMode = false; this.render(); return; }
+      if (confirm(`Delete ${ids.length} project${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) {
+        ids.forEach(id => deleteProject(id));
+        this.selectMode = false; this.selected.clear();
+        this.render();
+      }
+    });
+
+    const backupBtn = $('#homeBackup');
+    if (backupBtn) backupBtn.onclick = async () => {
       try {
         if (await backupToFile()) this.render();
       } catch {
         alert('Backup failed — please try again.');
       }
     };
-    $('#homeRestore').onclick = () => {
+    const restoreBtn = $('#homeRestore');
+    if (restoreBtn) restoreBtn.onclick = () => {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json,application/json';
@@ -221,6 +252,13 @@ export class Home {
       drawPreview(card.querySelector('canvas'), p.data, 320, 190);
       card.addEventListener('click', (e) => {
         if (e.target.closest('.proj-del')) return;
+        if (this.selectMode) {
+          if (this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);
+          card.classList.toggle('sel', this.selected.has(id));
+          const lbl = $('#homeDelSel')?.querySelector('span');
+          if (lbl) lbl.textContent = `Delete (${this.selected.size})`;
+          return;
+        }
         this.hide();
         this.openFn(p.data, id);
       });

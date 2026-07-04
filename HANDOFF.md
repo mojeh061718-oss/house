@@ -16,7 +16,17 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.15.2** (dev branch only, not yet on live) — (1) movable
+- Current version: **2.15.3** (dev branch only, not yet on live) — finished the
+  save/clear feature: (a) edits no longer autosave into the project; they go to
+  a single crash-recovery draft (projects.js saveDraft/getDraft/clearDraft,
+  store.saveDraftNow). Leaving via Back to projects when dirty pops a styled
+  Save / Don't save / Keep editing modal (ui.askSave + .modal CSS); explicit
+  Save writes the project and clears the draft (store.saveNow). On reopen, an
+  unsaved draft offers recovery (main.js). (b) "Clear plan" menu item wipes
+  every floor to one empty level (store.clearPlan, undoable). (c) Project home
+  screen has a Select mode (home.js selectMode/selected) to multi-delete
+  projects — check badges, "Delete (N)", blue-outlined cards.
+- v2.15.2 (dev) — (1) movable
   rooms: in 2D, tap a room to select it, then press-and-drag inside it to move
   the whole room — its walls (openings ride along) plus the furniture standing
   in it. `dragRoom` mode in editor2d.js; selection re-glues to the room after

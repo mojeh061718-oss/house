@@ -255,6 +255,69 @@ canvas { display: block; }
 .proj-del:hover { background: var(--danger); }
 .proj-del svg { width: 17px; height: 17px; }
 
+/* ---- multi-select on the project list ---- */
+.proj-card.saved.sel { outline: 2px solid var(--accent); outline-offset: 0; }
+.proj-check {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 23, 28, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: transparent;
+  backdrop-filter: blur(4px);
+}
+.proj-card.saved.sel .proj-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.proj-check svg { width: 18px; height: 18px; }
+.home-action.danger { border-color: var(--danger); color: var(--danger); }
+
+/* ---- confirm / save-on-exit modal ---- */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 10, 14, 0.6);
+  backdrop-filter: blur(3px);
+}
+.modal {
+  width: min(360px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.modal h3 { margin: 0 0 8px; font-size: 17px; color: var(--text); }
+.modal p { margin: 0 0 18px; font-size: 14px; line-height: 1.5; color: var(--text-dim); }
+.modal-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.modal-btn {
+  flex: 1 1 auto;
+  min-width: 96px;
+  padding: 11px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modal-btn:hover { border-color: #3a4356; }
+.modal-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.modal-btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+
 /* ============================= Studio layout ============================= */
 #studio {
   position: absolute;
