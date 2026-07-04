@@ -94,6 +94,7 @@ export class Store {
     this.placeDefId = null;    // catalog item being placed
     this.doorType = 'door';    // last-used opening types stay armed
     this.windowType = 'window';
+    this.drawShape = 'line';   // path draw mode: line | free | rect | circle
     this.viewMode = '2d';      // 2d | 3d | split
     this.undoStack = [];
     this.redoStack = [];

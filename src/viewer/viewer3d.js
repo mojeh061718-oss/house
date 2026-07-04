@@ -7,7 +7,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp, wallLength } from '../core/geometry.js';
-import { snapPose, createPathItem } from '../core/placement.js';
+import { snapPose, createPathItem, shapePolyline } from '../core/placement.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
 import { detectRooms, roomKey } from '../core/geometry.js';
@@ -446,21 +446,30 @@ export class Viewer3D {
     this.pathPreview.add(m);
   }
 
-  /** Rebuild the preview as a straight run of dots from start to cur. */
-  updatePathPreview(start, cur, width) {
+  /** Rebuild the preview as a run of dots along an arbitrary polyline. */
+  updatePathPreview(pts, width) {
     if (!this.pathPreview) return;
     for (let i = this.pathPreview.children.length - 1; i >= 0; i--) {
       const c = this.pathPreview.children[i];
       c.geometry?.dispose();
       this.pathPreview.remove(c);
     }
-    const len = Math.hypot(cur.x - start.x, cur.y - start.y);
     const step = Math.max(20, width / 4);
-    const n = Math.max(1, Math.round(len / step));
-    for (let i = 0; i <= n; i++) {
-      const t = i / n;
-      this.addPathPreviewDot(start.x + (cur.x - start.x) * t, start.y + (cur.y - start.y) * t, width);
+    for (let s = 1; s < pts.length; s++) {
+      const a = pts[s - 1], b = pts[s];
+      const n = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / step));
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        this.addPathPreviewDot(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, width);
+      }
     }
+  }
+
+  /** Resolve a path-draw gesture into a polyline for preview/commit. */
+  pathGesturePolyline(g) {
+    if (g.shape === 'free') return g.cur ? [...g.pts, g.cur] : g.pts;
+    if (g.shape === 'line') return [g.start, g.cur];
+    return shapePolyline(g.shape, g.start, g.cur);
   }
 
   /** Straight, angle-snapped ground endpoint for a drawn path (matches 2D). */
@@ -989,7 +998,10 @@ export class Viewer3D {
         const gpt = this.castGround(p);
         if (gpt) {
           this.flight = null;
-          this.gesture = { kind: 'pathDraw', id: e.pointerId, def, start: gpt, cur: gpt };
+          this.gesture = {
+            kind: 'pathDraw', id: e.pointerId, def, shape: this.store.drawShape,
+            start: gpt, cur: gpt, pts: [gpt]
+          };
           this.startPathPreview(def);
           this.addPathPreviewDot(gpt.x, gpt.y, def.path.width);
           return;
@@ -1056,8 +1068,17 @@ export class Viewer3D {
     if (g?.kind === 'pathDraw' && g.id === e.pointerId) {
       const gpt = this.castGround(p);
       if (gpt) {
-        g.cur = this.straightPathEnd(g.start, gpt);
-        this.updatePathPreview(g.start, g.cur, g.def.path.width);
+        if (g.shape === 'free') {
+          const last = g.pts[g.pts.length - 1];
+          const step = Math.max(20, g.def.path.width / 4);
+          if (Math.hypot(gpt.x - last.x, gpt.y - last.y) >= step) g.pts.push(gpt);
+          g.cur = gpt;
+        } else if (g.shape === 'line') {
+          g.cur = this.straightPathEnd(g.start, gpt);
+        } else {
+          g.cur = gpt;
+        }
+        this.updatePathPreview(this.pathGesturePolyline(g), g.def.path.width);
       }
       return;
     }
@@ -1158,9 +1179,11 @@ export class Viewer3D {
       }
       if (g.kind === 'pathDraw') {
         this.endPathPreview();
-        const len = Math.hypot(g.cur.x - g.start.x, g.cur.y - g.start.y);
-        if (len > 50) {
-          const it = createPathItem(this.store, g.def, [g.start, g.cur]);
+        const pts = this.pathGesturePolyline(g);
+        let len = 0;
+        for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+        if (pts.length >= 2 && len > 50) {
+          const it = createPathItem(this.store, g.def, pts);
           this.flyToItem(it);
         } else {
           // a plain tap: drop a short straight starter run there

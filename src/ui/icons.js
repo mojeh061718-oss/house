@@ -39,7 +39,11 @@ export const ICONS = {
   lock: svg('<rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.2" r="1.3" fill="currentColor" stroke="none"/>'),
   unlock: svg('<rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 7.8-1.3"/><circle cx="12" cy="15.2" r="1.3" fill="currentColor" stroke="none"/>'),
   expand: svg('<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6" rx="1"/>'),
-  check: svg('<path d="M5 12.5 10 17.5 19 6.5"/>')
+  check: svg('<path d="M5 12.5 10 17.5 19 6.5"/>'),
+  shapeLine: svg('<path d="M5 19 19 5"/><circle cx="5" cy="19" r="1.6" fill="currentColor"/><circle cx="19" cy="5" r="1.6" fill="currentColor"/>'),
+  shapeFree: svg('<path d="M4 15c1.8-4.5 3.4-4.5 5 0s3.2 3.8 5-0.5 3-3 5-1.5"/>'),
+  shapeRect: svg('<rect x="5" y="6.5" width="14" height="11" rx="1.5"/>'),
+  shapeCircle: svg('<circle cx="12" cy="12" r="7.5"/>')
 };
 
 export function icon(name) {

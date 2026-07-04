@@ -11,7 +11,7 @@ import { DEFAULTS } from '../core/state.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
 import { fmtFtIn, fmtArea } from '../core/units.js';
-import { snapPose, createPathItem } from '../core/placement.js';
+import { snapPose, createPathItem, shapePolyline } from '../core/placement.js';
 
 const GRID = 10;            // snap grid (cm)
 
@@ -498,7 +498,11 @@ export class Editor2D {
     if (!def) return;
     if (def.path) {
       // paths are laid by dragging: collect the stroke, commit on release
-      this.mode = { name: 'pathDraw', def, start: { x: w.x, y: w.y }, cur: { x: w.x, y: w.y }, dragging: true };
+      this.mode = {
+        name: 'pathDraw', def, shape: store.drawShape,
+        start: { x: w.x, y: w.y }, cur: { x: w.x, y: w.y },
+        pts: [{ x: w.x, y: w.y }], dragging: true
+      };
       return;
     }
     if (def.areaDraw) {
@@ -512,6 +516,13 @@ export class Editor2D {
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
+  }
+
+  /** Resolve the current pathDraw mode into a polyline for preview/commit. */
+  pathModePolyline(m) {
+    if (m.shape === 'free') return m.cur ? [...m.pts, m.cur] : m.pts;
+    if (m.shape === 'line') return [m.start, m.cur];
+    return shapePolyline(m.shape, m.start, m.cur); // rect / circle loop
   }
 
   /** Create a path item from a drawn stroke (absolute plan points). */
@@ -754,8 +765,16 @@ export class Editor2D {
         break;
       }
       case 'pathDraw': {
-        // straight rubber-band line from the start, not a freehand trail
-        m.cur = this.snapPathEnd(m.start, w.x, w.y);
+        if (m.shape === 'free') {
+          const last = m.pts[m.pts.length - 1];
+          const step = Math.max(20, m.def.path.width / 4);
+          if (dist(w.x, w.y, last.x, last.y) >= step) m.pts.push({ x: w.x, y: w.y });
+          m.cur = { x: w.x, y: w.y };
+        } else if (m.shape === 'line') {
+          m.cur = this.snapPathEnd(m.start, w.x, w.y); // straight, angle-snapped
+        } else {
+          m.cur = { x: w.x, y: w.y };                  // rect/circle use the bbox
+        }
         break;
       }
       case 'areaDraw': {
@@ -876,9 +895,10 @@ export class Editor2D {
       }
     }
     if (m.name === 'pathDraw') {
-      if (m.cur && dist(m.start.x, m.start.y, m.cur.x, m.cur.y) > 50) {
-        this.commitPath(m.def, [m.start, m.cur]);
-      }
+      const pts = this.pathModePolyline(m);
+      let len = 0;
+      for (let i = 1; i < pts.length; i++) len += dist(pts[i].x, pts[i].y, pts[i - 1].x, pts[i - 1].y);
+      if (pts.length >= 2 && len > 50) this.commitPath(m.def, pts);
     }
     if (m.name === 'areaDraw') {
       const { def, start: s, cur: c } = m;
@@ -1460,7 +1480,8 @@ export class Editor2D {
       this.drawNode(ctx, preview.x, preview.y, px, preview.kind);
     }
     if (m.name === 'pathDraw' && m.start && m.cur) {
-      this.strokePath(ctx, [m.start, m.cur], m.def.path.width, m.def, px, false, 0.65);
+      const pts = this.pathModePolyline(m);
+      if (pts.length >= 2) this.strokePath(ctx, pts, m.def.path.width, m.def, px, false, 0.65);
     }
     if (m.name === 'areaDraw' && m.cur) {
       const { start: s, cur: c } = m;

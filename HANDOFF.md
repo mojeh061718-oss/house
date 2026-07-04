@@ -16,7 +16,17 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.15.5** (dev branch only, not yet on live) — topbar &
+- Current version: **2.16.0** (dev branch only, not yet on live) — shape-picker
+  for drawn paths/water. A floating `.shape-bar` (top-center of the viewport,
+  shown by ui.syncShapeBar only while a path tool is armed) offers Line / Free /
+  Rectangle / Circle. store.drawShape holds the mode; placement.js shapePolyline
+  builds a closed rect/circle loop from the drag bbox, 'line' a straight
+  angle-snapped segment, 'free' collects live points. Both editors resolve the
+  mode via pathModePolyline / pathGesturePolyline (2D editor2d.js + 3D
+  viewer3d.js, updatePathPreview now takes a full polyline). Closed shapes are
+  loops of the path material (a circular/rectangular walkway or stream); filled
+  round/square water is still the Pond/Pool items. Default stays 'line'.
+- v2.15.5 (dev) — topbar &
   tool-rail redesign. Topbar no longer overflows/clips the menu on phones:
   Photo + Fullscreen moved into the ☰ menu (mShot/mFull), Sun/Walk/Roof grouped
   into a `.tb-seg` pill, project-name field + 3D-tool word labels hidden in

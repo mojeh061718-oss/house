@@ -31,6 +31,32 @@ function poseAgainstWall(near, x, y, depth, gap = 0.5) {
   };
 }
 
+/** Build a path polyline for a drawn shape from two corner points a,b.
+ *  'rect'/'circle' return a closed loop; 'line' a single segment. Free-draw
+ *  collects its own points live, so it never comes through here. */
+export function shapePolyline(shape, a, b) {
+  const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
+  const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+  if (shape === 'rect') {
+    return [
+      { x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 },
+      { x: x1, y: y2 }, { x: x1, y: y1 }
+    ];
+  }
+  if (shape === 'circle') {
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const rx = (x2 - x1) / 2, ry = (y2 - y1) / 2;
+    const n = Math.max(24, Math.round((rx + ry) / 6));
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const t = (i / n) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(t) * rx, y: cy + Math.sin(t) * ry });
+    }
+    return pts;
+  }
+  return [a, b];
+}
+
 /** Create a path item (sidewalk/driveway/water) from a drawn stroke.
  *  Takes a checkpoint and commits; returns the created item. */
 export function createPathItem(store, def, pts) {

@@ -62,7 +62,7 @@ export class UI {
       this.syncFabs();
     });
     store.on('change', () => this.renderPropsSoft());
-    store.on('tool', () => { this.syncTools(); this.showHint(); });
+    store.on('tool', () => { this.syncTools(); this.showHint(); this.syncShapeBar(); });
     store.on('view', () => this.syncView());
     store.on('history', () => this.syncHistory());
     store.on('projectLoaded', () => {
@@ -353,11 +353,45 @@ export class UI {
       this.viewer.frameAll();
     };
     $('#viewport').appendChild(fit);
+
+    // shape picker for drawn paths/water: line / free / rectangle / circle
+    const shapeBar = el('div', 'shape-bar');
+    shapeBar.id = 'shapeBar';
+    shapeBar.hidden = true;
+    const sh = (id, ic, title) =>
+      `<button class="shape-btn" data-shape="${id}" title="${title}">${ICONS[ic]}</button>`;
+    shapeBar.innerHTML =
+      sh('line', 'shapeLine', 'Straight line') +
+      sh('free', 'shapeFree', 'Free draw') +
+      sh('rect', 'shapeRect', 'Rectangle') +
+      sh('circle', 'shapeCircle', 'Circle');
+    shapeBar.querySelectorAll('.shape-btn').forEach(b => {
+      b.onclick = () => {
+        store.drawShape = b.dataset.shape;
+        this.syncShapeBar();
+        this.showHint();
+      };
+    });
+    $('#viewport').appendChild(shapeBar);
+
     document.addEventListener('pointerdown', (e) => {
       if (this._typePop && !this._typePop.contains(e.target) && !e.target.closest('#toolrail')) {
         this.closeTypePop();
       }
     });
+  }
+
+  /** Show the shape picker only while a drawable path/water tool is armed. */
+  syncShapeBar() {
+    const bar = $('#shapeBar');
+    if (!bar) return;
+    const def = this.store.tool === 'place' ? ITEM_MAP.get(this.store.placeDefId) : null;
+    const isPath = !!def?.path;
+    bar.hidden = !isPath;
+    if (isPath) {
+      bar.querySelectorAll('.shape-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.shape === this.store.drawShape));
+    }
   }
 
   /** Toggle compact chrome when the app's effective height is phone-sized. */
