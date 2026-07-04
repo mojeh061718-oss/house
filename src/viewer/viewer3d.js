@@ -4,7 +4,7 @@
 // the forced-landscape mode on iPhone/iPad works identically.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel } from './arch3d.js';
+import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel, buildFloorSlab } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp, wallLength } from '../core/geometry.js';
 import { snapPose, createPathItem, shapePolyline } from '../core/placement.js';
@@ -280,21 +280,10 @@ export class Viewer3D {
         const ceilHoles = i < project.levels.length - 1 ? this.stairHoles(lvl) : [];
         guard(() => g.add(buildCeilings(shim, rooms, ceilHoles)), 'ceilings');
       }
-      // upper levels sit on a visible structural slab
+      // upper levels sit on a solid structural slab that fills the gap down to
+      // the storey below, so the floors read as one connected building
       if (i > 0) {
-        guard(() => {
-          const slab = buildFloors(shim, rooms, floorHoles);
-          slab.traverse(o => {
-            if (o.isMesh) {
-              o.material = o.material.clone();
-              o.material.map = null;
-              o.material.color = new THREE.Color('#c9c3b8');
-            }
-          });
-          slab.scale.y = 1;
-          slab.position.y = -SLAB + 1;
-          g.add(slab);
-        }, 'slab');
+        guard(() => g.add(buildFloorSlab(shim, rooms, floorHoles, SLAB)), 'slab');
       }
       this.archGroup.add(g);
     }

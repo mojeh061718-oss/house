@@ -631,6 +631,25 @@ export function buildCeilings(project, rooms, holes = []) {
   return group;
 }
 
+/** Solid structural slab that fills the band between two stacked storeys, so
+ *  the floors read as one connected building instead of floating apart. Extruded
+ *  from each room footprint (stairwell holes carried through), height `height`,
+ *  sitting just below the upper floor (local y in [-height, 0]). */
+export function buildFloorSlab(project, rooms, holes = [], height = 30) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: '#cbc5ba', roughness: 0.9 });
+  for (const r of rooms) {
+    const geo = new THREE.ExtrudeGeometry(roomShape(r.polygon, holes), { depth: height, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, -height, 0);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  return group;
+}
+
 export function buildGround(project) {
   const group = new THREE.Group();
   const matId = project.settings.groundType || 'grass';
