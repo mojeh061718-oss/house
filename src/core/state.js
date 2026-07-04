@@ -1,7 +1,7 @@
 // Central application state: project data, selection, tools, undo/redo, persistence.
 import { detectRooms, roomKey, uid, pointInPolygon } from './geometry.js';
 import { openingDefaults, isDoorType } from './openings.js';
-import { saveProject } from './projects.js';
+import { saveProject, saveDraft, clearDraft } from './projects.js';
 
 export const DEFAULTS = {
   wallHeight: 260,      // cm
@@ -99,6 +99,7 @@ export class Store {
     this.redoStack = [];
     this.listeners = new Map();
     this._dirtyTimer = null;
+    this._savedJson = null;   // last state written to the project store
   }
 
   on(event, fn) {
@@ -304,21 +305,50 @@ export class Store {
 
   // ---- persistence ---------------------------------------------------------
 
-  scheduleAutosave() {
-    clearTimeout(this._dirtyTimer);
-    this._dirtyTimer = setTimeout(() => this.saveNow(), 800);
+  /** Any edits since the project was last saved (or opened)? */
+  isDirty() {
+    return JSON.stringify(serializeProject(this.project)) !== this._savedJson;
   }
 
+  /** Edits go to a crash-recovery draft, not the saved project. */
+  scheduleAutosave() {
+    clearTimeout(this._dirtyTimer);
+    this._dirtyTimer = setTimeout(() => this.saveDraftNow(), 800);
+  }
+
+  saveDraftNow() {
+    clearTimeout(this._dirtyTimer);
+    if (this.currentProjectId && this.isDirty()) {
+      saveDraft(this.currentProjectId, serializeProject(this.project));
+    }
+  }
+
+  /** Explicit save: write the project itself and drop the draft. */
   saveNow() {
     clearTimeout(this._dirtyTimer);
     if (this.currentProjectId) {
-      saveProject(this.currentProjectId, serializeProject(this.project));
+      const json = JSON.stringify(serializeProject(this.project));
+      saveProject(this.currentProjectId, JSON.parse(json));
+      this._savedJson = json;
+      clearDraft();
     }
+  }
+
+  /** Wipe every floor back to an empty plan (undoable). */
+  clearPlan() {
+    this.checkpoint();
+    this.project.levels = [emptyLevel()];
+    this.project.activeLevel = 0;
+    bindLevel(this.project);
+    this.select(null);
+    this.commit(true);
+    this.emit('level');
   }
 
   loadProject(data, projectId = null) {
     this.currentProjectId = projectId;
     this.project = hydrateProject(data);
+    this._savedJson = JSON.stringify(serializeProject(this.project));
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.selection = null;

@@ -71,6 +71,32 @@ export function deleteProject(id) {
   writeAll(map);
 }
 
+// ---- working draft ----------------------------------------------------------
+// Edits are no longer saved into the project automatically; they go to a
+// single crash-recovery draft slot. The project itself is only written when
+// the user chooses Save on leaving the studio.
+
+const DRAFT_KEY = 'honeycutt.draft.v1';
+
+export function saveDraft(projectId, data) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ projectId, at: Date.now(), data }));
+  } catch { /* storage full — recovery draft is best-effort */ }
+}
+
+export function getDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY));
+    return d && d.projectId && d.data ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
 // ---- backup & restore -------------------------------------------------------
 
 const BACKUP_AT_KEY = 'honeycutt.lastBackupAt';

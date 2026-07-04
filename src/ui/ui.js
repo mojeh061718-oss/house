@@ -117,6 +117,7 @@ export class UI {
       <div class="menu hidden" id="fileMenu">
         <button id="mHome">${icon('logo')} Back to projects</button>
         <button id="mRename">${icon('file')} Rename project</button>
+        <button id="mClear">${icon('trash')} Clear plan</button>
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
         <button id="mSave">${icon('download')} Download project file</button>
         <button id="mOpen">${icon('open')} Open project file</button>
@@ -203,6 +204,12 @@ export class UI {
     };
     $('#btnShot').onclick = shoot;
     $('#mShot').onclick = shoot;
+    $('#mClear').onclick = () => {
+      $('#fileMenu').classList.add('hidden');
+      if (!confirm('Clear the entire plan? Every wall, room and item on every floor will be removed. You can tap Undo right after if you change your mind.')) return;
+      store.clearPlan();
+      this.toast('Plan cleared — Undo brings it back');
+    };
     $('#mRename').onclick = () => {
       const name = prompt('Project name', store.project.name || '');
       if (name) {
@@ -1344,6 +1351,33 @@ export class UI {
     t.classList.add('show');
     clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  /** Save / Don't save / Keep editing prompt. Resolves 'save'|'discard'|'cancel'. */
+  askSave(name) {
+    return new Promise(resolve => {
+      const scrim = document.createElement('div');
+      scrim.className = 'modal-scrim';
+      const safe = String(name || 'This project').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+      scrim.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+          <h3>Save changes?</h3>
+          <p>“${safe}” has changes that aren't saved yet.</p>
+          <div class="modal-row">
+            <button class="modal-btn" data-r="cancel">Keep editing</button>
+            <button class="modal-btn danger" data-r="discard">Don't save</button>
+            <button class="modal-btn primary" data-r="save">Save</button>
+          </div>
+        </div>`;
+      scrim.addEventListener('pointerdown', e => e.stopPropagation());
+      scrim.addEventListener('click', e => {
+        const r = e.target.closest('[data-r]')?.dataset.r;
+        if (r) { scrim.remove(); resolve(r); }
+      });
+      document.body.appendChild(scrim);
+    });
   }
 
   showHint() {
