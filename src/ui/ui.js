@@ -101,14 +101,12 @@ export class UI {
         <button class="tb-btn" data-view="3d">${ICONS.d3}<span>3D</span></button>
         <button class="tb-btn only-wide" data-view="split">${ICONS.split}<span>Split</span></button>
       </div>
-      <span id="threeDControls">
-        <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}<span class="only-wide">Sun</span></button>
-        <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}<span class="only-wide">Walk</span></button>
-        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}<span class="only-wide">Roof</span></button>
+      <span class="tb-seg" id="threeDControls">
+        <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}<span class="tb-lbl">Sun</span></button>
+        <button class="tb-btn" id="btnWalk" title="First-person walk">${ICONS.walk}<span class="tb-lbl">Walk</span></button>
+        <button class="tb-btn" id="btnCeil" title="Toggle ceilings">${ICONS.ceiling}<span class="tb-lbl">Roof</span></button>
       </span>
-      <button class="tb-btn only-wide" id="btnShot" title="Save 3D snapshot">${ICONS.camera}<span class="only-wide">Photo</span></button>
-      <button class="tb-btn" id="btnFull" title="Fullscreen">${ICONS.expand}</button>
-      <button class="tb-btn" id="btnMenu" title="Project menu">${ICONS.menu}</button>
+      <button class="tb-btn tb-menu" id="btnMenu" title="Project menu">${ICONS.menu}</button>
       <div class="day-pop hidden" id="dayPop">
         <div class="day-head">${icon('sun')}<span id="dayLabel"></span></div>
         <input type="range" id="daySlider" min="5" max="22" step="0.25" aria-label="Time of day"/>
@@ -119,6 +117,7 @@ export class UI {
         <button id="mRename">${icon('file')} Rename project</button>
         <button id="mClear">${icon('trash')} Clear plan</button>
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
+        <button id="mFull">${icon('expand')} Toggle full screen</button>
         <button id="mSave">${icon('download')} Download project file</button>
         <button id="mOpen">${icon('open')} Open project file</button>
         <button id="mBackup">${icon('save')} Back up all projects</button>
@@ -187,13 +186,14 @@ export class UI {
     // automatically for installed apps held in landscape)
     const fsRoot = document.documentElement;
     if (fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen) {
-      $('#btnFull').onclick = () => {
+      $('#mFull').onclick = () => {
+        $('#fileMenu').classList.add('hidden');
         const active = document.fullscreenElement || document.webkitFullscreenElement;
         if (active) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
         else (fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen).call(fsRoot);
       };
     } else {
-      $('#btnFull').style.display = 'none';
+      $('#mFull').style.display = 'none';
     }
     const shoot = () => {
       const a = document.createElement('a');
@@ -202,7 +202,6 @@ export class UI {
       a.click();
       this.toast('Snapshot saved as PNG');
     };
-    $('#btnShot').onclick = shoot;
     $('#mShot').onclick = shoot;
     $('#mClear').onclick = () => {
       $('#fileMenu').classList.add('hidden');
@@ -316,6 +315,7 @@ export class UI {
       `<button class="rail-btn tool" data-tool="${id}" title="${title}">${ICONS[id]}<span>${label}</span></button>`;
     rail.innerHTML = `
       ${tool('select', 'Select', 'Select & move things')}
+      <span class="rail-div"></span>
       ${tool('wall', 'Wall', 'Draw walls point to point')}
       ${tool('room', 'Room', 'Drag out a rectangular room')}
       ${tool('door', 'Door', 'Choose a door style & place it')}

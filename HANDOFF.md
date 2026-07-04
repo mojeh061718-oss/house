@@ -16,7 +16,15 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.15.4** (dev branch only, not yet on live) — hardened
+- Current version: **2.15.5** (dev branch only, not yet on live) — topbar &
+  tool-rail redesign. Topbar no longer overflows/clips the menu on phones:
+  Photo + Fullscreen moved into the ☰ menu (mShot/mFull), Sun/Walk/Roof grouped
+  into a `.tb-seg` pill, project-name field + 3D-tool word labels hidden in
+  compact, `.tb-menu { flex:none }` + shrinkable name guarantee the menu stays
+  on-screen; day-pop re-anchored (right:52px). Tool rail: flat `.rail-btn`
+  (accent fill when active) with a `.rail-div` separating Select from the
+  drawing tools. Removed the old #btnShot/#btnFull topbar buttons.
+- v2.15.4 (dev) — hardened
   work-safety: unsaved-work recovery now lives as a home-screen banner
   (home.js draftTip: Resume / Discard) so a brand-new project that was never
   saved is still recoverable — the old mid-open confirm() couldn't reach it

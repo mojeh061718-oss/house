@@ -383,31 +383,37 @@ canvas { display: block; }
   border-radius: 8px;
   color: var(--text-dim);
   padding: 6px 10px;
-  width: clamp(80px, 18vw, 190px);
+  width: clamp(70px, 16vw, 190px);
+  min-width: 44px;          /* shrink before anything on the right gets clipped */
+  flex-shrink: 1;
   font-size: 13px;
   font-family: inherit;
   transition: all 0.15s;
 }
 .project-name:hover, .project-name:focus { border-color: var(--border); color: var(--text); outline: none; }
-.tb-spacer { flex: 1; }
+.tb-spacer { flex: 1 1 8px; min-width: 4px; }
+/* the menu button is the gateway to everything — it must never be clipped */
+.tb-menu { flex: none; }
 
-.view-toggle {
+.view-toggle, .tb-seg {
   display: flex;
+  align-items: center;
   background: var(--panel-2);
   border-radius: 10px;
   padding: 3px;
   gap: 2px;
   margin: 0 4px;
+  flex: none;
 }
-.view-toggle .tb-btn { height: 34px; }
+.view-toggle .tb-btn, .tb-seg .tb-btn { height: 34px; }
 .view-toggle .tb-btn.active { background: var(--accent); color: #fff; }
-
-#threeDControls { display: flex; align-items: center; gap: 2px; }
+.tb-seg .tb-btn.active { background: var(--accent-soft); color: var(--accent); }
+.tb-lbl { font-size: 12.5px; }
 
 .day-pop {
   position: absolute;
   top: calc(var(--topbar-h) + var(--safe-t) + 6px);
-  right: calc(96px + var(--safe-r));
+  right: calc(52px + var(--safe-r));
   background: rgba(29, 33, 41, 0.95);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -527,11 +533,11 @@ canvas { display: block; }
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 62px;
-  min-height: 56px;
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  background: linear-gradient(170deg, var(--panel-2), #1e232d);
+  width: 58px;
+  min-height: 52px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--panel-2);
   color: var(--text-dim);
   cursor: pointer;
   font-family: inherit;
@@ -542,12 +548,20 @@ canvas { display: block; }
   flex: none;
 }
 .rail-btn svg { width: 21px; height: 21px; }
-.rail-btn:hover { color: var(--text); border-color: #3a4356; }
+.rail-btn:hover { color: var(--text); background: #2a3140; }
 .rail-btn.active {
-  background: linear-gradient(170deg, #3f8bff, #2f6fe0);
-  border-color: #5a9bff;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
   box-shadow: 0 4px 16px rgba(56, 132, 255, 0.35);
+}
+/* divider between Select (pointer) and the drawing tools */
+.rail-div {
+  width: 30px;
+  height: 1px;
+  background: var(--border);
+  margin: 1px 0;
+  flex: none;
 }
 .rail-spacer { flex: 1; min-height: 6px; }
 
@@ -1101,6 +1115,13 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   letter-spacing: 0.4px;
 }
 
+
+/* phone top bar: hide the name field and the Sun/Walk/Roof word labels, and
+   drop Split — keeps everything on one row with the menu always reachable */
+#app.compact .project-name { display: none; }
+#app.compact .tb-seg .tb-lbl { display: none; }
+#app.compact .only-wide { display: none !important; }
+#app.compact #topbar { gap: 3px; }
 
 #app.compact #levelBar { padding: 3px 5px; margin-left: 4px; }
 #app.compact #levelBar .lvl-label { display: none; }
