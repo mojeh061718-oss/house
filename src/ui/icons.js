@@ -47,7 +47,8 @@ export const ICONS = {
   wand: svg('<path d="M15 4V2M15 10V8M12 6h2M18 6h2"/><path d="M4 20 14.5 9.5l1 1L5 21z"/><path d="m13.5 7.5 3 3"/>'),
   star: svg('<path d="M12 3.5l2.5 5.3 5.8.8-4.2 4 1 5.7L12 21.6 6.9 22l1-5.7-4.2-4 5.8-.8z"/>'),
   magnet: svg('<path d="M6 4v7a6 6 0 0 0 12 0V4"/><path d="M6 8h4M14 8h4"/><path d="M6 4h4M14 4h4"/>'),
-  move: svg('<path d="M12 3v18M3 12h18"/><path d="M12 3 9.5 6M12 3l2.5 3M12 21l-2.5-3M12 21l2.5-3M3 12l3-2.5M3 12l3 2.5M21 12l-3-2.5M21 12l-3 2.5"/>')
+  move: svg('<path d="M12 3v18M3 12h18"/><path d="M12 3 9.5 6M12 3l2.5 3M12 21l-2.5-3M12 21l2.5-3M3 12l3-2.5M3 12l3 2.5M21 12l-3-2.5M21 12l-3 2.5"/>'),
+  adjust: svg('<path d="M20 8a8 8 0 1 0 .8 6" /><path d="M20 3.5V8h-4.5"/><path d="M9 15l6-6M9 11v4h4"/>')
 };
 
 export function icon(name) {

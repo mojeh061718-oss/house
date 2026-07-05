@@ -592,13 +592,17 @@ export class UI {
     const store = this.store;
     const c = $('#fabCluster');
     c.innerHTML = `
+      <div class="adjust-pop hidden" id="adjustPop">
+        <label class="adj-row"><span class="adj-lbl">Turn <b id="adjRotVal">0°</b></span>
+          <input type="range" id="adjRot" min="0" max="360" step="5" value="0" aria-label="Rotate"/></label>
+        <label class="adj-row"><span class="adj-lbl">Size <b id="adjSizeVal">100%</b></span>
+          <input type="range" id="adjSize" min="25" max="300" step="5" value="100" aria-label="Resize"/></label>
+        <button class="fab mini ok" id="adjDone" title="Done">${ICONS.check}<span>Done</span></button>
+      </div>
       <div class="sel-actions hidden" id="selActions">
-        <button class="fab mini item-only" id="selRotL" title="Rotate left 45°">${ICONS.rotate}<span>−45°</span></button>
-        <button class="fab mini flip item-only" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
-        <button class="fab mini item-only" id="selShrink" title="Smaller">${ICONS.minus}<span>Smaller</span></button>
-        <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
         <button class="fab mini move-only ok" id="selMoveDone" title="Done moving">${ICONS.check}<span>Done</span></button>
         <button class="fab mini item-only" id="selMove" title="Move — tap where it should go">${ICONS.move}<span>Move</span></button>
+        <button class="fab mini item-only" id="selAdjust" title="Resize & turn">${ICONS.adjust}<span>Adjust</span></button>
         <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
         <button class="fab mini item-only" id="selRoom" title="Select the room this is in">${ICONS.room}<span>Room</span></button>
         <button class="fab mini room-only" id="selFurnish" title="Auto-furnish this room">${ICONS.wand}<span>Furnish</span></button>
@@ -619,18 +623,38 @@ export class UI {
       store.commit(false);
     };
     $('#selLock').onclick = () => this.toggleLock();
-    $('#selRotL').onclick = () => withItem(it => it.rotation -= Math.PI / 4);
-    $('#selRotR').onclick = () => withItem(it => it.rotation += Math.PI / 4);
-    $('#selGrow').onclick = () => withItem(it => {
-      it.w = Math.min(2000, Math.round(it.w * 1.1));
-      it.d = Math.min(2000, Math.round(it.d * 1.1));
-      it.h = Math.min(1000, Math.round(it.h * 1.1));
+    $('#selAdjust').onclick = () => this.toggleAdjust();
+    $('#adjDone').onclick = () => this.closeAdjust();
+    // Adjust sliders: one undo entry per drag (checkpoint on first input,
+    // commit on release). "Turn" sets rotation; "Size" scales w/d/h uniformly.
+    const adjRot = $('#adjRot'), adjSize = $('#adjSize');
+    const adjItem = () => {
+      const s = store.selection;
+      return s?.kind === 'item' ? store.item(s.id) : null;
+    };
+    const beginAdj = () => { if (!this._adjDrag) { store.checkpoint(); this._adjDrag = true; } };
+    const endAdj = () => { if (this._adjDrag) { this._adjDrag = false; store.commit(true); } };
+    adjRot.addEventListener('input', () => {
+      const it = adjItem(); if (!it) return;
+      beginAdj();
+      it.rotation = (+adjRot.value) * Math.PI / 180;
+      $('#adjRotVal').textContent = `${adjRot.value}°`;
+      store.commit(false);
     });
-    $('#selShrink').onclick = () => withItem(it => {
-      it.w = Math.max(10, Math.round(it.w / 1.1));
-      it.d = Math.max(10, Math.round(it.d / 1.1));
-      it.h = Math.max(10, Math.round(it.h / 1.1));
+    adjSize.addEventListener('input', () => {
+      const it = adjItem(); if (!it || !this._adjBase) return;
+      beginAdj();
+      const k = (+adjSize.value) / 100;
+      it.w = Math.max(10, Math.min(2000, Math.round(this._adjBase.w * k)));
+      it.d = Math.max(10, Math.min(2000, Math.round(this._adjBase.d * k)));
+      it.h = Math.max(10, Math.min(1000, Math.round(this._adjBase.h * k)));
+      $('#adjSizeVal').textContent = `${adjSize.value}%`;
+      store.commit(false);
     });
+    for (const s of [adjRot, adjSize]) {
+      s.addEventListener('change', endAdj);
+      s.addEventListener('pointerup', endAdj);
+    }
     $('#selRoom').onclick = () => {
       const it = store.selection?.kind === 'item' && store.item(store.selection.id);
       if (!it) return;
@@ -670,6 +694,38 @@ export class UI {
     this.syncFabs();
     this.showHint();
     this.toast('Placed');
+  }
+
+  /** One tool for rotate + resize: a popover with a Turn dial and a Size
+   *  slider, replacing the old ±45° / Bigger / Smaller buttons. */
+  toggleAdjust() {
+    const pop = $('#adjustPop');
+    if (pop && !pop.classList.contains('hidden')) { this.closeAdjust(); return; }
+    this.openAdjust();
+  }
+
+  openAdjust() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind !== 'item') return;
+    const it = store.item(sel.id);
+    if (!it) return;
+    if (it.locked) { this.toast('Locked — tap the padlock to unlock first'); return; }
+    this._adjBase = { w: it.w, d: it.d, h: it.h };
+    const deg = Math.round(((it.rotation || 0) * 180 / Math.PI) % 360 + 360) % 360;
+    const rot = $('#adjRot'), size = $('#adjSize');
+    rot.value = deg; $('#adjRotVal').textContent = `${deg}°`;
+    size.value = 100; $('#adjSizeVal').textContent = '100%';
+    $('#adjustPop').classList.remove('hidden');
+    $('#selAdjust').classList.add('active');
+  }
+
+  closeAdjust() {
+    const pop = $('#adjustPop');
+    if (pop) pop.classList.add('hidden');
+    $('#selAdjust')?.classList.remove('active');
+    this._adjBase = null;
+    this._adjDrag = false;
   }
 
   /** One-tap auto-furnish of the selected room using the best-guess layout. */
@@ -793,6 +849,8 @@ export class UI {
   syncFabs() {
     const sel = this.store.selection;
     const actions = $('#selActions');
+    // the Adjust popover is per-selection — close it whenever selection changes
+    this.closeAdjust();
     // leaving the moved item (or losing the selection) ends move mode cleanly
     if (this.store.moveId && sel?.id !== this.store.moveId) this.store.moveId = null;
     const moving = !!this.store.moveId;

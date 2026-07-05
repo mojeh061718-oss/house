@@ -16,7 +16,23 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.22.2** (dev branch only, not yet on live) — adds a
+- Current version: **2.22.3** (dev branch only, not yet on live) — action-bar
+  declutter: one Adjust tool + Delete no longer clipped.
+  - **BUG:** adding Move/Done widened the selection action bar past a phone's
+    width and, since it was a non-wrapping flex row, **Delete got clipped off**.
+    Fixed: `.sel-actions` now `flex-wrap: wrap` (max-width 90vw) so it spills to a
+    second row instead of hiding buttons.
+  - **ADJUST TOOL:** replaced the four buttons (−45°, +45°, Smaller, Bigger) with
+    a single **Adjust** button (`#selAdjust`, item-only) that opens a popover
+    (`#adjustPop`) with a **Turn** slider (0–360°) and a **Size** slider
+    (25–300%, scales w/d/h uniformly from the size captured on open) + a green
+    **Done**. Sliders take ONE undo checkpoint per drag (`beginAdj`/`endAdj`,
+    commit(false) live → commit(true) on release). Popover auto-closes on any
+    selection change (`closeAdjust()` at top of syncFabs); locked items blocked.
+    New `adjust` icon. Bar is now Move · Adjust · Lock · Room · (Furnish) · Copy ·
+    Edit · Delete. Verified: rotate + grow + shrink via sliders, Done/deselect
+    close, locked block, Delete visible.
+- v2.22.2 (dev) — adds a
   tap-to-move mode (dragging objects on a phone was too fiddly).
   - **MOVE MODE:** a **Move** button on the selection action bubble (`#selMove`,
     item-only) sets `store.moveId` to the selected item. While active: tapping
