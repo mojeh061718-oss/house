@@ -6,6 +6,7 @@ import { Viewer3D } from './viewer/viewer3d.js';
 import { UI } from './ui/ui.js';
 import { Home } from './ui/home.js';
 import { clearDraft, initStorage, setStorageFullHandler } from './core/projects.js';
+import pkg from '../package.json';
 
 initOrientation();
 
@@ -88,9 +89,13 @@ import('./core/textures.js').then(m => {
   window.homestudio.MATERIALS = m.MATERIALS;
 });
 
-// PWA: register the service worker in production builds
+// PWA: register the service worker in production builds. The version in the
+// URL makes every release a "new" worker so the browser installs it and the
+// activate step purges the previous cache — otherwise a constant worker keeps
+// serving a stale app shell (the "it went back to an old version" bug).
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => { /* offline support unavailable */ });
+    navigator.serviceWorker.register(`./sw.js?v=${pkg.version}`)
+      .catch(() => { /* offline support unavailable */ });
   });
 }

@@ -16,7 +16,22 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.22.4** (dev branch only, not yet on live) — fixes Delete
+- Current version: **2.22.5** (dev branch only, not yet on live) — fixes the PWA
+  serving a stale/old version.
+  - **BUG:** the service worker (`public/sw.js`) used a CONSTANT cache name
+    (`honeycutt-v2`). Because the name never changed between deploys, the browser
+    kept the old worker + old cached app shell and served it network-first-then-
+    stale, so the app "reverted" to an old version (e.g. 2.20.0) intermittently —
+    and dev (/house/dev/) + live (/house/) shared the one cache on the same
+    origin. Fix: (1) main.js registers `./sw.js?v=${pkg.version}` so every
+    release is a NEW worker the browser installs; (2) sw.js derives its cache
+    name from that `?v=` param AND its own scope path → `honeycutt::/house/dev/
+    sw.js::2.22.5`. activate() deletes any cache != the current name, so a new
+    version purges the old shell and dev/live never collide. Self-heals within
+    one online load. Verified the versioned cache is created (headless).
+    NOTE for the user: an already-installed home-screen PWA may need one online
+    open (or a reinstall) to pick up the new worker the first time.
+- v2.22.4 (dev) — fixes Delete
   vanishing after using Move.
   - **BUG:** entering move mode hid every non-move button inline
     (`.fab.mini:not(.move-only) → display:none`), but exiting only re-applied the
