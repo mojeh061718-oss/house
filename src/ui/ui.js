@@ -641,6 +641,7 @@ export class UI {
         <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
         <button class="fab mini item-only" id="selRoom" title="Select the room this is in">${ICONS.room}<span>Room</span></button>
         <button class="fab mini room-only" id="selFurnish" title="Auto-furnish this room">${ICONS.wand}<span>Furnish</span></button>
+        <button class="fab mini item-only" id="selPhoto" title="Add a photo from your device">${ICONS.image}<span>Photo</span></button>
         <button class="fab mini" id="selDup" title="Duplicate">${ICONS.copy}<span>Copy</span></button>
         <button class="fab mini" id="selEdit" title="Edit details">${ICONS.sliders}<span>Edit</span></button>
         <button class="fab mini danger" id="selDel" title="Delete">${ICONS.trash}<span>Delete</span></button>
@@ -710,6 +711,10 @@ export class UI {
     };
     $('#selMove').onclick = () => this.startMove();
     $('#selMoveDone').onclick = () => this.endMove();
+    $('#selPhoto').onclick = () => {
+      const it = store.selection?.kind === 'item' && store.item(store.selection.id);
+      if (it) this.pickPhotoFor(it);
+    };
   }
 
   /** Enter tap-to-move mode for the selected item: tap anywhere to drop it
@@ -847,12 +852,20 @@ export class UI {
    *  image is downscaled to keep the saved project small, then stored on the
    *  item as a data URL and rendered onto the frame. */
   pickPhotoFor(it) {
+    // iOS Safari drops a detached <input type=file> when it backgrounds the tab
+    // to show the photo picker, so `change` never fires. Attaching it to the DOM
+    // (kept off-screen) and retaining the reference until it fires keeps it alive.
     const inp = document.createElement('input');
     inp.type = 'file';
     inp.accept = 'image/*';
+    inp.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(inp);
+    let done = false;
+    const cleanup = () => { inp.onchange = null; inp.remove(); };
     inp.onchange = () => {
+      done = true;
       const file = inp.files && inp.files[0];
-      if (!file) return;
+      if (!file) { cleanup(); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const img = new Image();
@@ -870,13 +883,18 @@ export class UI {
           this.store.commit(false);
           this.renderProps();
           this.toast('Photo added');
+          cleanup();
         };
-        img.onerror = () => this.toast('Couldn’t read that image');
+        img.onerror = () => { this.toast('Couldn’t read that image'); cleanup(); };
         img.src = reader.result;
       };
-      reader.onerror = () => this.toast('Couldn’t read that file');
+      reader.onerror = () => { this.toast('Couldn’t read that file'); cleanup(); };
       reader.readAsDataURL(file);
     };
+    // if the user cancels the picker, tidy up the stray input once focus returns
+    window.addEventListener('focus', () => {
+      setTimeout(() => { if (!done) cleanup(); }, 800);
+    }, { once: true });
     inp.click();
   }
 
@@ -1009,6 +1027,13 @@ export class UI {
     actions.querySelectorAll('.room-only').forEach(b => {
       b.style.display = isRoom ? '' : 'none';
     });
+    // Photo button only for photo-capable items (picture frames / canvas)
+    const photoBtn = $('#selPhoto');
+    if (photoBtn) {
+      const it = isItem && this.store.item(sel.id);
+      const def = it && ITEM_MAP.get(it.defId);
+      photoBtn.style.display = def?.photo ? '' : 'none';
+    }
     // padlock: items & groups only; icon mirrors the current state
     const lockBtn = $('#selLock');
     const lockable = isItem || sel?.kind === 'multi';

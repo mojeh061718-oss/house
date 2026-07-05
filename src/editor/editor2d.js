@@ -2024,16 +2024,29 @@ export class Editor2D {
         ctx.fillText(text, sp.x, sp.y + 4);
       }
     }
-    // selected item dims
+    // selected item dims — sit the pill below everything (rotated corners AND
+    // the rotate handle), so the blue handle never lands on top of the text no
+    // matter which way the piece is turned.
     if (sel?.kind === 'item') {
       const it = store.item(sel.id);
       if (it) {
         const s = this.toScreen(it.x, it.y);
-        const yOff = (it.d / 2) * this.view.scale + 44;
+        const hs = this.itemHandles(it);
+        // lowest on-screen point of the selection decoration
+        let maxSy = s.y + (it.d / 2) * this.view.scale;
+        for (const h of hs) maxSy = Math.max(maxSy, h.sy + this.handleR + 3);
+        const text = `${fmtFtIn(it.w)} × ${fmtFtIn(it.d)}`;
         ctx.font = '600 11px system-ui, sans-serif';
-        ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
-        ctx.fillText(`${fmtFtIn(it.w)} × ${fmtFtIn(it.d)}`, s.x, s.y + yOff);
+        const tw = ctx.measureText(text).width;
+        const py = maxSy + 18;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(s.x - tw / 2 - 7, py - 10, tw + 14, 19, 9.5);
+        else ctx.rect(s.x - tw / 2 - 7, py - 10, tw + 14, 19);
+        ctx.fill();
+        ctx.fillStyle = '#2b6fe0';
+        ctx.fillText(text, s.x, py + 4);
       }
     }
   }
