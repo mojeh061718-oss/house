@@ -334,6 +334,10 @@ export class Viewer3D {
     this.itemGroups.clear();
     const wallH = this.store.project.settings.wallHeight;
     const top = this.topLevel();
+    // Real PointLights are capped so a yard full of fixtures can't blow the
+    // WebGL light budget on a phone. Every fixture still GLOWS (emissive), but
+    // only the nearest MAX cast an actual light pool. Re-picked on each rebuild.
+    this._litItems = this.pickLitItems(top);
     for (let li = 0; li <= top; li++) {
     for (const it of this.store.project.levels[li].items) {
       const def = ITEM_MAP.get(it.defId);
@@ -356,7 +360,7 @@ export class Viewer3D {
         outer.userData.w = it.w; outer.userData.d = it.d; outer.userData.h = it.h;
         outer.userData.pw = it.pw;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
-        if (def.light) {
+        if (def.light && this._litItems.has(it.id)) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
           l.position.set(0, def.mount === 'ceiling' ? wallH + def.light.y : def.light.y, 0);
           outer.add(l);
@@ -370,6 +374,26 @@ export class Viewer3D {
     }
     }
     this.updateSelBox();
+  }
+
+  /** Choose which light fixtures get a real PointLight (nearest to the camera
+   *  first), capped so a scene packed with fixtures stays within the GPU's
+   *  light budget. Returns a Set of item ids. */
+  pickLitItems(top) {
+    const MAX = 26;
+    const cam = this.camera?.position;
+    const lit = [];
+    for (let li = 0; li <= top; li++) {
+      for (const it of this.store.project.levels[li].items) {
+        const def = ITEM_MAP.get(it.defId);
+        if (!def?.light) continue;
+        if (this.hideRoof && def.plan?.type === 'roof') continue;
+        const d = cam ? (it.x - cam.x) ** 2 + (it.y - cam.z) ** 2 : 0;
+        lit.push({ id: it.id, d });
+      }
+    }
+    if (lit.length > MAX) lit.sort((a, b) => a.d - b.d);
+    return new Set(lit.slice(0, MAX).map(l => l.id));
   }
 
   poseItem(outer, it, def, wallH, lvlY = 0) {
@@ -1047,11 +1071,17 @@ export class Viewer3D {
 
     // placement tools claim the tap; only the select tool grabs items
     const hit = this.store.tool === 'select' ? this.castItems(p) : null;
-    if (hit) {
-      const it = this.store.item(hit.itemId);
-      this.store.select({ kind: 'item', id: hit.itemId });
-      const def = ITEM_MAP.get(it.defId);
-      if (def?.mount === 'ceiling' || it.locked) return;
+    const it = hit && this.store.item(hit.itemId);
+    const def = it && ITEM_MAP.get(it.defId);
+    // ground-cover surfaces (grass, pads, patios, pools, ponds, laid paths) are
+    // big and easy to land on while orbiting — so they never grab a plain tap;
+    // you long-press to select/edit them. Regular furniture stays tap-to-select.
+    const groundish = !!def && (def.areaDraw || !!def.path);
+    const already = this.store.selection?.kind === 'item' && this.store.selection.id === hit?.itemId;
+    // Only an ALREADY-selected, movable piece begins a move-drag on press.
+    // Landing on anything else starts a camera orbit, so dragging never yanks
+    // an asset you were only trying to swipe past.
+    if (hit && already && !groundish && def?.mount !== 'ceiling' && !it.locked) {
       this.store.checkpoint();
       this.drag = {
         id: hit.itemId,
@@ -1065,7 +1095,9 @@ export class Viewer3D {
       this.flight = null; // user takes over the camera
       this.gesture = {
         kind: 'rotate', id: e.pointerId, x: p.x, y: p.y,
-        theta0: this.orbit.theta, phi0: this.orbit.phi, moved: false
+        theta0: this.orbit.theta, phi0: this.orbit.phi, moved: false,
+        downT: (typeof performance !== 'undefined' ? performance.now() : 0),
+        tapItemId: hit ? hit.itemId : null, tapGroundish: groundish
       };
     }
   }
@@ -1227,10 +1259,20 @@ export class Viewer3D {
       if (g.kind === 'rotate' && !g.moved && !this.walkMode) {
         const tap = { x: g.x, y: g.y };
         const tool = this.store.tool;
+        const now = (typeof performance !== 'undefined' ? performance.now() : 0);
+        const longPress = now - (g.downT || 0) >= 450;
         if (tool === 'place' && this.store.placeDefId) {
           this.placeItemAt(tap);
         } else if (tool === 'door' || tool === 'window') {
           this.placeOpeningAt(tap, tool === 'door' ? this.store.doorType : this.store.windowType);
+        } else if (g.tapItemId && this.store.item(g.tapItemId)) {
+          // a piece of furniture selects on a plain tap; big ground-cover
+          // surfaces only select on a long-press so orbiting past them is free
+          if (!g.tapGroundish || longPress) {
+            this.store.select({ kind: 'item', id: g.tapItemId });
+          } else {
+            this.store.select(null);
+          }
         } else {
           // simple tap: select what the finger landed on — a door/window,
           // the room a floor/wall belongs to, or an exterior wall face
@@ -1241,8 +1283,9 @@ export class Viewer3D {
             this.store.select({ kind: 'room', id: arch.roomKey });
           } else if (arch?.exteriorWallId && this.store.wall(arch.exteriorWallId)) {
             this.store.select({ kind: 'wall', id: arch.exteriorWallId, exterior: true });
-          } else if (this.castGround(tap)) {
-            // tapped the yard/grass → edit the ground cover
+          } else if (longPress && this.castGround(tap)) {
+            // long-press the yard/grass → edit the ground cover (a quick tap
+            // just clears the selection so it reads as a navigation gesture)
             this.store.select({ kind: 'ground' });
           } else {
             this.store.select(null);

@@ -1613,7 +1613,7 @@ export class UI {
     } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
       text = `${tap} a wall to place the ${store.tool}`;
     } else if (store.viewMode === '3d') {
-      text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select & move it`;
+      text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select · long-press grass & paths to edit`;
     } else {
       const hints = {
         select: store.project.walls.length

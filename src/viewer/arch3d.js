@@ -43,6 +43,7 @@ export function archMat(matId, opts = {}) {
  *  (and drag translation) applies unchanged. */
 export function buildPathModel(it, def) {
   if (def.path.surface === 'fence') return buildFenceModel(it, def);
+  if (def.path.surface === 'rocks') return buildRockPathModel(it, def);
   const g = new THREE.Group();
   const width = it.pw || def.path.width;
   const isWater = def.path.surface === 'water';
@@ -96,6 +97,82 @@ export function buildPathModel(it, def) {
       const mesh = add(new THREE.Mesh(new THREE.BoxGeometry(len + 6, 1.6, width + 6), bed));
       mesh.position.set((a.x + b.x) / 2, 0.8, (a.y + b.y) / 2);
       mesh.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+    }
+  }
+  return g;
+}
+
+// A few lumpy rock geometries, cached and reused across the whole scene.
+const rockGeoCache = [];
+function rockGeo(variant) {
+  if (rockGeoCache[variant]) return rockGeoCache[variant];
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  const s = (variant + 1) * 3.13;
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const n = Math.sin(v.x * 2.1 + s) + Math.cos(v.y * 1.8 + s * 1.4) + Math.sin(v.z * 2.4 + s * 0.7);
+    v.multiplyScalar(1 + n * 0.09);
+    pos.setXYZ(i, v.x, v.y * 0.62, v.z); // squashed like a river rock
+  }
+  geo.computeVertexNormals();
+  rockGeoCache[variant] = geo;
+  return geo;
+}
+
+/** Decorative rock path: scattered rounded stones over a shallow gravel bed,
+ *  laid along the drawn stroke. */
+function buildRockPathModel(it, def) {
+  const g = new THREE.Group();
+  const width = it.pw || def.path.width;
+  const rel = it.path.map(p => ({ x: p.x - it.x, y: p.y - it.y }));
+  // shallow soil/gravel bed so gaps between rocks read as ground
+  const bed = archMat(def.path.mat || 'gravel');
+  const bedScale = MATERIAL_MAP.get(def.path.mat || 'gravel')?.scale ?? 200;
+  let u0 = 0;
+  for (let i = 1; i < rel.length; i++) {
+    const a = rel[i - 1], b = rel[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 1) continue;
+    const geo = new THREE.BoxGeometry(len, 3, width);
+    pathBoxUV(geo, len, u0, bedScale);
+    const m = new THREE.Mesh(geo, bed);
+    m.position.set((a.x + b.x) / 2, 1.5, (a.y + b.y) / 2);
+    m.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+    m.receiveShadow = true;
+    g.add(m);
+    u0 += len;
+  }
+  // deterministic scatter of stones along each segment
+  const tones = ['#8f8b83', '#a7a29a', '#726d66', '#b9b1a4', '#5f5a54'];
+  const mats = tones.map(t => solidMat(t));
+  let seed = 20220607;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const step = Math.max(14, width * 0.16);
+  for (let i = 1; i < rel.length; i++) {
+    const a = rel[i - 1], b = rel[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 1) continue;
+    const ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+    const nx = -uy, ny = ux; // perpendicular across the path
+    for (let d = 0; d < len; d += step * (0.7 + rnd() * 0.6)) {
+      const lanes = Math.max(1, Math.round(width / step));
+      for (let k = 0; k < lanes; k++) {
+        if (rnd() > 0.82) continue; // leave some gaps
+        const across = (rnd() - 0.5) * (width - 6);
+        const jitter = (rnd() - 0.5) * step * 0.5;
+        const r = width * (0.07 + rnd() * 0.06);
+        const cx = a.x + ux * (d + jitter) + nx * across;
+        const cy = a.y + uy * (d + jitter) + ny * across;
+        const mesh = new THREE.Mesh(rockGeo(Math.floor(rnd() * 4)), mats[Math.floor(rnd() * mats.length)]);
+        mesh.scale.setScalar(r);
+        mesh.position.set(cx, r * 0.5, cy);
+        mesh.rotation.set(rnd() * 0.3, rnd() * Math.PI * 2, rnd() * 0.3);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        g.add(mesh);
+      }
     }
   }
   return g;

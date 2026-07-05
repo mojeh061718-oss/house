@@ -83,6 +83,14 @@ export function solid(hex, rough = 0.8, metal = 0) {
   return m;
 }
 
+/** Self-lit (emissive) material for lamps, bulbs, flames — NOT cached, so
+ *  setting its glow never mutates a shared material. */
+export function glow(hex, intensity = 1, rough = 0.4) {
+  return new THREE.MeshStandardMaterial({
+    color: hex, roughness: rough, emissive: hex, emissiveIntensity: intensity
+  });
+}
+
 /** Wood-grain material tinted to any tone — used for all wooden furniture. */
 export function wood(hex, rough = 0.55) {
   const key = `${hex}_${rough}`;
@@ -471,6 +479,83 @@ export function blob(parent, hexA, hexB, r, x, y, z, opts = {}) {
     vertexColors: true, roughness: 0.92
   }));
   mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+// ---- flags ----------------------------------------------------------------
+
+const flagTexCache = new Map();
+
+/** Canvas texture for a flag face. kind 'us' draws the Stars & Stripes; any
+ *  other kind draws a simple two-tone banner using colors a/b. */
+export function flagTexture(kind = 'us', a = '#b72436', b = '#f4efe2') {
+  const key = `${kind}_${a}_${b}`;
+  if (flagTexCache.has(key)) return flagTexCache.get(key);
+  const c = document.createElement('canvas');
+  c.width = 380; c.height = 200;
+  const g = c.getContext('2d');
+  if (kind === 'us') {
+    const red = '#b22234', white = '#ffffff', blue = '#3c3b6e';
+    const stripeH = c.height / 13;
+    for (let i = 0; i < 13; i++) {
+      g.fillStyle = i % 2 === 0 ? red : white;
+      g.fillRect(0, i * stripeH, c.width, stripeH + 1);
+    }
+    const cantonW = c.width * 0.4, cantonH = stripeH * 7;
+    g.fillStyle = blue;
+    g.fillRect(0, 0, cantonW, cantonH);
+    g.fillStyle = white;
+    for (let row = 0; row < 9; row++) {
+      const y = (row + 0.5) * (cantonH / 9);
+      const cols = row % 2 === 0 ? 6 : 5;
+      const off = row % 2 === 0 ? 0 : cantonW / 12;
+      for (let col = 0; col < cols; col++) {
+        const x = off + (col + 0.5) * (cantonW / 6);
+        g.beginPath(); g.arc(x, y, 3.6, 0, Math.PI * 2); g.fill();
+      }
+    }
+  } else {
+    // simple decorative banner: field, a cream band, and a soft emblem
+    g.fillStyle = a; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = b; g.fillRect(0, c.height * 0.42, c.width, c.height * 0.16);
+    g.globalAlpha = 0.9;
+    g.fillStyle = b;
+    g.beginPath(); g.arc(c.width * 0.5, c.height * 0.5, 34, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 1;
+    g.fillStyle = a;
+    g.beginPath(); g.arc(c.width * 0.5, c.height * 0.5, 22, 0, Math.PI * 2); g.fill();
+  }
+  const tx = new THREE.CanvasTexture(c);
+  tx.colorSpace = THREE.SRGBColorSpace;
+  tx.anisotropy = 4;
+  flagTexCache.set(key, tx);
+  return tx;
+}
+
+/** Waving flag plane. width w × height h, hoist (left) edge pinned at local
+ *  x=0, flying toward +x, waving out of the XY plane. `tex` maps to both faces. */
+export function buildFlag(parent, tex, w, h, x = 0, y = 0, z = 0, opts = {}) {
+  const segX = 30, segY = 6;
+  const geo = new THREE.PlaneGeometry(w, h, segX, segY);
+  const pos = geo.attributes.position;
+  const phase = opts.phase ?? 0;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i);
+    const t = (px + w / 2) / w;          // 0 at hoist, 1 at fly end
+    const amp = h * 0.09 * t;            // free end waves more
+    const zz = Math.sin(t * Math.PI * 3 + phase) * amp;
+    pos.setZ(i, zz);
+  }
+  geo.translate(w / 2, 0, 0);           // pin the hoist edge to x=0
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, side: THREE.DoubleSide, roughness: 0.85, metalness: 0
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  if (opts.ry) mesh.rotation.y = opts.ry;
   mesh.castShadow = true;
   parent.add(mesh);
   return mesh;

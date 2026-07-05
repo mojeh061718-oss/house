@@ -16,7 +16,40 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.20.0** (dev branch only, not yet on live) — ergonomics
+- Current version: **2.21.0** (dev branch only, not yet on live) — outdoor
+  content + a big 3D-navigation fix. Everything ships to `/house/dev/` only.
+  - **3D NAVIGATION FIX (top ask):** selection no longer happens on pointer-DOWN.
+    A drag over an unselected asset now ORBITS the camera instead of grabbing it;
+    a plain tap selects furniture; big ground-cover surfaces (grass, pads, patios,
+    pools, ponds, laid paths) + the ground plane require a **long-press (≥450ms)**
+    to select/edit, so quick taps/swipes navigate freely. An already-selected,
+    movable piece still drags to move. Files: viewer3d.js onDown (defers select,
+    `groundish`/`already` logic), onUp (tap-select + longPress gate), hint text in
+    ui.js. `groundish = def.areaDraw || !!def.path`.
+  - **Light-count cap:** viewer3d `pickLitItems(top)` keeps only the nearest 26
+    fixtures' real PointLights (re-picked each rebuild); every fixture still glows
+    via emissive, so a yard full of lights can't blow the mobile GPU light budget.
+  - **New exterior lighting (cat outdoor, all with a `light` spec + emissive glow):**
+    Path Light, Bollard Light, Garden Uplight, In-Ground Well Light, Flood Light,
+    String Lights (catenary of glowing bulbs between two posts), Outdoor Wall
+    Sconce (wall-mount), Post Cap Light, Tiki Torch (flame), Garden Lantern.
+  - **Flags:** American Flag Pole (waving Stars & Stripes), Garden Flag (color
+    palette), Wall-Mounted Flag (wall-mount, US/banner palette). New builders
+    `flagTexture(kind,a,b)` (canvas US flag / two-tone banner) + `buildFlag()`
+    (waving displaced plane). New 2D plan symbol `flag`.
+  - **Decorative rocks:** Rock Path (draggable path, `surface: 'rocks'` →
+    arch3d `buildRockPathModel` scatters lumpy squashed stones over a gravel bed),
+    plus standalone **Boulder** and **Rock Cluster** (blob-based). New 2D symbol
+    `rock`. New builder `glow(hex,intensity)` (non-cached emissive material).
+  - **More exterior paint (24 new):** new `Exterior Paint` material group in
+    textures.js — 19 lap-siding colors (charcoal, forest/hunter green, dusty/slate
+    blue, barn/colonial red, mocha, greige, taupe, cream, soft yellow, deep teal,
+    olive, sand, tuxedo black…), 3 board & batten, 3 stucco. All `use:'wall'`, so
+    they show in every wall/exterior picker grouped under "Exterior Paint".
+  - Regression: 16/16 new items build meshes in 3D; rock path scatters 157 meshes;
+    light cap holds 40 fixtures → 26 PointLights; nav A–E scenarios all pass;
+    plan symbols draw; no console errors. Night render verified visually.
+- v2.20.0 (dev) — ergonomics
   batch 2 (plan items 2–15). Everything below ships to `/house/dev/` only.
   - **Item 2 — Furnish this room:** room-only `#selFurnish` bubble button →
     `furnishSelectedRoom()` auto-lays furniture for the selected room (wand icon).

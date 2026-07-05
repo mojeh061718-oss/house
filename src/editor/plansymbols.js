@@ -215,6 +215,35 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       circle(0, 0, hw * 0.28);
       break;
     }
+    case 'flag': {
+      // pole base dot with a little flag streaming off to one side
+      const r = Math.min(hw, hd) * 0.5;
+      ctx.beginPath(); ctx.arc(0, 0, Math.max(2, r * 0.5), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.save();
+      ctx.fillStyle = 'rgba(180,60,70,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(0, -1.5);
+      ctx.lineTo(hw, -hd * 0.5);
+      ctx.lineTo(hw, hd * 0.5);
+      ctx.lineTo(0, 1.5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 'rock': {
+      // a few overlapping lumps read as a rock/boulder from above
+      ctx.save();
+      ctx.fillStyle = 'rgba(140,138,130,0.6)';
+      const lumps = [[0, 0, 0.9], [-hw * 0.35, hd * 0.2, 0.5], [hw * 0.4, -hd * 0.15, 0.55], [hw * 0.1, hd * 0.35, 0.4]];
+      for (const [lx, ly, s] of lumps) {
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, hw * s, hd * s, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
     case 'tv': {
       // TVs are only a few cm deep — draw at a readable minimum depth
       const td = Math.max(d, 16), thd = td / 2;

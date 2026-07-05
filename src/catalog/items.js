@@ -4,7 +4,7 @@
 import {
   G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel, prism, pyramid,
   solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond,
-  buildTallGrass
+  buildTallGrass, flagTexture, buildFlag, glow
 } from './builders.js';
 
 export const CATEGORIES = [
@@ -1555,6 +1555,276 @@ export const ITEMS = [
       return g;
     }
   },
+  // --- decorative rock path (drag on the plan, stones scatter along it) ---
+  {
+    id: 'path_rock', name: 'Rock Path', cat: 'outdoor', w: 220, d: 100, h: 12, noShadow: true,
+    palettes: null, plan: { type: 'path' }, path: { mat: 'gravel', width: 100, surface: 'rocks' },
+    build: () => {
+      // catalog thumbnail: a short bed of scattered stones
+      const g = G();
+      box(g, tex('gravel', 1.1, 0.6), 220, 3, 100, 0, 0, 0);
+      let s = 7;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const tones = ['#8f8b83', '#a7a29a', '#726d66', '#b9b1a4'];
+      for (let i = 0; i < 24; i++) {
+        const r = 8 + rnd() * 8;
+        const b = blob(g, tones[i % 4], '#5f5a54', r,
+          -100 + rnd() * 200, r * 0.5, -44 + rnd() * 88, { seed: i + 3, sy: 0.6, detail: 2 });
+        b.rotation.y = rnd() * Math.PI;
+      }
+      return g;
+    }
+  },
+
+  // ===== EXTERIOR & LAWN LIGHTING =====
+  {
+    id: 'light_path', name: 'Path Light', cat: 'outdoor', w: 16, d: 16, h: 48, noShadow: true,
+    palettes: null, plan: { type: 'lampRound' },
+    light: { y: 40, color: '#ffd9a0', intensity: 0.7, distance: 260 },
+    build: () => {
+      const g = G();
+      const dark = metal('#2f3236', 0.45);
+      cyl(g, dark, 1.6, 40, 0, 0, 0);                 // slim stake
+      cyl(g, dark, 6.5, 4, 0, 42, 0, { rTop: 2.5 });  // little roof cap
+      cyl(g, glow('#ffe4ad', 1.2), 4.6, 6, 0, 35, 0); // glowing lamp under it
+      return g;
+    }
+  },
+  {
+    id: 'light_bollard', name: 'Bollard Light', cat: 'outdoor', w: 22, d: 22, h: 92, noShadow: true,
+    palettes: null, plan: { type: 'lampRound' },
+    light: { y: 82, color: '#ffe0aa', intensity: 0.9, distance: 340 },
+    build: () => {
+      const g = G();
+      const body = metal('#3b3e43', 0.4);
+      cyl(g, body, 6, 84, 0, 0, 0);                   // post
+      cyl(g, glow('#ffe8bd', 1.1), 5.6, 6, 0, 78, 0); // glowing band near top
+      cyl(g, body, 7, 6, 0, 84, 0, { rTop: 5 });      // cap over the band
+      return g;
+    }
+  },
+  {
+    id: 'light_spot', name: 'Garden Uplight', cat: 'outdoor', w: 16, d: 16, h: 22, noShadow: true,
+    palettes: null, plan: { type: 'lampRound' },
+    light: { y: 20, color: '#eaf3ff', intensity: 1.0, distance: 300 },
+    build: () => {
+      const g = G();
+      const dark = metal('#33363b', 0.4);
+      cyl(g, dark, 1.4, 12, 0, 0, 0);                 // ground spike
+      const head = cyl(g, dark, 4.5, 9, 0, 12, 0, { rx: -0.5 }); // tilted-up can
+      head.rotation.x = -0.5;
+      cyl(g, glow('#eaf3ff', 1.6), 3.6, 2, 0, 18, 2); // bright lens
+      return g;
+    }
+  },
+  {
+    id: 'light_well', name: 'In-Ground Well Light', cat: 'outdoor', w: 18, d: 18, h: 6, noShadow: true,
+    palettes: null, plan: { type: 'lampRound' },
+    light: { y: 12, color: '#ffe6b4', intensity: 0.8, distance: 300 },
+    build: () => {
+      const g = G();
+      cyl(g, metal('#3a3d42', 0.5), 8, 5, 0, 0, 0);   // flush housing ring
+      cyl(g, glow('#ffeec4', 1.5), 6, 2, 0, 3, 0);    // upward-facing lens
+      return g;
+    }
+  },
+  {
+    id: 'light_flood', name: 'Flood Light', cat: 'outdoor', w: 22, d: 20, h: 46, noShadow: true,
+    palettes: null, plan: { type: 'box' },
+    light: { y: 42, color: '#eef4ff', intensity: 1.7, distance: 520 },
+    build: () => {
+      const g = G();
+      const dark = metal('#2c2f33', 0.4);
+      cyl(g, dark, 1.8, 38, 0, 0, 0);                 // stake
+      const head = box(g, dark, 20, 12, 8, 0, 40, 0, { r: 2 }); // housing
+      head.rotation.x = 0.35;
+      const lens = box(g, glow('#eef4ff', 1.8), 16, 9, 1.5, 0, 41, 4);
+      lens.rotation.x = 0.35;
+      return g;
+    }
+  },
+  {
+    id: 'light_string', name: 'String Lights', cat: 'outdoor', w: 300, d: 24, h: 220, noShadow: true,
+    palettes: null, plan: { type: 'box' },
+    light: { y: 165, color: '#ffdca0', intensity: 0.8, distance: 480 },
+    build: () => {
+      const g = G();
+      const wd = wood('#6b5236', 0.7);
+      for (const sx of [-1, 1]) cyl(g, wd, 4, 208, sx * 145, 0, 0);   // two posts
+      const bulbMat = glow('#ffe1a6', 1.6);
+      const wireMat = solid('#2b2b2b', 0.6);
+      const N = 11, W = 290, top = 206, sag = 66;
+      let prev = null;
+      for (let i = 0; i < N; i++) {
+        const t = i / (N - 1);
+        const x = -W / 2 + W * t;
+        const y = top - 4 * sag * t * (1 - t);        // parabolic droop
+        if (prev) {                                    // dark wire segment
+          const dx = x - prev.x, dy = y - prev.y;
+          const len = Math.hypot(dx, dy);
+          const seg = cyl(g, wireMat, 0.5, len, (x + prev.x) / 2, (y + prev.y) / 2 - len / 2, 0);
+          seg.rotation.z = Math.atan2(dx, -dy);
+        }
+        sphere(g, bulbMat, 3.2, x, y - 4, 0);          // hanging bulb
+        prev = { x, y };
+      }
+      return g;
+    }
+  },
+  {
+    id: 'light_sconce', name: 'Outdoor Wall Sconce', cat: 'outdoor', w: 18, d: 14, h: 34,
+    mount: 'wall', palettes: null, plan: { type: 'wallDecor' },
+    light: { y: 0, color: '#ffdca0', intensity: 0.8, distance: 300 },
+    build: () => {
+      const g = G();
+      const dark = metal('#2e3034', 0.4);
+      box(g, dark, 12, 4, 3, 0, -2, -5);               // back plate
+      box(g, dark, 3, 20, 3, 0, 4, 0);                 // arm/frame
+      // glowing lantern box with a small cap
+      box(g, glow('#ffe6bd', 1.0), 9, 12, 8, 0, 10, 2, { r: 1 });
+      box(g, dark, 12, 3, 11, 0, 22, 2, { r: 1 });     // roof
+      return g;
+    }
+  },
+  {
+    id: 'light_postcap', name: 'Post Cap Light', cat: 'outdoor', w: 12, d: 12, h: 12, noShadow: true,
+    palettes: null, plan: { type: 'box' },
+    light: { y: 10, color: '#ffe0aa', intensity: 0.5, distance: 200 },
+    build: () => {
+      const g = G();
+      const dark = metal('#33363b', 0.45);
+      box(g, dark, 11, 3, 11, 0, 0, 0, { r: 1 });      // base skirt
+      box(g, glow('#ffe6c2', 1.1), 8, 6, 8, 0, 3, 0, { r: 1 }); // glowing cube
+      box(g, dark, 11, 2.5, 11, 0, 9, 0, { r: 1 });    // cap top
+      return g;
+    }
+  },
+  {
+    id: 'torch_tiki', name: 'Tiki Torch', cat: 'outdoor', w: 16, d: 16, h: 150, noShadow: true,
+    palettes: null, plan: { type: 'lampRound' },
+    light: { y: 140, color: '#ff8a3a', intensity: 1.0, distance: 300 },
+    build: () => {
+      const g = G();
+      const bamboo = wood('#9a7b45', 0.7);
+      cyl(g, bamboo, 3, 132, 0, 0, 0);                 // bamboo pole
+      for (const y of [40, 76, 112]) cyl(g, wood('#7c6236', 0.7), 3.4, 3, 0, y, 0); // nodes
+      cyl(g, metal('#3a3128', 0.5), 5, 10, 0, 130, 0); // brass fuel canister
+      // flame
+      const flame = sphere(g, glow('#ff7a1e', 2.0), 5, 0, 146, 0, { sy: 1.7 });
+      sphere(g, glow('#ffd24d', 1.6), 3, 0, 150, 0, { sy: 1.6 });
+      return g;
+    }
+  },
+  {
+    id: 'lantern_garden', name: 'Garden Lantern', cat: 'outdoor', w: 24, d: 24, h: 62, noShadow: true,
+    palettes: null, plan: { type: 'lampRound' },
+    light: { y: 40, color: '#ffdca0', intensity: 0.8, distance: 300 },
+    build: () => {
+      const g = G();
+      const dark = metal('#2c2e31', 0.4);
+      cyl(g, dark, 8, 6, 0, 0, 0, { rTop: 6.5 });      // footed base
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, dark, 2, 30, 2, sx * 7, 8, sz * 7); // cage posts
+      box(g, glow('#ffe6bd', 0.95), 12, 26, 12, 0, 10, 0, { r: 1 }); // glowing glass box
+      // pagoda-ish cap
+      box(g, dark, 20, 3, 20, 0, 38, 0, { r: 1 });
+      cyl(g, dark, 7, 8, 0, 41, 0, { rTop: 0.5 });
+      sphere(g, dark, 2, 0, 50, 0);
+      return g;
+    }
+  },
+
+  // ===== FLAGS =====
+  {
+    id: 'flag_us', name: 'American Flag Pole', cat: 'outdoor', w: 50, d: 50, h: 600, noShadow: true,
+    palettes: null, plan: { type: 'flag' },
+    build: () => {
+      const g = G();
+      const pole = metal('#d7dade', 0.3);
+      cyl(g, solid('#8a8f95', 0.6), 14, 8, 0, 0, 0, { rTop: 10 }); // base collar
+      cyl(g, pole, 3, 592, 0, 6, 0);                   // tall pole
+      sphere(g, glow('#ffd24d', 0.5, 0.3), 5, 0, 600, 0); // gold finial ball
+      buildFlag(g, flagTexture('us'), 172, 94, 4, 500, 0, { ry: 0 });
+      return g;
+    }
+  },
+  {
+    id: 'flag_garden', name: 'Garden Flag', cat: 'outdoor', w: 40, d: 20, h: 90, noShadow: true,
+    palettes: [
+      { name: 'Red', chip: '#b72436', a: '#b72436', b: '#f4efe2' },
+      { name: 'Navy', chip: '#2c3e5c', a: '#2c3e5c', b: '#f4efe2' },
+      { name: 'Green', chip: '#2f6d4f', a: '#2f6d4f', b: '#f4efe2' },
+      { name: 'Black & Gold', chip: '#2b2d30', a: '#2b2d30', b: '#e9c85a' }
+    ],
+    plan: { type: 'flag' },
+    build: (p) => {
+      const g = G();
+      const rod = metal('#3a3d42', 0.4);
+      cyl(g, rod, 1, 84, 0, 0, 0);                     // shepherd-hook rod
+      const arm = cyl(g, rod, 1, 26, 0, 84, 0, { rz: Math.PI / 2 });
+      arm.position.set(13, 84, 0);
+      buildFlag(g, flagTexture('banner', p?.a || '#b72436', p?.b || '#f4efe2'), 32, 44, 1, 40, 0, { ry: 0 });
+      return g;
+    }
+  },
+  {
+    id: 'flag_wall', name: 'Wall-Mounted Flag', cat: 'outdoor', w: 26, d: 120, h: 30,
+    mount: 'wall', palettes: [
+      { name: 'Stars & Stripes', chip: '#b22234', kind: 'us' },
+      { name: 'Red', chip: '#b72436', kind: 'banner', a: '#b72436', b: '#f4efe2' },
+      { name: 'Navy', chip: '#2c3e5c', kind: 'banner', a: '#2c3e5c', b: '#f4efe2' }
+    ],
+    plan: { type: 'wallDecor' },
+    build: (p) => {
+      const g = G();
+      const rod = metal('#8a8f95', 0.35);
+      // angled pole coming off the wall (wall face is -z; pole reaches +z/up)
+      const pole = cyl(g, rod, 2, 120, 0, 6, 0, { rx: -0.9 });
+      pole.rotation.x = -0.9;
+      sphere(g, glow('#ffd24d', 0.4, 0.3), 3.5, 0, 92, 78);
+      const tex = flagTexture(p?.kind || 'us', p?.a, p?.b);
+      buildFlag(g, tex, 92, 52, 2, 60, 30, { ry: -Math.PI / 2 });
+      return g;
+    }
+  },
+
+  // ===== DECORATIVE ROCKS =====
+  {
+    id: 'boulder', name: 'Boulder', cat: 'outdoor', w: 90, d: 70, h: 55, noShadow: true,
+    palettes: [
+      { name: 'Granite Grey', chip: '#8f8b83', a: '#8f8b83', b: '#5f5a54' },
+      { name: 'Sandstone', chip: '#c2ad86', a: '#c2ad86', b: '#8a7550' },
+      { name: 'Slate', chip: '#5f6469', a: '#5f6469', b: '#3a3d42' }
+    ],
+    plan: { type: 'rock' },
+    build: (p) => {
+      const g = G();
+      const b = blob(g, p?.a || '#8f8b83', p?.b || '#5f5a54', 40, 0, 20, 0, { seed: 12, sy: 0.7, detail: 3 });
+      b.scale.set(1.1, 1, 0.85);
+      return g;
+    }
+  },
+  {
+    id: 'rock_cluster', name: 'Rock Cluster', cat: 'outdoor', w: 140, d: 110, h: 40, noShadow: true,
+    palettes: [
+      { name: 'Granite Grey', chip: '#8f8b83', a: '#8f8b83', b: '#5f5a54' },
+      { name: 'Sandstone', chip: '#c2ad86', a: '#c2ad86', b: '#8a7550' },
+      { name: 'River Rock', chip: '#7d8890', a: '#7d8890', b: '#4c545a' }
+    ],
+    plan: { type: 'rock' },
+    build: (p) => {
+      const g = G();
+      let s = 91;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const spots = [[-40, -20, 26], [30, -30, 32], [10, 25, 22], [-25, 30, 18], [50, 20, 16]];
+      spots.forEach(([x, z, r], i) => {
+        const b = blob(g, p?.a || '#8f8b83', p?.b || '#5f5a54', r, x, r * 0.5, z, { seed: i + 5, sy: 0.62, detail: 2 });
+        b.rotation.y = rnd() * Math.PI;
+        b.scale.set(1 + rnd() * 0.3, 1, 0.8 + rnd() * 0.3);
+      });
+      return g;
+    }
+  },
+
   {
     id: 'pergola', name: 'Pergola', cat: 'outdoor', w: 300, d: 300, h: 250,
     palettes: WOODS, plan: { type: 'pergola' },
