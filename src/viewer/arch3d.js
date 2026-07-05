@@ -616,9 +616,9 @@ export function buildWalls(project, rooms) {
         const oc = c - len / 2;
         const left = oc - o.width / 2, right = oc + o.width / 2;
         if (left > x0 + 0.5) segs.push({ x0, x1: left, y0: 0, y1: H });
-        // above opening — a 'gap' (Cut tool) removes the wall full height, so
-        // nothing is left over the opening
-        const topY = o.type === 'gap' ? H : (o.sill || 0) + o.height;
+        // above opening (a full-height cut sets height = wall height, so this
+        // header segment collapses to nothing)
+        const topY = (o.sill || 0) + o.height;
         if (topY < H - 0.5) segs.push({ x0: left, x1: right, y0: topY, y1: H });
         // below window
         if ((o.sill || 0) > 0.5) segs.push({ x0: left, x1: right, y0: 0, y1: o.sill });

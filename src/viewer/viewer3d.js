@@ -1104,6 +1104,40 @@ export class Viewer3D {
       }
     }
 
+    // CUT tool: draw the opening straight onto a wall. Press on a wall and
+    // drag out the rectangle you want gone. We cast against the wall's fixed
+    // vertical plane (not the mesh) so the growing hole never breaks the drag.
+    if (this.store.tool === 'cut') {
+      const hit = this.castWall(p);
+      if (hit) {
+        const wall = this.store.wall(hit.wallId);
+        if (wall) {
+          const dx = wall.bx - wall.ax, dy = wall.by - wall.ay;
+          const len = Math.hypot(dx, dy) || 1;
+          const H = wall.height || this.store.project.settings.wallHeight;
+          const lvlY = this.levelY(this.store.project.activeLevel ?? 0);
+          const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+            new THREE.Vector3(dy, 0, -dx).normalize(),
+            new THREE.Vector3(wall.ax, 0, wall.ay));
+          const t0 = clamp(((hit.point.x - wall.ax) * dx + (hit.point.z - wall.ay) * dy) / (len * len), 0, 1);
+          const y0 = clamp(hit.point.y - lvlY, 0, H);
+          this.store.checkpoint();
+          const o = this.store.addOpening(wall.id, 'gap', t0);
+          o.width = 20; o.sill = y0; o.height = 20; // grows with the drag
+          this.store.commit(true);
+          this.store.select({ kind: 'opening', id: o.id });
+          this.flight = null;
+          this.gesture = {
+            kind: 'wallCut', id: e.pointerId, oid: o.id,
+            plane, ax: wall.ax, ay: wall.ay, dx, dy, len, lvlY, H,
+            t0, y0, moved: false
+          };
+          return;
+        }
+      }
+      // pressed off any wall → fall through to a normal camera orbit
+    }
+
     // placement tools claim the tap; only the select tool grabs items
     const hit = this.store.tool === 'select' ? this.castItems(p) : null;
     const it = hit && this.store.item(hit.itemId);
@@ -1144,6 +1178,27 @@ export class Viewer3D {
     const p = this.pos(e);
     this.pointers.set(e.pointerId, p);
     const g = this.gesture;
+
+    if (g?.kind === 'wallCut' && g.id === e.pointerId) {
+      this.raycaster.setFromCamera(this.toNDC(p), this.camera);
+      const pt = new THREE.Vector3();
+      if (this.raycaster.ray.intersectPlane(g.plane, pt)) {
+        const o = this.store.opening(g.oid);
+        if (o) {
+          const t1 = clamp(((pt.x - g.ax) * g.dx + (pt.z - g.ay) * g.dy) / (g.len * g.len), 0, 1);
+          const y1 = clamp(pt.y - g.lvlY, 0, g.H);
+          const width = clamp(Math.round(Math.abs(t1 - g.t0) * g.len), 20, Math.max(20, g.len - 12));
+          let tC = (g.t0 + t1) / 2;
+          tC = clamp(tC, (width / 2 + 6) / g.len, 1 - (width / 2 + 6) / g.len);
+          const sill = clamp(Math.round(Math.min(g.y0, y1)), 0, g.H - 10);
+          const height = clamp(Math.round(Math.abs(y1 - g.y0)), 10, g.H - sill);
+          o.t = tC; o.width = width; o.sill = sill; o.height = height;
+          if (Math.abs(t1 - g.t0) * g.len > 15 || Math.abs(y1 - g.y0) > 15) g.moved = true;
+          this.store.commit(true);
+        }
+      }
+      return;
+    }
 
     if (g?.kind === 'pinch' && this.pointers.size >= 2) {
       const pts = [...this.pointers.values()];
@@ -1249,6 +1304,20 @@ export class Viewer3D {
     if (g?.kind === 'joy' && g.id === e.pointerId) {
       this.walk.joy = null;
       this.hideJoystick();
+    }
+    if (g?.kind === 'wallCut' && (g.id === e.pointerId || this.pointers.size === 0)) {
+      const o = this.store.opening(g.oid);
+      if (o && !g.moved) {
+        // a tap (no real drag) → a default full-height cut at that spot
+        const defW = clamp(openingDefaults('gap').width, 20, Math.max(20, g.len - 12));
+        o.width = defW; o.sill = 0; o.height = g.H;
+        o.t = clamp(g.t0, (defW / 2 + 6) / g.len, 1 - (defW / 2 + 6) / g.len);
+        this.store.commit(true);
+      }
+      this.store.setTool('select');
+      if (o) this.store.select({ kind: 'opening', id: g.oid });
+      this.gesture = null;
+      return;
     }
     if (g?.kind === 'pinch' && this.pointers.size === 1) {
       // hand back to single-finger rotate anchored at the remaining pointer

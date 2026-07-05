@@ -546,6 +546,12 @@ export class Editor2D {
     const t = clamp(near.t, (width / 2 + 6) / len, 1 - (width / 2 + 6) / len);
     store.checkpoint();
     const o = store.addOpening(near.wall.id, type, t);
+    if (type === 'gap') {
+      // a cut from the 2D plan removes the wall its full height (top-down you
+      // can't pick a height); the 3D Cut tool draws a custom-height rectangle
+      o.sill = 0;
+      o.height = near.wall.height || store.project.settings.wallHeight;
+    }
     store.commit(true);
     store.select({ kind: 'opening', id: o.id });
     // Continue the press into a drag to size the opening: the point you pressed

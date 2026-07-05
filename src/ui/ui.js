@@ -348,7 +348,7 @@ export class UI {
       b.onclick = () => {
         const t = b.dataset.tool;
         // drawing happens on the plan — jump back when a draw tool is picked in 3D
-        if ((t === 'wall' || t === 'room' || t === 'multi' || t === 'cut') && store.viewMode === '3d') {
+        if ((t === 'wall' || t === 'room' || t === 'multi') && store.viewMode === '3d') {
           store.setViewMode('2d');
         }
         if (t === 'door' || t === 'window') {
@@ -1795,6 +1795,8 @@ export class UI {
         : def?.areaDraw
           ? `Drag out the ${def.name.toLowerCase()} area on the ground`
           : `${tap} the ground or a floor to place ${def?.name ?? 'the item'}`;
+    } else if (store.viewMode === '3d' && store.tool === 'cut') {
+      text = 'Drag out the piece to cut on a wall — draw the hole and it’s removed';
     } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
       text = `${tap} a wall to place the ${store.tool}`;
     } else if (store.viewMode === '3d') {
