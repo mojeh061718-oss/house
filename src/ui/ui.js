@@ -1798,7 +1798,7 @@ export class UI {
     } else if (store.viewMode === '3d' && store.tool === 'cut') {
       text = 'Drag out the piece to cut on a wall — draw the hole and it’s removed';
     } else if (store.viewMode === '3d' && (store.tool === 'door' || store.tool === 'window')) {
-      text = `${tap} a wall to place the ${store.tool}`;
+      text = `Drag out the ${store.tool} on a wall to size it, or ${tap.toLowerCase()} for a standard one`;
     } else if (store.viewMode === '3d') {
       text = `Drag to orbit · ${zoom} · ${tap.toLowerCase()} furniture to select · long-press grass & paths to edit`;
     } else {

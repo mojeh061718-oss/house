@@ -13,6 +13,7 @@ export const CATEGORIES = [
   { id: 'bedroom', name: 'Bedroom' },
   { id: 'kitchen', name: 'Kitchen' },
   { id: 'bathroom', name: 'Bathroom' },
+  { id: 'utility', name: 'Utility & Laundry' },
   { id: 'dining', name: 'Dining' },
   { id: 'office', name: 'Office' },
   { id: 'decor', name: 'Decor & Lighting' },

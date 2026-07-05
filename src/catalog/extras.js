@@ -15,6 +15,7 @@ import { LIVINGROOM_ITEMS } from './packs/livingroom.js';
 import { DECKS_ITEMS } from './packs/decks.js';
 import { FARM_ITEMS } from './packs/farm.js';
 import { FENCING_ITEMS } from './packs/fencing.js';
+import { UTILITY_ITEMS } from './packs/utility.js';
 
 // Assign each pack to a finer catalog category so the "Outdoor" tab isn't one
 // giant broad bucket. (Games & Decor keep the categories their authors set.)
@@ -34,5 +35,6 @@ export const EXTRA_ITEMS = [
   ...BATHROOM_ITEMS,                      // 'bathroom' (luxury bath, as authored)
   ...KITCHEN_ITEMS,                       // 'kitchen' (luxury kitchen, as authored)
   ...LIVINGROOM_ITEMS,                    // 'living' (luxury living room, as authored)
-  ...FARM_ITEMS                           // 'farm' — animals & homestead
+  ...FARM_ITEMS,                          // 'farm' — animals & homestead
+  ...UTILITY_ITEMS                        // 'utility' — laundry, mudroom & wash
 ];

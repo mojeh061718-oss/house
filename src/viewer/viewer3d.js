@@ -1104,14 +1104,17 @@ export class Viewer3D {
       }
     }
 
-    // CUT tool: draw the opening straight onto a wall. Press on a wall and
-    // drag out the rectangle you want gone. We cast against the wall's fixed
-    // vertical plane (not the mesh) so the growing hole never breaks the drag.
-    if (this.store.tool === 'cut') {
+    // CUT / WINDOW / DOOR: draw the opening straight onto a wall. Press on a
+    // wall and drag out the rectangle you want — width along the wall, height
+    // up it. We cast against the wall's fixed vertical plane (not the mesh) so
+    // the growing hole never breaks the drag.
+    if (this.store.tool === 'cut' || this.store.tool === 'window' || this.store.tool === 'door') {
       const hit = this.castWall(p);
       if (hit) {
         const wall = this.store.wall(hit.wallId);
         if (wall) {
+          const tool = this.store.tool;
+          const type = tool === 'cut' ? 'gap' : tool === 'door' ? this.store.doorType : this.store.windowType;
           const dx = wall.bx - wall.ax, dy = wall.by - wall.ay;
           const len = Math.hypot(dx, dy) || 1;
           const H = wall.height || this.store.project.settings.wallHeight;
@@ -1122,13 +1125,13 @@ export class Viewer3D {
           const t0 = clamp(((hit.point.x - wall.ax) * dx + (hit.point.z - wall.ay) * dy) / (len * len), 0, 1);
           const y0 = clamp(hit.point.y - lvlY, 0, H);
           this.store.checkpoint();
-          const o = this.store.addOpening(wall.id, 'gap', t0);
-          o.width = 20; o.sill = y0; o.height = 20; // grows with the drag
+          const o = this.store.addOpening(wall.id, type, t0);
+          o.width = 20; o.sill = tool === 'door' ? 0 : y0; o.height = 20; // grows with the drag
           this.store.commit(true);
           this.store.select({ kind: 'opening', id: o.id });
           this.flight = null;
           this.gesture = {
-            kind: 'wallCut', id: e.pointerId, oid: o.id,
+            kind: 'wallOpening', id: e.pointerId, oid: o.id, tool,
             plane, ax: wall.ax, ay: wall.ay, dx, dy, len, lvlY, H,
             t0, y0, moved: false
           };
@@ -1179,7 +1182,7 @@ export class Viewer3D {
     this.pointers.set(e.pointerId, p);
     const g = this.gesture;
 
-    if (g?.kind === 'wallCut' && g.id === e.pointerId) {
+    if (g?.kind === 'wallOpening' && g.id === e.pointerId) {
       this.raycaster.setFromCamera(this.toNDC(p), this.camera);
       const pt = new THREE.Vector3();
       if (this.raycaster.ray.intersectPlane(g.plane, pt)) {
@@ -1190,8 +1193,18 @@ export class Viewer3D {
           const width = clamp(Math.round(Math.abs(t1 - g.t0) * g.len), 20, Math.max(20, g.len - 12));
           let tC = (g.t0 + t1) / 2;
           tC = clamp(tC, (width / 2 + 6) / g.len, 1 - (width / 2 + 6) / g.len);
-          const sill = clamp(Math.round(Math.min(g.y0, y1)), 0, g.H - 10);
-          const height = clamp(Math.round(Math.abs(y1 - g.y0)), 10, g.H - sill);
+          let bottom = Math.min(g.y0, y1);
+          let top = Math.max(g.y0, y1);
+          if (g.tool === 'door') bottom = 0; // doors sit on the floor
+          if (g.tool === 'cut') {
+            // snap to floor / ceiling so a cut removes the wall cleanly in that
+            // spot — no thin sliver at the bottom or a header hanging at the top
+            const SNAP = Math.min(30, g.H * 0.12);
+            if (bottom < SNAP) bottom = 0;
+            if (top > g.H - SNAP) top = g.H;
+          }
+          const sill = clamp(Math.round(bottom), 0, g.H - 10);
+          const height = clamp(Math.round(top - bottom), 10, g.H - sill);
           o.t = tC; o.width = width; o.sill = sill; o.height = height;
           if (Math.abs(t1 - g.t0) * g.len > 15 || Math.abs(y1 - g.y0) > 15) g.moved = true;
           this.store.commit(true);
@@ -1305,12 +1318,16 @@ export class Viewer3D {
       this.walk.joy = null;
       this.hideJoystick();
     }
-    if (g?.kind === 'wallCut' && (g.id === e.pointerId || this.pointers.size === 0)) {
+    if (g?.kind === 'wallOpening' && (g.id === e.pointerId || this.pointers.size === 0)) {
       const o = this.store.opening(g.oid);
       if (o && !g.moved) {
-        // a tap (no real drag) → a default full-height cut at that spot
-        const defW = clamp(openingDefaults('gap').width, 20, Math.max(20, g.len - 12));
-        o.width = defW; o.sill = 0; o.height = g.H;
+        // a tap (no real drag) → drop the default size for that opening type
+        // (a cut defaults to full height; doors/windows to their standard size)
+        const d = openingDefaults(o.type);
+        const defW = clamp(d.width, 20, Math.max(20, g.len - 12));
+        o.width = defW;
+        o.sill = g.tool === 'cut' ? 0 : (d.sill || 0);
+        o.height = g.tool === 'cut' ? g.H : d.height;
         o.t = clamp(g.t0, (defW / 2 + 6) / g.len, 1 - (defW / 2 + 6) / g.len);
         this.store.commit(true);
       }
