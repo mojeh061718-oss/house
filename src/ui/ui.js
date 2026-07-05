@@ -1267,6 +1267,8 @@ export class UI {
       if (!it) { store.select(null); return; }
       const def = ITEM_MAP.get(it.defId);
       const isPath = !!it.path;
+      // drawn patios/decks/pads let you drop ANY surface texture on them
+      const surfacePick = !!def && def.areaDraw && def.plan?.type === 'slab';
       panel.innerHTML = `${head(def?.name || 'Item')}
         <div class="props-body">
           <div class="props-grid2">
@@ -1278,7 +1280,8 @@ export class UI {
             ${this.lenRow('pElev', 'Elevation', it.elevation || 0)}`}
           </div>
           ${isPath ? '<div class="props-section-title">Drag the path on the plan to move it. Duplicate to branch it.</div>' : ''}
-          ${def?.palettes ? '<div class="props-section-title">Finish</div><div class="chip-row" id="palRow"></div>' : ''}
+          ${surfacePick ? '<div class="props-section-title">Surface texture — any material you like</div><div class="mat-grid" id="matSurface"></div>' : ''}
+          ${def?.palettes && !surfacePick ? '<div class="props-section-title">Finish</div><div class="chip-row" id="palRow"></div>' : ''}
           <div class="btn-row">
             <button class="action" id="pDup">${icon('copy')} Duplicate</button>
             <button class="action danger" id="pDel">${icon('trash')} Delete</button>
@@ -1294,7 +1297,7 @@ export class UI {
         this.bindNum('pRot', v => commit(() => it.rotation = v * Math.PI / 180));
         this.bindLen('pElev', v => commit(() => it.elevation = Math.max(0, Math.round(v))));
       }
-      if (def?.palettes) {
+      if (def?.palettes && !surfacePick) {
         const row = $('#palRow');
         def.palettes.forEach((pal, idx) => {
           const chip = el('button', 'chip' + ((it.palette ?? 0) === idx ? ' active' : ''));
@@ -1303,6 +1306,17 @@ export class UI {
           chip.onclick = () => { commit(() => it.palette = idx); this.renderProps(); };
           row.appendChild(chip);
         });
+      }
+      if (surfacePick) {
+        // offer floors, ground covers and wall finishes — anything with a texture
+        const cur = it.mat || (def.palettes?.[it.palette ?? 0]?.mat) || 'deck_wood';
+        this.matGrid('#matSurface', ['floor', 'ground', 'wall'], cur, id => {
+          commit(() => {
+            it.mat = id;
+            it.matScale = (MATERIALS.find(m => m.id === id)?.scale) || 200;
+          });
+        });
+        this.loadSwatchTextures('props');
       }
       $('#pDup').onclick = () => this.duplicateSelection();
       $('#pDel').onclick = () => store.deleteSelection();
@@ -1593,7 +1607,8 @@ export class UI {
   matGrid(sel, use, current, onPick, onlyGroups = null) {
     const grid = $(sel);
     if (!grid) return;
-    const list = MATERIALS.filter(m => m.use === use &&
+    const uses = Array.isArray(use) ? use : [use];
+    const list = MATERIALS.filter(m => uses.includes(m.use) &&
       (!onlyGroups || onlyGroups.includes(m.group || '')));
     const groups = [...new Set(list.map(m => m.group || ''))];
     for (const g of groups) {

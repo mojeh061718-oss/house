@@ -345,11 +345,15 @@ export class Viewer3D {
       if (this.hideRoof && def.plan?.type === 'roof') continue; // peek inside
       try {
         const isPath = def.path && it.path?.length >= 2;
+        // a user-chosen surface texture (patio/deck "any material") overrides the
+        // palette's mat/scale that the surface builders read
+        let pal = paletteFor(it, def);
+        if (it.mat) pal = { ...pal, mat: it.mat, scale: it.matScale || pal.scale || 200 };
         // size-true builders (decks, pools, pads) rebuild at the item's real
         // dimensions so surface textures never stretch
         const model = isPath ? buildPathModel(it, def)
-          : def.buildSized ? def.buildSized(paletteFor(it, def), it.w, it.d, it.h)
-            : def.build(paletteFor(it, def));
+          : def.buildSized ? def.buildSized(pal, it.w, it.d, it.h)
+            : def.build(pal);
         if (!isPath && !def.buildSized) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
         const outer = new THREE.Group();
         outer.add(model);

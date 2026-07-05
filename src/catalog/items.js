@@ -23,6 +23,7 @@ export const CATEGORIES = [
   { id: 'water', name: 'Water Features' },
   { id: 'waterfront', name: 'Docks & Boats' },
   { id: 'yard', name: 'Yard & Garden' },
+  { id: 'farm', name: 'Farm & Homestead' },
   { id: 'outdoor', name: 'Outdoor' }
 ];
 
