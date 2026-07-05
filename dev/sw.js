@@ -10,6 +10,10 @@
 //   • the dev preview (/house/dev/) and live app (/house/) never share a cache.
 const V = new URL(self.location).searchParams.get('v') || 'dev';
 const CACHE = `honeycutt::${self.location.pathname}::${V}`;
+// The photo-texture library is large and stable, so it lives in its OWN cache
+// that survives app updates — download the design library once, keep it offline
+// across every future release instead of re-fetching ~50 JPGs each deploy.
+const LIB = `honeycutt-lib::${self.location.pathname}`;
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -22,10 +26,50 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // keep this build's shell cache AND the persistent library cache
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== LIB).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
+
+// The app asks the worker to download the whole texture library for offline use.
+// We fetch in small chunks and report progress back so the UI can show a bar.
+self.addEventListener('message', (e) => {
+  const msg = e.data || {};
+  if (msg.type === 'CACHE_LIBRARY') {
+    e.waitUntil(cacheLibrary(msg.urls || []));
+  }
+});
+
+async function cacheLibrary(urls) {
+  const cache = await caches.open(LIB);
+  let done = 0;
+  const total = urls.length;
+  const post = (extra) => broadcast({ type: 'LIBRARY_PROGRESS', done, total, ...extra });
+  // small concurrency so a phone on cellular isn't hammered
+  const queue = urls.slice();
+  async function worker() {
+    while (queue.length) {
+      const url = queue.shift();
+      try {
+        const hit = await cache.match(url);
+        if (!hit) {
+          const res = await fetch(url, { cache: 'reload' });
+          if (res.ok) await cache.put(url, res.clone());
+        }
+      } catch { /* leave it for a retry next time */ }
+      done++;
+      post();
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+  broadcast({ type: 'LIBRARY_DONE', done, total });
+}
+
+async function broadcast(data) {
+  const clients = await self.clients.matchAll({ includeUncontrolled: true });
+  for (const c of clients) c.postMessage(data);
+}
 
 self.addEventListener('fetch', (e) => {
   const { request } = e;
@@ -43,6 +87,22 @@ self.addEventListener('fetch', (e) => {
           return res;
         })
         .catch(() => caches.open(CACHE).then((c) => c.match('./')))
+    );
+    return;
+  }
+
+  // texture JPGs: serve from the persistent library cache first so a downloaded
+  // library keeps working fully offline and across app updates
+  if (/\/tex\/.+\.(jpg|jpeg|png|webp)$/i.test(url.pathname)) {
+    e.respondWith(
+      caches.open(LIB).then((lib) =>
+        lib.match(request).then((hit) =>
+          hit || fetch(request).then((res) => {
+            if (res.ok && (res.type === 'basic' || res.type === 'default')) lib.put(request, res.clone());
+            return res;
+          }).catch(() => caches.open(CACHE).then((c) => c.match(request)))
+        )
+      )
     );
     return;
   }
