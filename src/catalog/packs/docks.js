@@ -188,21 +188,26 @@ export const DOCKS_ITEMS = [
     build: () => {
       const g = G();
       const frame = metal('#8a9096', 0.4);
-      const cradle = metal('#6d7378', 0.45);
+      const cradle = metal('#5f656a', 0.45);
+      const guide = metal('#c9ced4', 0.4);
       // four corner posts
-      for (const x of [-135, 135]) {
-        for (const z of [-185, 185]) cyl(g, frame, 8, 210, x, 0, z);
-      }
-      // top cross beams
-      for (const x of [-135, 135]) box(g, frame, 12, 12, 400, x, 204, 0);
-      box(g, frame, 290, 12, 12, 0, 204, 0);
-      // canopy
-      box(g, solid('#2f5a8c', 0.6), 300, 10, 420, 0, 218, 0, { r: 6 });
-      // lowered cradle bunks
-      for (const x of [-70, 70]) box(g, cradle, 16, 10, 360, x, 40, 0);
-      for (const x of [-135, 135]) {
-        for (const z of [-185, 185]) box(g, cradle, 12, 40, 12, x, 30, z);
-      }
+      for (const x of [-135, 135]) for (const z of [-185, 185]) cyl(g, frame, 8, 196, x, 0, z);
+      // top perimeter beams
+      for (const x of [-135, 135]) box(g, frame, 12, 12, 400, x, 192, 0);
+      box(g, frame, 290, 12, 12, 0, 192, 0);
+      // PEAKED fabric canopy (ridge fore-aft) — reads as a boat-lift top, not a
+      // flat table slab that dominated the old top-down view
+      const canopy = prism(g, solid('#2f6aa8', 0.7), 400, 44, 300, 0, 204, 0, solid('#245081', 0.7));
+      canopy.rotation.y = Math.PI / 2;
+      // valance skirt along the eaves so the canopy reads from the side
+      for (const x of [-150, 150]) box(g, solid('#245081', 0.7), 6, 18, 400, x, 196, 0);
+      // boat cradle: two long bunks the hull rests on, raised on the lift
+      for (const x of [-72, 72]) box(g, cradle, 20, 14, 350, x, 44, 0, { r: 3 });
+      // vertical guide poles at bow & stern so it clearly cradles a boat
+      for (const x of [-96, 96]) for (const z of [-150, 150]) cyl(g, guide, 4, 96, x, 44, z);
+      // corner bunk uprights + a winch/motor box on one side
+      for (const x of [-135, 135]) for (const z of [-185, 185]) box(g, cradle, 10, 44, 10, x, 26, z);
+      box(g, metal('#3a3d42', 0.5), 42, 42, 30, 150, 70, 40, { r: 4 });
       return g;
     }
   },

@@ -68,6 +68,7 @@ export class UI {
       this.syncFabs();
     });
     store.on('change', () => this.renderPropsSoft());
+    store.on('saveState', s => this.setSaveState(s));
     store.on('tool', () => { this.syncTools(); this.showHint(); this.syncShapeBar(); });
     store.on('view', () => this.syncView());
     store.on('history', () => this.syncHistory());
@@ -101,11 +102,12 @@ export class UI {
       <input id="projectName" class="project-name" value="${store.project.name || 'Untitled'}" spellcheck="false" aria-label="Project name"/>
       <button class="tb-btn" id="btnUndo" title="Undo">${ICONS.undo}</button>
       <button class="tb-btn" id="btnRedo" title="Redo">${ICONS.redo}</button>
+      <span class="save-state saved" id="saveState" title="Your work is saved automatically">${ICONS.check}<span class="save-lbl">Saved</span></span>
       <div class="tb-spacer"></div>
       <div class="view-toggle" id="viewToggle">
         <button class="tb-btn" data-view="2d">${ICONS.d2}<span>Plan</span></button>
         <button class="tb-btn" data-view="3d">${ICONS.d3}<span>3D</span></button>
-        <button class="tb-btn only-wide" data-view="split">${ICONS.split}<span>Split</span></button>
+        <button class="tb-btn" data-view="split">${ICONS.split}<span>Split</span></button>
       </div>
       <span class="tb-seg" id="threeDControls">
         <button class="tb-btn" id="btnDay" title="Time of day">${ICONS.sun}<span class="tb-lbl">Sun</span></button>
@@ -221,8 +223,12 @@ export class UI {
       store.clearPlan();
       this.toast('Plan cleared — Undo brings it back');
     };
-    $('#mRename').onclick = () => {
-      const name = prompt('Project name', store.project.name || '');
+    $('#mRename').onclick = async () => {
+      $('#fileMenu').classList.add('hidden');
+      const name = await this.promptModal({
+        title: 'Rename project', value: store.project.name || '', okLabel: 'Rename',
+        placeholder: 'Project name'
+      });
       if (name) {
         store.project.name = name;
         const inp = $('#projectName');
@@ -1667,6 +1673,53 @@ export class UI {
   }
 
   /** Styled yes/no confirm (matches the Save dialog). Resolves true/false. */
+  /** Top-bar cue that work is safe: "Saving…" while editing, "Saved" once the
+   *  autosave draft is written. Reassures users their plan won't be lost. */
+  setSaveState(state) {
+    const el = $('#saveState');
+    if (!el) return;
+    const saving = state === 'saving';
+    el.classList.toggle('saved', !saving);
+    el.classList.toggle('saving', saving);
+    el.innerHTML = saving
+      ? `${ICONS.save}<span class="save-lbl">Saving…</span>`
+      : `${ICONS.check}<span class="save-lbl">Saved</span>`;
+  }
+
+  /** In-app text prompt (styled modal) — replaces the native prompt(). */
+  promptModal({ title, value = '', okLabel = 'Save', placeholder = '' } = {}) {
+    return new Promise(resolve => {
+      const esc = s => String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+      const scrim = document.createElement('div');
+      scrim.className = 'modal-scrim';
+      scrim.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+          <h3>${esc(title)}</h3>
+          <input class="modal-input" type="text" value="${esc(value)}" placeholder="${esc(placeholder)}"
+            autocapitalize="words" spellcheck="false"/>
+          <div class="modal-row">
+            <button class="modal-btn" data-r="0">Cancel</button>
+            <button class="modal-btn primary" data-r="1">${esc(okLabel)}</button>
+          </div>
+        </div>`;
+      const input = scrim.querySelector('.modal-input');
+      const done = (ok) => { scrim.remove(); resolve(ok ? input.value.trim() : null); };
+      scrim.addEventListener('pointerdown', e => e.stopPropagation());
+      scrim.addEventListener('click', e => {
+        const r = e.target.closest('[data-r]')?.dataset.r;
+        if (r != null) done(r === '1');
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') done(true);
+        else if (e.key === 'Escape') done(false);
+      });
+      document.body.appendChild(scrim);
+      setTimeout(() => { input.focus(); input.select(); }, 30);
+    });
+  }
+
   confirm({ title, message, okLabel = 'OK', danger = false } = {}) {
     return new Promise(resolve => {
       const esc = s => String(s || '').replace(/[&<>"']/g, c => ({

@@ -31,6 +31,44 @@ function poseAgainstWall(near, x, y, depth, gap = 0.5) {
   };
 }
 
+/** Record which wall a wall-mounted item is fixed to (id + parametric position
+ *  along it + which side), so it can follow the wall if the wall later moves. */
+export function anchorWallItem(walls, it, def) {
+  if (!it || def?.mount !== 'wall') return;
+  const near = nearestWall(walls, it.x, it.y, 140);
+  if (!near) { it.hostWall = null; return; }
+  const w = near.wall;
+  const dx = w.bx - w.ax, dy = w.by - w.ay;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = ((it.x - w.ax) * dx + (it.y - w.ay) * dy) / len2;
+  const ang = wallAngle(w);
+  const nx = Math.sin(ang), ny = -Math.cos(ang);
+  it.hostWall = w.id;
+  it.wallT = Math.max(0, Math.min(1, t));
+  it.wallSide = ((it.x - near.x) * nx + (it.y - near.y) * ny) >= 0 ? 1 : -1;
+}
+
+/** Reposition every wall-mounted item onto its (possibly moved) host wall.
+ *  `defOf(defId)` resolves a catalog def. Items whose host wall is gone stay put. */
+export function reanchorWallItems(walls, items, defOf) {
+  for (const it of items) {
+    if (it.hostWall == null) continue;
+    const def = defOf(it.defId);
+    if (def?.mount !== 'wall') continue;
+    const w = walls.find(ww => ww.id === it.hostWall);
+    if (!w) continue;
+    const t = it.wallT ?? 0.5;
+    const px = w.ax + t * (w.bx - w.ax), py = w.ay + t * (w.by - w.ay);
+    const ang = wallAngle(w);
+    const nx = Math.sin(ang), ny = -Math.cos(ang);
+    const side = it.wallSide ?? 1;
+    const off = w.thickness / 2 + (it.d ?? def.d) / 2 + 0.5;
+    it.x = px + nx * off * side;
+    it.y = py + ny * off * side;
+    it.rotation = ang + (side > 0 ? Math.PI : 0);
+  }
+}
+
 /** Build a path polyline for a drawn shape from two corner points a,b.
  *  'rect'/'circle' return a closed loop; 'line' a single segment. Free-draw
  *  collects its own points live, so it never comes through here. */

@@ -11,7 +11,7 @@ import { DEFAULTS } from '../core/state.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
 import { fmtFtIn, fmtArea } from '../core/units.js';
-import { snapPose, createPathItem, shapePolyline } from '../core/placement.js';
+import { snapPose, createPathItem, shapePolyline, anchorWallItem, reanchorWallItems } from '../core/placement.js';
 
 const GRID = 10;            // snap grid (cm)
 
@@ -567,6 +567,7 @@ export class Editor2D {
     const pos = this.placePose(w, def);
     store.checkpoint();
     const it = store.addItem(def.id, pos.x, pos.y, pos.rot, def);
+    anchorWallItem(store.project.walls, it, def); // remember its host wall
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
@@ -929,6 +930,8 @@ export class Editor2D {
           const lw = store.wall(l.id);
           if (lw && lw.id !== wall.id) { lw[l.end + 'x'] = pt.x; lw[l.end + 'y'] = pt.y; }
         }
+        // wall-mounted items ride along with the wall they're fixed to
+        reanchorWallItems(store.project.walls, store.project.items, id => ITEM_MAP.get(id));
         store.commit(true);
         break;
       }
@@ -1019,6 +1022,12 @@ export class Editor2D {
       // click without movement — the checkpoint taken on pointerdown is redundant
       store.undoStack.pop();
       store.emit('history');
+    }
+    if (m.name === 'dragItem' && m.moved) {
+      // a wall-mounted piece dragged along/onto a wall re-remembers its host
+      const it = store.item(m.id);
+      const def = it && ITEM_MAP.get(it.defId);
+      if (def?.mount === 'wall') anchorWallItem(store.project.walls, it, def);
     }
     if (['dragItem', 'rotateItem', 'resizeItem', 'dragMulti'].includes(m.name)) {
       store.commit(false);

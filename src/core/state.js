@@ -338,6 +338,7 @@ export class Store {
   /** Edits go to a crash-recovery draft, not the saved project. */
   scheduleAutosave() {
     clearTimeout(this._dirtyTimer);
+    this.emit('saveState', 'saving');
     this._dirtyTimer = setTimeout(() => this.saveDraftNow(), 800);
   }
 
@@ -346,6 +347,7 @@ export class Store {
     if (this.currentProjectId && this.isDirty()) {
       saveDraft(this.currentProjectId, serializeProject(this.project));
     }
+    this.emit('saveState', 'saved');
   }
 
   /** Explicit save: write the project itself and drop the draft. */
@@ -357,6 +359,7 @@ export class Store {
       this._savedJson = json;
       clearDraft(this.currentProjectId);
     }
+    this.emit('saveState', 'saved');
   }
 
   /** Wipe every floor back to an empty plan (undoable). */

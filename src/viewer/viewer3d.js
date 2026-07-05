@@ -7,7 +7,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel, buildFloorSlab } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp, wallLength } from '../core/geometry.js';
-import { snapPose, createPathItem, shapePolyline } from '../core/placement.js';
+import { snapPose, createPathItem, shapePolyline, anchorWallItem } from '../core/placement.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
 import { detectRooms, roomKey } from '../core/geometry.js';
@@ -948,6 +948,7 @@ export class Viewer3D {
     } else {
       it.x = pose.x; it.y = pose.y;
     }
+    anchorWallItem(store.project.walls, it, def); // wall pieces re-remember their host
     store.commit(true);
     store.select({ kind: 'item', id: it.id }); // keep it selected & in move mode
     return true;
@@ -969,6 +970,7 @@ export class Viewer3D {
     store.checkpoint();
     const it = store.addItem(def.id, pose.x, pose.y, pose.rot, def);
     if (def.path) this.seedDefaultPath(it, def);
+    anchorWallItem(store.project.walls, it, def);
     store.commit(false);
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
