@@ -2,6 +2,7 @@
 // one tap. Items are anchored against walls with clearances, and anything
 // that doesn't fit the room size is skipped.
 import { ITEM_MAP } from '../catalog/items.js';
+import { pointInPolygon } from './geometry.js';
 
 const R = Math.PI / 2;
 
@@ -115,7 +116,7 @@ export function guessType(name = '') {
  * Furnish a rectangular room. rect from the UI's roomRect (wall centerlines);
  * insets by half a wall so furniture seats inside. Returns placed count.
  */
-export function furnishRoom(store, rect, type) {
+export function furnishRoom(store, rect, type, poly = null) {
   const template = TEMPLATES[type];
   if (!template) return 0;
   const inset = 8;
@@ -133,8 +134,11 @@ export function furnishRoom(store, rect, type) {
     const def = ITEM_MAP.get(spec.id);
     if (!def) continue;
     if (spec.need && (r.w < spec.need[0] || r.d < spec.need[1])) continue;
-    const it = store.addItem(spec.id, spec.x, spec.y, spec.rot, def);
-    void it;
+    // when a room isn't a clean rectangle (L / T shapes), the template lays out
+    // against the bounding box — skip any piece that would land outside the real
+    // floor (e.g. in an L's notch) so nothing floats in empty space.
+    if (poly && !pointInPolygon(spec.x, spec.y, poly)) continue;
+    store.addItem(spec.id, spec.x, spec.y, spec.rot, def);
     placed++;
   }
   return placed;

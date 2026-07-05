@@ -132,7 +132,8 @@ canvas { display: block; }
   stroke-linejoin: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  filter: drop-shadow(0 0 4px rgba(120,170,255,0.35));
+  /* NB: no drop-shadow filter here — on iOS an animated filter on a stroke can
+     suppress the dash-draw animation entirely. The glow lives on the stage. */
 }
 @keyframes sh-draw { to { stroke-dashoffset: 0; } }
 .sh-walls { animation: sh-draw 0.85s ease-out 0.25s forwards; }
@@ -193,16 +194,12 @@ canvas { display: block; }
 .home-head h1 { font-size: 26px; font-weight: 400; letter-spacing: 0.4px; }
 .home-head h1 b { font-weight: 800; color: var(--accent); }
 
+/* Reduced-motion: the house still draws in (line-drawing isn't vestibular
+   motion, and it's the brand moment the user asked for) — we only drop the
+   looping honeycomb drift and the stage's slide-up. */
 @media (prefers-reduced-motion: reduce) {
-  .splash-hex .hex, .splash-glow, .sh-draw, .sh-glass, .sh-lightwash,
-  #splash h1, .splash-rule, #splash p, .splash-ver, .sh-tick, .sh-arrow, .splash-stage {
-    animation: none !important;
-  }
-  .sh-draw { stroke-dashoffset: 0; }
-  .sh-glass { opacity: 0.9; } .sh-lightwash { opacity: 1; }
-  #splash h1, #splash p, .splash-ver { opacity: 1; transform: none; }
-  .splash-rule { width: min(58%, 240px); }
-  .sh-tick, .sh-arrow { opacity: 0.95; }
+  .splash-hex .hex { animation: none !important; opacity: 0.16; }
+  .splash-stage { animation: none !important; opacity: 1; transform: none; }
 }
 
 /* ============================= Home ============================= */

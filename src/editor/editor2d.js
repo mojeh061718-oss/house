@@ -236,6 +236,31 @@ export class Editor2D {
     return { x: w.ax + vx * t, y: w.ay + vy * t };
   }
 
+  /** Break a wall into the parametric points (0..1) where OTHER walls meet it,
+   *  so each segment of a split/partitioned run can be measured on its own.
+   *  Returns sorted breakpoints including the wall's own ends [0 … 1]. */
+  wallSplitTs(w) {
+    const vx = w.bx - w.ax, vy = w.by - w.ay;
+    const len2 = vx * vx + vy * vy;
+    if (len2 < 1) return [0, 1];
+    const perpTol = (w.thickness || 10) * 0.75 + 5;
+    const ts = [0, 1];
+    for (const o of this.store.project.walls) {
+      if (o.id === w.id) continue;
+      for (const [ex, ey] of [[o.ax, o.ay], [o.bx, o.by]]) {
+        const t = ((ex - w.ax) * vx + (ey - w.ay) * vy) / len2;
+        if (t <= 0.02 || t >= 0.98) continue;
+        const px = w.ax + vx * t, py = w.ay + vy * t;
+        if (Math.hypot(ex - px, ey - py) > perpTol) continue; // not actually on the wall
+        ts.push(t);
+      }
+    }
+    ts.sort((a, b) => a - b);
+    const out = [ts[0]];
+    for (let i = 1; i < ts.length; i++) if (ts[i] - out[out.length - 1] > 0.01) out.push(ts[i]);
+    return out;
+  }
+
   /** Which dimension annotation (if any) is under the screen point — hit along
    *  the offset dimension line so it can be selected/deleted. */
   dimAt(sx, sy) {
@@ -2240,27 +2265,40 @@ export class Editor2D {
     if (this.view.scale < 0.25) return;
     const store = this.store;
     const sel = store.selection;
+    const drawAll = this.view.scale > 0.3;
     for (const w of store.project.walls) {
       const len = wallLength(w);
-      if (len < 50) continue;
+      if (len < 40) continue;
       const selected = sel?.kind === 'wall' && sel.id === w.id;
-      const drawAll = this.view.scale > 0.4;
       if (!selected && !drawAll) continue;
       const ang = wallAngle(w);
-      const midX = (w.ax + w.bx) / 2, midY = (w.ay + w.by) / 2;
-      const off = (w.thickness / 2 + 14 / this.view.scale);
-      // offset perpendicular to the wall (normal = (sin, -cos))
-      const sx = this.toScreen(midX + Math.sin(ang) * off, midY - Math.cos(ang) * off);
-      ctx.save();
-      ctx.translate(sx.x, sx.y);
-      let rot = ang;
-      if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI;
-      ctx.rotate(rot);
-      ctx.textAlign = 'center';
-      ctx.font = selected ? '600 12px system-ui, sans-serif' : '10px system-ui, sans-serif';
-      ctx.fillStyle = selected ? '#2b6fe0' : 'rgba(40,44,52,0.5)';
-      ctx.fillText(fmtLen(len), 0, 0);
-      ctx.restore();
+      const off = w.thickness / 2 + 15 / this.view.scale;
+      // A wall that other walls meet partway along is measured segment-by-
+      // segment, so each piece of a split/partitioned run shows its own length.
+      const ts = this.wallSplitTs(w);
+      for (let i = 1; i < ts.length; i++) {
+        const t0 = ts[i - 1], t1 = ts[i];
+        const segLen = len * (t1 - t0);
+        if (segLen < 30) continue;                     // skip slivers
+        const mid = wallPoint(w, (t0 + t1) / 2);
+        const sp = this.toScreen(mid.x + Math.sin(ang) * off, mid.y - Math.cos(ang) * off);
+        let rot = ang;
+        if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI;
+        const text = fmtLen(segLen);
+        ctx.save();
+        ctx.translate(sp.x, sp.y);
+        ctx.rotate(rot);
+        ctx.font = '700 12px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(text).width;
+        // legible pill so the number reads over any floor texture
+        ctx.fillStyle = selected ? 'rgba(43,111,224,0.95)' : 'rgba(255,255,255,0.9)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(-tw / 2 - 6, -9, tw + 12, 18, 9); ctx.fill(); }
+        ctx.fillStyle = selected ? '#ffffff' : '#2b3038';
+        ctx.fillText(text, 0, 0.5);
+        ctx.restore();
+      }
     }
     // live wall-draw length + bearing angle
     if (this.mode.name === 'wallDraw' && this.mode.preview) {
@@ -2307,9 +2345,13 @@ export class Editor2D {
         ctx.fillText(text, s.x, s.y + 4);
       }
     }
-    // live opening width while placing (drag-to-size) or resizing a door/window
-    if (this.mode.name === 'placeOpening' || this.mode.name === 'resizeOpening') {
-      const o = store.opening(this.mode.id);
+    // opening width: shown live while placing/resizing AND whenever a door or
+    // window is simply selected, so its size always reads on the plan.
+    const openingId = (this.mode.name === 'placeOpening' || this.mode.name === 'resizeOpening')
+      ? this.mode.id
+      : (sel?.kind === 'opening' ? sel.id : null);
+    if (openingId != null) {
+      const o = store.opening(openingId);
       const wl = o && store.wall(o.wallId);
       if (o && wl) {
         const c = wallPoint(wl, o.t);

@@ -826,14 +826,14 @@ export class UI {
     const sel = store.selection;
     if (sel?.kind !== 'room') return;
     const room = store.room(sel.id);
-    const rect = room && this.roomRect(room);
-    if (!rect) { this.toast('This room can’t be auto-furnished'); return; }
+    const box = room && (this.roomRect(room) || this.roomBBox(room));
+    if (!box) { this.toast('This room can’t be auto-furnished'); return; }
     const style = store.roomStyle(sel.id);
     // a freshly-drawn room has no name yet, so guessType() returns null — fall
     // back to a living-room layout instead of silently doing nothing
     const ftId = guessType(style.name) || 'living';
     store.checkpoint();
-    const n = furnishRoom(store, rect, ftId);
+    const n = furnishRoom(store, box, ftId, room.polygon);
     if (n > 0) {
       if (!style.name) { const ft = FURNISH_TYPES.find(f => f.id === ftId); if (ft) style.name = ft.name; }
       store.commit(false);
@@ -879,12 +879,12 @@ export class UI {
     const store = this.store;
     if (!this._focusRoomKey) return;
     const room = store.room(this._focusRoomKey);
-    const rect = room && this.roomRect(room);
-    if (!rect) { this.toast('This room can’t be auto-filled'); return; }
+    const box = room && (this.roomRect(room) || this.roomBBox(room));
+    if (!box) { this.toast('This room can’t be auto-filled'); return; }
     const style = store.roomStyle(this._focusRoomKey);
     const ftId = guessType(style.name) || 'living';
     store.checkpoint();
-    const n = furnishRoom(store, rect, ftId);
+    const n = furnishRoom(store, box, ftId, room.polygon);
     if (n > 0) {
       if (!style.name) { const ft = FURNISH_TYPES.find(f => f.id === ftId); if (ft) style.name = ft.name; }
       store.commit(false);
@@ -1711,6 +1711,10 @@ export class UI {
       if (!room) { store.select(null); return; }
       const style = store.roomStyle(sel.id);
       const rect = this.roomRect(room);
+      // resize needs a true rectangle, but furnishing works on any shape using
+      // the room's bounding box (with an out-of-polygon filter) — so L/T rooms
+      // get furnish buttons too.
+      const fbox = rect || this.roomBBox(room);
       panel.innerHTML = `${head(style.name || 'Room')}
         <div class="props-body">
           <label class="field"><span>Room name</span>
@@ -1721,7 +1725,7 @@ export class UI {
             ${this.lenRow('pRD', 'Depth', rect.maxY - rect.minY)}
           </div>` : ''}
           <div class="props-stat">Area&ensp;<b>${fmtArea(room.area)}</b></div>
-          ${rect ? `<div class="props-section-title">Auto-furnish</div>
+          ${fbox ? `<div class="props-section-title">Auto-furnish</div>
           <div class="furnish-row" id="furnishRow"></div>` : ''}
           <div class="props-section-title">Design this room — coordinated finishes in one tap</div>
           <div class="theme-list" id="roomThemeList"></div>
@@ -1752,14 +1756,14 @@ export class UI {
         this.bindLen('pRW', v => resize(Math.max(100, Math.min(3000, Math.round(v))), Math.round(rect.maxY - rect.minY)));
         this.bindLen('pRD', v => resize(Math.round(rect.maxX - rect.minX), Math.max(100, Math.min(3000, Math.round(v)))));
       }
-      if (rect) {
+      if (fbox) {
         const row = $('#furnishRow');
         const guessed = guessType(style.name);
         for (const ft of FURNISH_TYPES) {
           const b = el('button', 'furnish-btn' + (ft.id === guessed ? ' hinted' : ''), ft.name);
           b.onclick = () => {
             store.checkpoint();
-            const n = furnishRoom(store, rect, ft.id);
+            const n = furnishRoom(store, fbox, ft.id, room.polygon);
             if (n > 0) {
               const st = store.roomStyle(sel.id);
               if (!st.name) st.name = ft.name;
@@ -1849,6 +1853,16 @@ export class UI {
       if (Math.abs(a.x - b.x) > 1 && Math.abs(a.y - b.y) > 1) return null;
     }
     const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+    return {
+      minX: Math.min(...xs), maxX: Math.max(...xs),
+      minY: Math.min(...ys), maxY: Math.max(...ys)
+    };
+  }
+
+  /** Axis-aligned bounding box of ANY room polygon — always non-null, so
+   *  furnishing works on L/T-shaped rooms, not just clean rectangles. */
+  roomBBox(room) {
+    const xs = room.polygon.map(p => p.x), ys = room.polygon.map(p => p.y);
     return {
       minX: Math.min(...xs), maxX: Math.max(...xs),
       minY: Math.min(...ys), maxY: Math.max(...ys)
