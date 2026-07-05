@@ -915,6 +915,39 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .sel-actions { flex-wrap: wrap; justify-content: flex-end; max-width: min(90vw, 560px); }
 .fab.mini.active { background: var(--accent); color: #fff; }
 /* Adjust popover: one tool for rotate + resize (replaces the ± / bigger/smaller buttons) */
+/* Room-focus furnishing banner — a pill docked at the top-centre so it stays
+   clear of the per-item action bar at the bottom. */
+.room-focus-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(60px + var(--safe-t, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 94vw;
+  background: rgba(29, 33, 41, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 7px 8px 7px 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 55;
+}
+.room-focus-bar.hidden { display: none; }
+.rf-title { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); font-weight: 600; white-space: nowrap; }
+.rf-title svg { width: 16px; height: 16px; color: var(--accent); }
+.rf-title b { max-width: 26vw; overflow: hidden; text-overflow: ellipsis; }
+.rf-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 8px 11px; border-radius: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.rf-btn svg { width: 15px; height: 15px; }
+.rf-btn:active { transform: scale(0.95); }
+.rf-btn.ok { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 /* A slim control bar docked at the bottom-centre — it leaves the piece you're
    adjusting fully visible instead of covering the middle of the view. */
 .adjust-pop {

@@ -306,6 +306,8 @@ export class UI {
 
   syncView() {
     const mode = this.store.viewMode;
+    // leaving 3D ends room-focus furnishing cleanly
+    if (mode !== '3d' && this._focusRoomKey) this.exitRoomFocus();
     document.querySelectorAll('#viewToggle .tb-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.view === mode);
     });
@@ -613,6 +615,12 @@ export class UI {
     const store = this.store;
     const c = $('#fabCluster');
     c.innerHTML = `
+      <div class="room-focus-bar hidden" id="roomFocusBar">
+        <span class="rf-title">${ICONS.wand}<b id="roomFocusName">this room</b></span>
+        <button class="rf-btn" id="rfAdd">${ICONS.plus}<span>Add</span></button>
+        <button class="rf-btn" id="rfAuto">${ICONS.wand}<span>Auto-fill</span></button>
+        <button class="rf-btn ok" id="rfDone">${ICONS.check}<span>Done</span></button>
+      </div>
       <div class="adjust-pop hidden" id="adjustPop">
         <div class="adj-sliders">
           <label class="adj-row"><span class="adj-lbl">Turn <b id="adjRotVal">0°</b></span>
@@ -624,7 +632,7 @@ export class UI {
       </div>
       <div class="sel-actions hidden" id="selActions">
         <button class="fab mini move-only ok" id="selMoveDone" title="Done moving">${ICONS.check}<span>Done</span></button>
-        <button class="fab mini item-only" id="selMove" title="Move — tap where it should go">${ICONS.move}<span>Move</span></button>
+        <button class="fab mini item-only" id="selMove" title="Move — drag beside it to slide it into place">${ICONS.move}<span>Move</span></button>
         <button class="fab mini item-only" id="selAdjust" title="Resize & turn">${ICONS.adjust}<span>Adjust</span></button>
         <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
         <button class="fab mini item-only" id="selRoom" title="Select the room this is in">${ICONS.room}<span>Room</span></button>
@@ -685,7 +693,10 @@ export class UI {
       if (room) { store.select({ kind: 'room', id: room.key }); this.toast('Room selected'); }
       else this.toast('This item isn’t inside a room');
     };
-    $('#selFurnish').onclick = () => this.furnishSelectedRoom();
+    $('#selFurnish').onclick = () => this.enterRoomFocus();
+    $('#rfAdd').onclick = () => this.toggleDrawer('catalog');
+    $('#rfAuto').onclick = () => this.autoFillFocusRoom();
+    $('#rfDone').onclick = () => this.exitRoomFocus();
     $('#selDup').onclick = () => this.duplicateSelection();
     $('#selEdit').onclick = () => this.toggleDrawer('props');
     $('#selDel').onclick = () => {
@@ -774,6 +785,57 @@ export class UI {
     } else {
       store.undoStack.pop(); store.emit('history');
       this.toast('Room is too small to auto-furnish');
+    }
+  }
+
+  /** Drop into a contained, close-up view of the selected room for furnishing:
+   *  roof off, other rooms' furniture hidden, camera locked to the room. Add
+   *  pieces from the catalog and arrange them, then tap Done. */
+  enterRoomFocus() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind !== 'room') return;
+    const room = store.room(sel.id);
+    if (!room) { this.toast('Tap a room first'); return; }
+    if (store.viewMode !== '3d') store.setViewMode('3d');
+    if (!this.viewer.focusRoom(room)) return;
+    this._focusRoomKey = sel.id;
+    const style = store.roomStyle(sel.id);
+    $('#roomFocusName').textContent = style.name || 'this room';
+    $('#roomFocusBar')?.classList.remove('hidden');
+    store.select(null);                 // clear the room's own action bar
+    this.showHint();
+    this.toast('Furnishing this room — Add pieces, drag to arrange, then Done');
+  }
+
+  exitRoomFocus() {
+    if (!this._focusRoomKey) return;
+    this._focusRoomKey = null;
+    this.viewer.exitFocus();
+    $('#roomFocusBar')?.classList.add('hidden');
+    this.closeDrawer('catalog');
+    if (this.store.tool === 'place') this.store.setTool('select');
+    this.store.select(null);
+  }
+
+  /** Auto-fill the room currently being furnished in focus mode. */
+  autoFillFocusRoom() {
+    const store = this.store;
+    if (!this._focusRoomKey) return;
+    const room = store.room(this._focusRoomKey);
+    const rect = room && this.roomRect(room);
+    if (!rect) { this.toast('This room can’t be auto-filled'); return; }
+    const style = store.roomStyle(this._focusRoomKey);
+    const ftId = guessType(style.name) || 'living';
+    store.checkpoint();
+    const n = furnishRoom(store, rect, ftId);
+    if (n > 0) {
+      if (!style.name) { const ft = FURNISH_TYPES.find(f => f.id === ftId); if (ft) style.name = ft.name; }
+      store.commit(false);
+      this.toast(`Auto-filled — ${n} pieces added`);
+    } else {
+      store.undoStack.pop(); store.emit('history');
+      this.toast('Room is too small to auto-fill');
     }
   }
 
@@ -1827,6 +1889,9 @@ export class UI {
     pill.textContent = text;
     pill.classList.remove('hidden', 'fade');
     clearTimeout(this._hintTimer);
-    this._hintTimer = setTimeout(() => pill.classList.add('fade'), 4200);
+    // keep the cue up while a tool is "in hand" (placing/moving) so a phone user
+    // never loses track of what they're doing; otherwise fade after a few seconds
+    const sticky = store.tool === 'place' || !!store.moveId;
+    if (!sticky) this._hintTimer = setTimeout(() => pill.classList.add('fade'), 4200);
   }
 }

@@ -86,9 +86,11 @@ export function solid(hex, rough = 0.8, metal = 0) {
 /** Self-lit (emissive) material for lamps, bulbs, flames — NOT cached, so
  *  setting its glow never mutates a shared material. */
 export function glow(hex, intensity = 1, rough = 0.4) {
-  return new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({
     color: hex, roughness: rough, emissive: hex, emissiveIntensity: intensity
   });
+  m.userData.owned = true; // not cached — safe (and necessary) to dispose on rebuild
+  return m;
 }
 
 /** Wood-grain material tinted to any tone — used for all wooden furniture. */
@@ -107,27 +109,45 @@ export function wood(hex, rough = 0.55) {
   return m;
 }
 
-/** Textured material from the procedural material registry. */
+const TEX_CAP = 140; // most distinct sized surfaces a scene ever shows at once
+
+/** Textured material from the procedural material registry. Each distinct
+ *  (material, repeatX, repeatY) uploads its own GPU texture pair, so the repeats
+ *  are QUANTIZED (a resized deck rebuilds at every intermediate size, and many
+ *  similar surfaces would otherwise each mint a fresh ~2–10 MB texture) and the
+ *  cache is an LRU that disposes what it evicts — without this the GPU textures
+ *  grew without bound and crashed mobile Safari. */
 export function tex(matId, repeatX = 1, repeatY = 1) {
+  repeatX = Math.min(16, Math.max(0.5, Math.round(repeatX * 2) / 2));
+  repeatY = Math.min(16, Math.max(0.5, Math.round(repeatY * 2) / 2));
   const key = `${matId}_${repeatX}_${repeatY}`;
   let m = texCache.get(key);
-  if (!m) {
-    const { color, bump } = getTextureCanvases(matId);
-    const def = MATERIAL_MAP.get(matId);
-    const map = new THREE.CanvasTexture(color);
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(repeatX, repeatY);
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.anisotropy = 4;
-    const bumpMap = new THREE.CanvasTexture(bump);
-    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
-    bumpMap.repeat.set(repeatX, repeatY);
-    m = new THREE.MeshStandardMaterial({
-      map, bumpMap, bumpScale: 0.6,
-      roughness: def?.rough ?? 0.8,
-      metalness: 0
-    });
-    texCache.set(key, m);
+  if (m) {
+    texCache.delete(key); texCache.set(key, m); // touch → most-recently-used
+    return m;
+  }
+  const { color, bump } = getTextureCanvases(matId);
+  const def = MATERIAL_MAP.get(matId);
+  const map = new THREE.CanvasTexture(color);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(repeatX, repeatY);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 4;
+  const bumpMap = new THREE.CanvasTexture(bump);
+  bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+  bumpMap.repeat.set(repeatX, repeatY);
+  m = new THREE.MeshStandardMaterial({
+    map, bumpMap, bumpScale: 0.6,
+    roughness: def?.rough ?? 0.8,
+    metalness: 0
+  });
+  texCache.set(key, m);
+  // evict the least-recently-used entries and free their GPU textures
+  while (texCache.size > TEX_CAP) {
+    const oldest = texCache.keys().next().value;
+    const dead = texCache.get(oldest);
+    texCache.delete(oldest);
+    dead.map?.dispose(); dead.bumpMap?.dispose(); dead.dispose();
   }
   return m;
 }
@@ -239,6 +259,7 @@ export function buildTallGrass(pal, w, d) {
   const geo = new THREE.ConeGeometry(2.4, 1, 4, 1);
   geo.translate(0, 0.5, 0); // base at y=0 so height scaling grows upward
   const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 });
+  mat.userData.owned = true;
   const mesh = new THREE.InstancedMesh(geo, mat, count);
   const dummy = new THREE.Object3D();
   const cBase = new THREE.Color(pal.base), cTip = new THREE.Color(pal.tips), c = new THREE.Color();
@@ -374,6 +395,7 @@ export function shade(parent, hex, rBottom, rTop, h, x, y, z) {
     color: hex, roughness: 0.9, side: THREE.DoubleSide,
     emissive: hex, emissiveIntensity: 0.25
   });
+  mat.userData.owned = true;
   const geo = new THREE.CylinderGeometry(rTop, rBottom, h, 24, 1, true);
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y + h / 2, z);
@@ -475,9 +497,9 @@ export function blob(parent, hexA, hexB, r, x, y, z, opts = {}) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.92
-  }));
+  const blobMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
+  blobMat.userData.owned = true; // unique per blob (vertex colours baked in)
+  const mesh = new THREE.Mesh(geo, blobMat);
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   parent.add(mesh);
@@ -553,6 +575,7 @@ export function buildFlag(parent, tex, w, h, x = 0, y = 0, z = 0, opts = {}) {
   const mat = new THREE.MeshStandardMaterial({
     map: tex, side: THREE.DoubleSide, roughness: 0.85, metalness: 0
   });
+  mat.userData.owned = true; // flag texture is shared/cached; only the material is unique
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y, z);
   if (opts.ry) mesh.rotation.y = opts.ry;

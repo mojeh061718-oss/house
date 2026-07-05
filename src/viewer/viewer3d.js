@@ -216,6 +216,15 @@ export class Viewer3D {
 
   applyOrbit() {
     const o = this.orbit;
+    // room-focus mode: keep the camera locked onto the room so panning & zoom
+    // stay contained instead of wandering off across the house
+    if (this.focusRoomKey && this._focusBounds) {
+      const b = this._focusBounds;
+      o.target.x = clamp(o.target.x, b.minX, b.maxX);
+      o.target.z = clamp(o.target.z, b.minZ, b.maxZ);
+      const fit = this._focusFit || 800;
+      o.radius = clamp(o.radius, fit * 0.45, fit * 1.5); // zoom in/out but stay on the room
+    }
     o.phi = clamp(o.phi, 0.08, Math.PI / 2 - 0.02);
     o.radius = clamp(o.radius, 80, 6000);
     const sp = Math.sin(o.phi), cp = Math.cos(o.phi);
@@ -343,6 +352,11 @@ export class Viewer3D {
       const def = ITEM_MAP.get(it.defId);
       if (!def) continue;
       if (this.hideRoof && def.plan?.type === 'roof') continue; // peek inside
+      // room-focus: show only the furniture that belongs to the focused room
+      if (this.focusRoomKey && this._focusBounds && li === (this.store.project.activeLevel ?? 0)) {
+        const b = this._focusBounds;
+        if (it.x < b.minX - 40 || it.x > b.maxX + 40 || it.y < b.minZ - 40 || it.y > b.maxZ + 40) continue;
+      }
       try {
         const isPath = def.path && it.path?.length >= 2;
         // a user-chosen surface texture (patio/deck "any material") overrides the
@@ -437,6 +451,12 @@ export class Viewer3D {
   disposeGroup(group) {
     group.traverse(obj => {
       if (obj.geometry) obj.geometry.dispose();
+      // shared cached materials (solid/wood/tex/…) must survive; only per-build
+      // ones tagged `owned` (glow/foliage/grass/flags/shades) are freed here, or
+      // they'd leak on every rebuild and eventually crash the tab
+      const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
+      for (const m of mats) if (m?.userData?.owned) m.dispose();
+      if (obj.isInstancedMesh) obj.dispose();
     });
     group.clear();
   }
@@ -646,6 +666,49 @@ export class Viewer3D {
 
   setHideRoof(on) {
     this.hideRoof = on;
+    this.needsRebuild = true;
+  }
+
+  /** Drop into a close, contained view of ONE room for furnishing: the roof
+   *  comes off, other rooms' furniture is hidden, and the camera is locked to
+   *  this room so panning/zoom can't wander off — easy to place & arrange
+   *  pieces without the rest of the house getting in the way. */
+  focusRoom(room) {
+    if (!room?.polygon?.length) return false;
+    this.focusRoomKey = room.key;
+    this.walkMode = false;
+    this.hideRoof = true;
+    let minX = 1e9, minZ = 1e9, maxX = -1e9, maxZ = -1e9;
+    for (const p of room.polygon) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minZ = Math.min(minZ, p.y); maxZ = Math.max(maxZ, p.y);
+    }
+    this._focusBounds = { minX, minZ, maxX, maxZ };
+    const span = Math.max(maxX - minX, maxZ - minZ, 200);
+    this.flight = null;
+    // an angled, roof-off "open room" view framed to fit the room — distance is
+    // derived from the CURRENT camera fov + aspect so it frames correctly on a
+    // tall phone (portrait) just as well as a wide screen
+    const R = span * 0.72;                       // room bounding radius-ish
+    const vHalf = (this.camera.fov * Math.PI / 180) / 2;
+    const hHalf = Math.atan(Math.tan(vHalf) * this.camera.aspect);
+    const fit = R / Math.sin(Math.max(0.12, Math.min(vHalf, hHalf))) * 1.08;
+    this._focusFit = fit;
+    this.orbit.target.set(room.centroid.x, 50, room.centroid.y);
+    this.orbit.radius = clamp(fit, 260, 3600);
+    this.orbit.phi = 0.82;
+    this.orbit.theta = 0.6;
+    this.applyOrbit();
+    this.needsRebuild = true;
+    return true;
+  }
+
+  exitFocus() {
+    if (!this.focusRoomKey) return;
+    this.focusRoomKey = null;
+    this._focusBounds = null;
+    this.hideRoof = false;
+    this.frameAll();
     this.needsRebuild = true;
   }
 
