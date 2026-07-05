@@ -10,13 +10,17 @@ import { DOCKS_ITEMS } from './packs/docks.js';
 import { LOUNGE_ITEMS } from './packs/lounge.js';
 import { STRUCTURES_ITEMS } from './packs/structures.js';
 
+// Assign each pack to a finer catalog category so the "Outdoor" tab isn't one
+// giant broad bucket. (Games & Decor keep the categories their authors set.)
+const tag = (arr, cat) => arr.map(d => ({ ...d, cat }));
+
 export const EXTRA_ITEMS = [
-  ...GAMES_ITEMS,
-  ...DECOR_ITEMS,
-  ...POOLSIDE_ITEMS,
-  ...POOLS_ITEMS,
-  ...WATER_ITEMS,
-  ...DOCKS_ITEMS,
-  ...LOUNGE_ITEMS,
-  ...STRUCTURES_ITEMS
+  ...GAMES_ITEMS,                        // 'games'
+  ...DECOR_ITEMS,                        // 'decor' / 'living' (as authored)
+  ...tag(POOLSIDE_ITEMS, 'pools'),       // poolside gear & floats
+  ...tag(POOLS_ITEMS, 'pools'),          // pools & spas
+  ...tag(WATER_ITEMS, 'water'),          // ponds & fountains
+  ...tag(DOCKS_ITEMS, 'waterfront'),     // docks & boats
+  ...tag(LOUNGE_ITEMS, 'patio'),         // outdoor lounge & entertainment
+  ...tag(STRUCTURES_ITEMS, 'yard')       // structures & garden
 ];

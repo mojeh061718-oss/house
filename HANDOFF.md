@@ -16,7 +16,27 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.22.0** (dev branch only, not yet on live) — a 153-item
+- Current version: **2.22.1** (dev branch only, not yet on live) — pool-water
+  fix + catalog re-categorization on top of the 2.22.0 content drop.
+  - **POOL WATER FIX:** pools rendered as a solid coping slab with NO water —
+    the coping (a full-footprint slab/disc) was drawn OVER the water and, with no
+    CSG in three.js, buried it. Fixed in `packs/pools.js`: the `water()` surface
+    is now the TOPMOST element of every pool/spa (brim-full at ~13.5cm, proud of
+    the ~12cm coping deck), with a dark basin just beneath for depth tint. New
+    `waterRect`/`waterDisc` helpers + `DECK`/`WTOP` constants; every pool body
+    (rect, infinity, kidney, L, oval, roman, tanning, cocktail, spa-combo) and
+    all 3 spas reworked so the coping/rim never covers the water. Verified
+    visually (all pools show blue rippled water). Also swapped the non-existent-
+    looking coping id to `real_travertine`.
+  - **RE-CATEGORIZATION:** the giant "Outdoor" tab is split. New categories in
+    CATEGORIES: `patio` (Patio & Lounge), `pools` (Pools & Spas), `water` (Water
+    Features), `waterfront` (Docks & Boats), `yard` (Yard & Garden). Packs are
+    tagged in `extras.js` via `tag(arr,cat)` (poolside+pools→pools, water→water,
+    docks→waterfront, lounge→patio, structures→yard); base "outdoor" items are
+    swept by plan-type in items.js (`OUTDOOR_RECAT`). Result: pools 42, yard 57,
+    patio 24, waterfront 20, water 17, games 18, outdoor 33 leftover — no empty
+    tabs.
+- v2.22.0 (dev) — a 153-item
   content drop (catalog now 345 items). All ships to `/house/dev/` only.
   - **New content architecture:** items now live in themed packs under
     `src/catalog/packs/*.js`, each exporting a `*_ITEMS` array; `src/catalog/

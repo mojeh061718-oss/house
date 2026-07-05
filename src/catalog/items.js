@@ -17,8 +17,13 @@ export const CATEGORIES = [
   { id: 'office', name: 'Office' },
   { id: 'decor', name: 'Decor & Lighting' },
   { id: 'structure', name: 'Stairs & Structure' },
-  { id: 'outdoor', name: 'Outdoor' },
-  { id: 'games', name: 'Games & Fun' }
+  { id: 'games', name: 'Games & Fun' },
+  { id: 'patio', name: 'Patio & Lounge' },
+  { id: 'pools', name: 'Pools & Spas' },
+  { id: 'water', name: 'Water Features' },
+  { id: 'waterfront', name: 'Docks & Boats' },
+  { id: 'yard', name: 'Yard & Garden' },
+  { id: 'outdoor', name: 'Outdoor' }
 ];
 
 const FABRICS = [
@@ -3390,6 +3395,23 @@ export const ITEMS = [
 // src/catalog/packs/* and merged in here so ITEM_MAP and the catalog pick
 // them up like any built-in item.
 ITEMS.push(...EXTRA_ITEMS);
+
+// Sweep the original broad "Outdoor" bucket into the finer categories so pools,
+// water, waterfront, patio and yard items each get their own tab. Keyed on the
+// 2D plan symbol; anything unmatched stays under "Outdoor".
+const OUTDOOR_RECAT = {
+  pool: 'pools', hottub: 'pools',
+  pond: 'water',
+  boat: 'waterfront', dock: 'waterfront',
+  patioset: 'patio', grill: 'patio', umbrella: 'patio', lounger: 'patio', slab: 'patio',
+  pergola: 'yard', fence: 'yard', hedge: 'yard', flag: 'yard', rock: 'yard',
+  lampRound: 'yard', plant: 'yard', swingset: 'yard', hoop: 'yard', car: 'yard'
+};
+for (const it of ITEMS) {
+  if (it.cat !== 'outdoor') continue;
+  const nc = OUTDOOR_RECAT[it.plan?.type];
+  if (nc) it.cat = nc;
+}
 
 /** Shared sunflower builder: stalk with leaves, seed disk, two petal rings. */
 function buildSunflower(g, x, z, h, headR, seed) {
