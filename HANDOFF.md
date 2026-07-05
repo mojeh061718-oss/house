@@ -16,7 +16,21 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.22.1** (dev branch only, not yet on live) — pool-water
+- Current version: **2.22.2** (dev branch only, not yet on live) — adds a
+  tap-to-move mode (dragging objects on a phone was too fiddly).
+  - **MOVE MODE:** a **Move** button on the selection action bubble (`#selMove`,
+    item-only) sets `store.moveId` to the selected item. While active: tapping
+    anywhere on the plan/ground **relocates** the item there (and it stays
+    selected so you can keep tapping to fine-tune); you can also still drag it.
+    A prominent green **Done** button (`#selMoveDone`, `.move-only`) confirms and
+    clears `store.moveId`. syncFabs adds a `.moving` class (shows only Done,
+    hides the rest) and auto-exits move mode if the selection changes/clears;
+    locked items are blocked. 3D: `viewer3d.moveItemTo(id, tap)` from the onUp
+    tap branch + move-mode drag allowed in onDown (even for ground-cover items).
+    2D: relocate at the top of `editor2d.downSelect` (then a dragItem lets you
+    keep adjusting). New `move` icon. Verified 3D+2D tap-relocate, Done, auto-
+    exit, and locked-block.
+- v2.22.1 (dev) — pool-water
   fix + catalog re-categorization on top of the 2.22.0 content drop.
   - **POOL WATER FIX:** pools rendered as a solid coping slab with NO water —
     the coping (a full-footprint slab/disc) was drawn OVER the water and, with no

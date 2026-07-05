@@ -346,6 +346,26 @@ export class Editor2D {
     const store = this.store;
     const sel = store.selection;
 
+    // MOVE MODE: tap anywhere to jump the item there, then keep dragging to
+    // fine-tune. Ends when the user taps ✓ Done (which clears store.moveId).
+    if (store.moveId) {
+      const it = store.item(store.moveId);
+      if (it) {
+        const def = ITEM_MAP.get(it.defId);
+        store.checkpoint();
+        const pose = this.placePose({ x: w.x, y: w.y }, def, { rot: it.rotation });
+        const dx = pose.x - it.x, dy = pose.y - it.y;
+        it.x = pose.x; it.y = pose.y;
+        if (it.path) for (const p of it.path) { p.x += dx; p.y += dy; }
+        store.commit(false);
+        store.select({ kind: 'item', id: it.id });
+        // let a continued drag keep moving it
+        this.mode = { name: 'dragItem', id: it.id, offX: 0, offY: 0, moved: true, dragging: true };
+      }
+      this.requestRender();
+      return;
+    }
+
     // on-object delete badge: one tap on the red × removes the selection,
     // so a room/piece you just made is never a chore to get rid of
     if (this._delBadge) {

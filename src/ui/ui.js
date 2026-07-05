@@ -597,6 +597,8 @@ export class UI {
         <button class="fab mini flip item-only" id="selRotR" title="Rotate right 45°">${ICONS.rotate}<span>+45°</span></button>
         <button class="fab mini item-only" id="selShrink" title="Smaller">${ICONS.minus}<span>Smaller</span></button>
         <button class="fab mini item-only" id="selGrow" title="Bigger">${ICONS.plus}<span>Bigger</span></button>
+        <button class="fab mini move-only ok" id="selMoveDone" title="Done moving">${ICONS.check}<span>Done</span></button>
+        <button class="fab mini item-only" id="selMove" title="Move — tap where it should go">${ICONS.move}<span>Move</span></button>
         <button class="fab mini" id="selLock" title="Lock in place">${ICONS.lock}<span>Lock</span></button>
         <button class="fab mini item-only" id="selRoom" title="Select the room this is in">${ICONS.room}<span>Room</span></button>
         <button class="fab mini room-only" id="selFurnish" title="Auto-furnish this room">${ICONS.wand}<span>Furnish</span></button>
@@ -644,6 +646,30 @@ export class UI {
         this.toast('Locked — tap the padlock to unlock');
       }
     };
+    $('#selMove').onclick = () => this.startMove();
+    $('#selMoveDone').onclick = () => this.endMove();
+  }
+
+  /** Enter tap-to-move mode for the selected item: tap anywhere to drop it
+   *  there, then tap Done. Much easier than dragging on a phone. */
+  startMove() {
+    const store = this.store;
+    const sel = store.selection;
+    if (sel?.kind !== 'item') return;
+    const it = store.item(sel.id);
+    if (!it) return;
+    if (it.locked) { this.toast('Locked — tap the padlock to unlock first'); return; }
+    store.moveId = sel.id;
+    this.syncFabs();
+    this.showHint();
+    this.toast('Move mode — tap where it should go, then tap Done');
+  }
+
+  endMove() {
+    this.store.moveId = null;
+    this.syncFabs();
+    this.showHint();
+    this.toast('Placed');
   }
 
   /** One-tap auto-furnish of the selected room using the best-guess layout. */
@@ -767,11 +793,21 @@ export class UI {
   syncFabs() {
     const sel = this.store.selection;
     const actions = $('#selActions');
+    // leaving the moved item (or losing the selection) ends move mode cleanly
+    if (this.store.moveId && sel?.id !== this.store.moveId) this.store.moveId = null;
+    const moving = !!this.store.moveId;
     // ground has no move/delete actions — it's edited straight from its panel
     actions.classList.toggle('hidden', !sel || sel.kind === 'ground');
+    actions.classList.toggle('moving', moving);
     if (sel?.kind === 'ground') {
       $('#props').classList.add('open');
       this.loadSwatchTextures('props');
+    }
+    // in move mode only the Done button shows; otherwise the normal set
+    actions.querySelectorAll('.move-only').forEach(b => { b.style.display = moving ? '' : 'none'; });
+    if (moving) {
+      actions.querySelectorAll('.fab.mini:not(.move-only)').forEach(b => { b.style.display = 'none'; });
+      return;
     }
     const isItem = sel?.kind === 'item';
     actions.querySelectorAll('.item-only').forEach(b => {
@@ -1599,7 +1635,9 @@ export class UI {
     const tap = this.coarse ? 'Tap' : 'Click';
     const zoom = this.coarse ? 'pinch to zoom' : 'scroll to zoom';
     let text;
-    if (store.viewMode === '3d' && this.viewer.walkMode) {
+    if (store.moveId) {
+      text = `Moving — ${tap.toLowerCase()} where it should go (or drag it), then tap ✓ Done`;
+    } else if (store.viewMode === '3d' && this.viewer.walkMode) {
       text = this.coarse
         ? 'Walk mode — left side: drag to walk · right side: drag to look'
         : 'Walk mode — WASD / arrows to move · drag to look';

@@ -925,6 +925,34 @@ export class Viewer3D {
     return null;
   }
 
+  /** Move-mode: relocate an existing item's center to the tapped ground point. */
+  moveItemTo(id, p) {
+    const store = this.store;
+    const it = store.item(id);
+    if (!it) return false;
+    const def = ITEM_MAP.get(it.defId);
+    let target = null;
+    if (def?.mount === 'wall') {
+      const hit = this.castWall(p);
+      if (hit) target = { x: hit.point.x, y: hit.point.z };
+    }
+    if (!target) target = this.castGround(p);
+    if (!target) return false;
+    store.checkpoint();
+    const pose = snapPose(store.project.walls, def, target.x, target.y,
+      store.snapEnabled ? { rot: it.rotation } : { noSnap: true, rot: it.rotation });
+    if (it.path) {
+      const dx = pose.x - it.x, dy = pose.y - it.y;
+      it.x = pose.x; it.y = pose.y;
+      for (const pp of it.path) { pp.x += dx; pp.y += dy; }
+    } else {
+      it.x = pose.x; it.y = pose.y;
+    }
+    store.commit(true);
+    store.select({ kind: 'item', id: it.id }); // keep it selected & in move mode
+    return true;
+  }
+
   /** Tap-to-place in 3D: furniture on the ground/floor, wall items on walls. */
   placeItemAt(p) {
     const store = this.store;
@@ -1078,10 +1106,12 @@ export class Viewer3D {
     // you long-press to select/edit them. Regular furniture stays tap-to-select.
     const groundish = !!def && (def.areaDraw || !!def.path);
     const already = this.store.selection?.kind === 'item' && this.store.selection.id === hit?.itemId;
+    // in move mode the chosen item drags freely (even ground-cover pieces)
+    const inMove = !!this.store.moveId && hit?.itemId === this.store.moveId;
     // Only an ALREADY-selected, movable piece begins a move-drag on press.
     // Landing on anything else starts a camera orbit, so dragging never yanks
     // an asset you were only trying to swipe past.
-    if (hit && already && !groundish && def?.mount !== 'ceiling' && !it.locked) {
+    if (hit && (already || inMove) && (!groundish || inMove) && def?.mount !== 'ceiling' && !it.locked) {
       this.store.checkpoint();
       this.drag = {
         id: hit.itemId,
@@ -1261,6 +1291,12 @@ export class Viewer3D {
         const tool = this.store.tool;
         const now = (typeof performance !== 'undefined' ? performance.now() : 0);
         const longPress = now - (g.downT || 0) >= 450;
+        // MOVE MODE: a tap drops the item being moved onto the tapped point
+        if (this.store.moveId && this.store.item(this.store.moveId)) {
+          this.moveItemTo(this.store.moveId, tap);
+          this.gesture = null;
+          return;
+        }
         if (tool === 'place' && this.store.placeDefId) {
           this.placeItemAt(tap);
         } else if (tool === 'door' || tool === 'window') {

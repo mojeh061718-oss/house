@@ -877,6 +877,10 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .fab.mini:hover { background: var(--accent-soft); color: var(--accent); }
 .fab.mini.danger { color: var(--danger); }
 .fab.mini.flip svg { transform: scaleX(-1); }
+/* Done button (shown only in move mode) is a prominent green confirm */
+.fab.mini.ok { background: #1f9d55; color: #fff; min-width: 68px; }
+.fab.mini.ok:hover { background: #23b061; color: #fff; }
+.sel-actions.moving { background: rgba(24, 74, 48, 0.92); border-color: #1f9d55; }
 
 /* ---- floor switcher ---- */
 #levelBar {
