@@ -458,12 +458,6 @@ export class Editor2D {
       }
     }
 
-    // dimension annotations: a tap on the dimension line or its label selects
-    // it (so it can be deleted). Checked before geometry since dims float in
-    // otherwise-empty space beside the walls.
-    const dimId = this.dimAt(sx, sy);
-    if (dimId) { store.select({ kind: 'dim', id: dimId }); this.requestRender(); return; }
-
     // 0. jamb-end resize handles of current opening selection
     if (sel?.kind === 'opening') {
       const o = store.opening(sel.id);
@@ -535,6 +529,13 @@ export class Editor2D {
         return;
       }
     }
+
+    // dimension annotations: a tap on the dimension line selects it (to delete).
+    // Checked AFTER manipulation handles so it never steals a resize/rotate/move,
+    // but before plain geometry so tapping a dimension doesn't grab the wall
+    // behind it.
+    const dimId = this.dimAt(sx, sy);
+    if (dimId) { store.select({ kind: 'dim', id: dimId }); this.requestRender(); return; }
 
     const hit = this.hitTest(w.x, w.y);
     if (hit?.kind === 'item' && sel?.kind === 'multi' && sel.ids.includes(hit.id)) {
@@ -1143,9 +1144,11 @@ export class Editor2D {
     if (m.name === 'dimOffset') {
       const d = this.dimDraft;
       if (d?.a && d?.b) {
-        // a plain tap (no drag) uses a default standoff on the +normal side
+        // keep whatever standoff was pulled out — during the aim-hover before
+        // this tap (desktop) or by dragging this press (touch). Only fall back
+        // to a default when the line was never pulled clear of the geometry.
         let off = d.off;
-        if (!m.moved || Math.abs(off ?? 0) < 8) off = 40;
+        if (off == null || Math.abs(off) < 8) off = 40;
         store.checkpoint();
         store.addDim(d.a.x, d.a.y, d.b.x, d.b.y, off);
         store.commit(false);
@@ -1496,7 +1499,7 @@ export class Editor2D {
     // running total near the last point
     if (pts.length > 2) {
       const last = this.toScreen(pts[pts.length - 1].x, pts[pts.length - 1].y);
-      const label = `Σ ${fmtLen(total)}`;
+      const label = `Total ${fmtLen(total)}`;
       const tw = ctx.measureText(label).width;
       ctx.fillStyle = '#e8873b';
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(last.x - tw / 2 - 7, last.y + 12, tw + 14, 19, 9.5); ctx.fill(); }
@@ -1550,16 +1553,8 @@ export class Editor2D {
         ctx.arc(p.x, p.y, R - 1, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.shadowBlur = 0;
-    const label = { endpoint: 'END', midpoint: 'MID', intersect: 'INT', perp: 'PERP', onwall: 'ON', align: 'ALIGN', axis: '' }[s.kind];
-    if (label) {
-      ctx.font = '700 9px system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      const tw = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.62)';
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(p.x + R + 3, p.y - R - 3, tw + 8, 13, 3); ctx.fill(); }
-      ctx.fillStyle = '#fff';
-      ctx.fillText(label, p.x + R + 7, p.y - R + 6);
-    }
+    // No CAD jargon labels (END/MID/INT/PERP…) — the glyph alone signals a clean
+    // snap so everyday users get precision without a vocabulary lesson.
     ctx.restore();
   }
 

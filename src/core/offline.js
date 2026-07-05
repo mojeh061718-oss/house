@@ -60,10 +60,13 @@ export async function installLibrary(onProgress) {
     });
   }
 
-  // no SW (older browser / first uncontrolled load): warm the page cache
+  // No controlling service worker (unsupported browser). We can warm this
+  // session's in-memory cache, but we canNOT persist for true offline use — so
+  // do NOT mark it installed (that would falsely claim "Available offline" and
+  // suppress the prompt forever). Return false so the UI stays honest and a
+  // later, SW-controlled load can do the real install.
   return new Promise((resolve) => {
     warmAllTextures((done) => onProgress?.(done, total));
-    markInstalled();
-    resolve(true);
+    resolve(false);
   });
 }

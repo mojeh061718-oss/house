@@ -91,7 +91,18 @@ export class UI {
       this.maybePromptOffline();
     });
     store.on('level', () => this.syncLevels());
-    store.on('history', () => this.syncLevels());
+    store.on('history', () => {
+      this.syncLevels();
+      // undo/redo re-hydrate the project, which can revert settings.units —
+      // keep the module-global unit system in step so the display never lies
+      const want = store.project.settings.units || 'imperial';
+      if (unitSystem() !== want) {
+        setUnitSystem(want);
+        const el = $('#mUnitsVal'); if (el) el.textContent = want === 'metric' ? 'Metric' : 'Imperial';
+        this.editor.requestRender();
+        this.renderProps();
+      }
+    });
 
     this.renderProps();
     this.syncTools();
@@ -901,7 +912,10 @@ export class UI {
       message: `Save the photo-realistic material library (${libraryCount()} textures, ~${librarySizeMB()} MB) to this device so the studio keeps working with no internet. You can also do this later from the menu.`,
       okLabel: 'Save now', cancelLabel: 'Later'
     });
-    if (ok) { await this.runOfflineInstall(); const el = $('#mOfflineLbl'); if (el) el.textContent = 'Available offline ✓'; }
+    if (ok) {
+      const persisted = await this.runOfflineInstall();
+      const el = $('#mOfflineLbl'); if (el && persisted) el.textContent = 'Available offline ✓';
+    }
   }
 
   /** Download the offline library with a live progress bar. */
@@ -918,17 +932,25 @@ export class UI {
     const fill = ov.querySelector('#offFill');
     const sub = ov.querySelector('#offSub');
     try {
-      await installLibrary((done, total) => {
+      const persisted = await installLibrary((done, total) => {
         const pct = total ? Math.round((done / total) * 100) : 0;
         if (fill) fill.style.width = pct + '%';
         if (sub) sub.textContent = `${done} of ${total} textures · ${pct}%`;
       });
-      if (sub) sub.textContent = 'Done — the app now works fully offline';
       if (fill) fill.style.width = '100%';
-      this.toast('Saved for offline use ✓');
-      await new Promise(r => setTimeout(r, 650));
+      if (persisted) {
+        if (sub) sub.textContent = 'Done — the app now works fully offline';
+        this.toast('Saved for offline use ✓');
+      } else {
+        // couldn't persist (no service worker) — be honest, don't claim offline
+        if (sub) sub.textContent = 'Loaded for now — full offline needs a supported browser';
+        this.toast('Loaded for this session');
+      }
+      await new Promise(r => setTimeout(r, 750));
+      return persisted;
     } catch {
       this.toast('Offline download interrupted — try again');
+      return false;
     } finally {
       ov.remove();
     }
