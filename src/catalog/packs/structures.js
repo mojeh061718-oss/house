@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, prism, pyramid, wavyPanel, blob, foliage, solid, wood, metal, glass, glow, tex } from '../builders.js';
+import { G, box, cyl, sphere, prism, wavyPanel, blob, foliage, solid, wood, metal, glass, glow, tex } from '../builders.js';
 
 // Modern outdoor structures & yard features — all parametric, primitives only.
 const WOODS = [

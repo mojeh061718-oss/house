@@ -1,7 +1,7 @@
 // Modern indoor decor & accents pack. Built only from primitive helpers.
 import {
   G, box, cyl, sphere, shade, blob, foliage,
-  solid, wood, metal, chrome, glass, mirror, glow, artMaterial
+  solid, wood, metal, glass, mirror, glow, artMaterial
 } from '../builders.js';
 
 // local helper: a simple wine/spirits bottle standing at x,z
