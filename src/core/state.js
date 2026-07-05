@@ -1,5 +1,5 @@
 // Central application state: project data, selection, tools, undo/redo, persistence.
-import { detectRooms, roomKey, uid, pointInPolygon } from './geometry.js';
+import { detectRooms, roomKey, uid, pointInPolygon, collinearOverlapUnion } from './geometry.js';
 import { openingDefaults, isDoorType } from './openings.js';
 import { saveProject, saveDraft, clearDraft } from './projects.js';
 
@@ -219,6 +219,41 @@ export class Store {
       this.project.roomStyles[key] = s;
     }
     return s;
+  }
+
+  /** Merge walls that were snapped together so they overlap (two rooms sharing
+   *  an edge, containers pushed together) into a single wall — openings move to
+   *  the survivor with corrected positions. Returns how many walls were merged.
+   *  Call after a structural gesture that could have stacked walls. */
+  weldWalls() {
+    const walls = this.project.walls;
+    const ops = this.project.openings;
+    let merged = 0, changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < walls.length && !changed; i++) {
+        for (let j = i + 1; j < walls.length; j++) {
+          const A = walls[i], B = walls[j];
+          const u = collinearOverlapUnion(A, B, 2.5, 10);
+          if (!u) continue;
+          // remember every opening on A or B in world space before A changes
+          const affected = ops.filter(o => o.wallId === A.id || o.wallId === B.id);
+          const pos = affected.map(o => {
+            const w = o.wallId === A.id ? A : B;
+            return { o, x: w.ax + (w.bx - w.ax) * o.t, y: w.ay + (w.by - w.ay) * o.t };
+          });
+          A.ax = u.ax; A.ay = u.ay; A.bx = u.bx; A.by = u.by; // extend A to the union
+          const dx = A.bx - A.ax, dy = A.by - A.ay, len2 = dx * dx + dy * dy || 1;
+          for (const { o, x, y } of pos) {
+            o.wallId = A.id;
+            o.t = Math.max(0, Math.min(1, ((x - A.ax) * dx + (y - A.ay) * dy) / len2));
+          }
+          walls.splice(j, 1);
+          merged++; changed = true; break;
+        }
+      }
+    }
+    return merged;
   }
 
   addWall(ax, ay, bx, by, thickness) {

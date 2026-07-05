@@ -28,6 +28,30 @@ export function wallLength(w) {
   return dist(w.ax, w.ay, w.bx, w.by);
 }
 
+/** If walls A and B are collinear and genuinely OVERLAP (share a real segment,
+ *  not merely touch at a corner), return the union segment {ax,ay,bx,by} that
+ *  covers both — used to weld snapped-together shared walls into one. Else null.
+ *  `perpTol` = how far off the shared line B may sit; `minOverlap` = the least
+ *  shared length (cm) that counts as "the same wall". */
+export function collinearOverlapUnion(A, B, perpTol = 2, minOverlap = 10) {
+  const adx = A.bx - A.ax, ady = A.by - A.ay;
+  const alen = Math.hypot(adx, ady);
+  const blen = Math.hypot(B.bx - B.ax, B.by - B.ay);
+  if (alen < 1 || blen < 1) return null;
+  const ux = adx / alen, uy = ady / alen;
+  // B's endpoints must lie on A's infinite line
+  const perp = (px, py) => Math.abs((px - A.ax) * -uy + (py - A.ay) * ux);
+  if (perp(B.ax, B.ay) > perpTol || perp(B.bx, B.by) > perpTol) return null;
+  const proj = (px, py) => (px - A.ax) * ux + (py - A.ay) * uy;
+  const tb0 = proj(B.ax, B.ay), tb1 = proj(B.bx, B.by);
+  const tbLo = Math.min(tb0, tb1), tbHi = Math.max(tb0, tb1);
+  // shared span between [0, alen] and [tbLo, tbHi]
+  const oLo = Math.max(0, tbLo), oHi = Math.min(alen, tbHi);
+  if (oHi - oLo < minOverlap) return null; // just touching / negligible — keep both
+  const lo = Math.min(0, tbLo), hi = Math.max(alen, tbHi);
+  return { ax: A.ax + ux * lo, ay: A.ay + uy * lo, bx: A.ax + ux * hi, by: A.ay + uy * hi };
+}
+
 /** Parametric intersection of segments AB (w) and CD (o). Returns {t, u} where
  *  t is along w and u along o, or null when parallel/collinear. Interior
  *  crossings have both t and u strictly between 0 and 1. */

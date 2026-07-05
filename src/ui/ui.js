@@ -51,6 +51,7 @@ export class UI {
     this.editor.onLockedDelete = () => {
       if (this.selectionLocked()) this.toast('Locked — tap the padlock to unlock');
     };
+    this.editor.onWeld = () => this.toast('Shared walls merged into one');
 
     // compact chrome on short screens (phones, incl. the rotated-portrait
     // mode where CSS media queries see the wrong axis)

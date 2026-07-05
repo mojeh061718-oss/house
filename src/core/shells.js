@@ -501,6 +501,8 @@ export function stampShell(store, shell, ox, oy) {
 
   shell.build(api);
   finishLevel();
+  // a shell dropped flush against existing walls shares those edges — weld them
+  if (store.weldWalls()) store.commit(true);
 
   // two-storey shells: stamp the upper floor, then come back down
   if (shell.build2) {

@@ -1110,6 +1110,11 @@ export class Editor2D {
     if (['dragItem', 'rotateItem', 'resizeItem', 'dragMulti'].includes(m.name)) {
       store.commit(false);
     }
+    // walls that were just drawn/moved onto another wall weld into one shared
+    // wall (two rooms sharing an edge, containers pushed together)
+    if (['wallDraw', 'roomRect', 'dragWall', 'dragEndpoint', 'dragRoom'].includes(m.name)) {
+      if (store.weldWalls()) { store.commit(true); this.onWeld?.(); }
+    }
     this.mode = { name: 'idle' };
     this.requestRender();
   }
