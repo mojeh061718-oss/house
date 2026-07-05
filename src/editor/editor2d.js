@@ -350,21 +350,21 @@ export class Editor2D {
     const store = this.store;
     const sel = store.selection;
 
-    // MOVE MODE: tap anywhere to jump the item there, then keep dragging to
-    // fine-tune. Ends when the user taps ✓ Done (which clears store.moveId).
+    // MOVE MODE: an OFFSET drag — press anywhere (even empty space beside the
+    // piece) and it keeps that offset from your finger as you drag, so your
+    // finger never covers it and you can see exactly where it's going. A plain
+    // tap (no drag) still jumps it to the tapped point (handled on release).
+    // Ends when the user taps ✓ Done (which clears store.moveId).
     if (store.moveId) {
       const it = store.item(store.moveId);
       if (it) {
-        const def = ITEM_MAP.get(it.defId);
-        store.checkpoint();
-        const pose = this.placePose({ x: w.x, y: w.y }, def, { rot: it.rotation });
-        const dx = pose.x - it.x, dy = pose.y - it.y;
-        it.x = pose.x; it.y = pose.y;
-        if (it.path) for (const p of it.path) { p.x += dx; p.y += dy; }
-        store.commit(false);
         store.select({ kind: 'item', id: it.id });
-        // let a continued drag keep moving it
-        this.mode = { name: 'dragItem', id: it.id, offX: 0, offY: 0, moved: true, dragging: true };
+        store.checkpoint();
+        this.mode = {
+          name: 'dragItem', id: it.id,
+          offX: w.x - it.x, offY: w.y - it.y,
+          moved: false, dragging: true, moveTap: { x: w.x, y: w.y }
+        };
       }
       this.requestRender();
       return;
@@ -1022,6 +1022,27 @@ export class Editor2D {
     if (m.name === 'dragRoom') {
       if (m.moved) { store.commit(true); store.emit('selection'); }
       else { store.undoStack.pop(); store.emit('history'); }
+    }
+    // move-mode tap (no drag): jump the piece's centre to the tapped point,
+    // keeping the checkpoint since a real move happened
+    if (m.name === 'dragItem' && m.moved === false && m.moveTap && store.moveId === m.id) {
+      const it = store.item(m.id);
+      if (it) {
+        const def = ITEM_MAP.get(it.defId);
+        const pose = this.placePose({ x: m.moveTap.x, y: m.moveTap.y }, def, { rot: it.rotation });
+        const dx = pose.x - it.x, dy = pose.y - it.y;
+        if (dx || dy) {
+          it.x = pose.x; it.y = pose.y;
+          if (it.path) for (const p of it.path) { p.x += dx; p.y += dy; }
+          store.commit(false);
+        } else {
+          store.undoStack.pop(); store.emit('history'); // tapped its own spot: no-op
+        }
+        store.select({ kind: 'item', id: it.id });
+      }
+      this.mode = { name: 'none' };
+      this.requestRender();
+      return;
     }
     if (['dragItem', 'dragOpening', 'dragWall', 'dragMulti'].includes(m.name) && m.moved === false) {
       // click without movement — the checkpoint taken on pointerdown is redundant

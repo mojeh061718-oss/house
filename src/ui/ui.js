@@ -706,7 +706,7 @@ export class UI {
     store.moveId = sel.id;
     this.syncFabs();
     this.showHint();
-    this.toast('Move mode — tap where it should go, then tap Done');
+    this.toast('Move mode — drag from beside it to slide it into place, then tap Done');
   }
 
   endMove() {
@@ -1782,7 +1782,7 @@ export class UI {
     const zoom = this.coarse ? 'pinch to zoom' : 'scroll to zoom';
     let text;
     if (store.moveId) {
-      text = `Moving — ${tap.toLowerCase()} where it should go (or drag it), then tap ✓ Done`;
+      text = `Moving — drag from beside it to slide it (your finger stays off it), or ${tap.toLowerCase()} where it should go · tap ✓ Done`;
     } else if (store.viewMode === '3d' && this.viewer.walkMode) {
       text = this.coarse
         ? 'Walk mode — left side: drag to walk · right side: drag to look'
