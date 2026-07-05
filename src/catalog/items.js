@@ -6,6 +6,7 @@ import {
   solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond,
   buildTallGrass, flagTexture, buildFlag, glow
 } from './builders.js';
+import { EXTRA_ITEMS } from './extras.js';
 
 export const CATEGORIES = [
   { id: 'living', name: 'Living Room' },
@@ -16,7 +17,8 @@ export const CATEGORIES = [
   { id: 'office', name: 'Office' },
   { id: 'decor', name: 'Decor & Lighting' },
   { id: 'structure', name: 'Stairs & Structure' },
-  { id: 'outdoor', name: 'Outdoor' }
+  { id: 'outdoor', name: 'Outdoor' },
+  { id: 'games', name: 'Games & Fun' }
 ];
 
 const FABRICS = [
@@ -3383,6 +3385,11 @@ export const ITEMS = [
     }
   }
 ];
+
+// v2.22.0 content packs: 100+ modern/fun/outdoor assets, authored in
+// src/catalog/packs/* and merged in here so ITEM_MAP and the catalog pick
+// them up like any built-in item.
+ITEMS.push(...EXTRA_ITEMS);
 
 /** Shared sunflower builder: stalk with leaves, seed disk, two petal rings. */
 function buildSunflower(g, x, z, h, headR, seed) {

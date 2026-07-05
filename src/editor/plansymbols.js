@@ -244,6 +244,43 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       ctx.restore();
       break;
     }
+    case 'boat': {
+      // hull outline: pointed bow at +y, rounded stern at -y
+      ctx.beginPath();
+      ctx.moveTo(0, -hd);
+      ctx.quadraticCurveTo(hw, -hd * 0.2, hw * 0.75, hd * 0.85);
+      ctx.quadraticCurveTo(hw * 0.5, hd, 0, hd);
+      ctx.quadraticCurveTo(-hw * 0.5, hd, -hw * 0.75, hd * 0.85);
+      ctx.quadraticCurveTo(-hw, -hd * 0.2, 0, -hd);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      line(0, -hd * 0.55, 0, hd * 0.7);       // keel line
+      break;
+    }
+    case 'dock': {
+      // planked deck with cross seams
+      outline(1);
+      ctx.strokeStyle = 'rgba(90,96,104,0.5)';
+      for (let y = -hd + d / 5; y < hd; y += d / 5) line(-hw + 3, y, hw - 3, y);
+      break;
+    }
+    case 'lounger': {
+      // chaise: seat pad with a raised backrest band at the head (+y? use -y)
+      outline(4);
+      ctx.fillStyle = 'rgba(60,66,76,0.14)';
+      rr(ctx, -hw + 4, -hd + 4, w - 8, d * 0.34, 3);
+      ctx.fill(); ctx.stroke();
+      break;
+    }
+    case 'umbrella': {
+      ctx.beginPath(); ctx.arc(0, 0, hw, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        line(0, 0, Math.cos(a) * hw, Math.sin(a) * hw);
+      }
+      circle(0, 0, Math.max(2, hw * 0.12), true);
+      break;
+    }
     case 'tv': {
       // TVs are only a few cm deep — draw at a readable minimum depth
       const td = Math.max(d, 16), thd = td / 2;
