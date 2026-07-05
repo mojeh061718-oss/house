@@ -3226,8 +3226,10 @@ export const ITEMS = [
     palettes: null, plan: { type: 'rings' },
     build: () => {
       const g = G();
-      cyl(g, solid('#1d2733', 0.85), 148, 6, 0, 80, 0, { seg: 30 });
-      cyl(g, solid('#3a6ea8', 0.8), 150, 8, 0, 86, 0, { rTop: 150, seg: 30 });
+      // blue safety pad (full disc) sits lower so it only shows as a rim
+      cyl(g, solid('#3a6ea8', 0.8), 150, 7, 0, 82, 0, { seg: 30 });
+      // black jumping mat on top, slightly smaller — the visible black surface
+      cyl(g, solid('#15181c', 0.9), 138, 5, 0, 87, 0, { seg: 30 });
       for (let i = 0; i < 6; i++) {
         const a = i / 6 * Math.PI * 2;
         cyl(g, metal('#7a7d80'), 2.4, 86, Math.cos(a) * 130, 0, Math.sin(a) * 130);

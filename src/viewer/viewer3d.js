@@ -363,6 +363,7 @@ export class Viewer3D {
         if (def.plan?.type === 'stairs') outer.userData.walkable = true;
         outer.userData.w = it.w; outer.userData.d = it.d; outer.userData.h = it.h;
         outer.userData.pw = it.pw;
+        outer.userData.mat = it.mat;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
         if (def.light && this._litItems.has(it.id)) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
@@ -420,7 +421,7 @@ export class Viewer3D {
       const def = ITEM_MAP.get(it.defId);
       const model = g.children[0];
       if (g.userData.palette !== it.palette || g.userData.w !== it.w || g.userData.d !== it.d || g.userData.h !== it.h ||
-          g.userData.pw !== it.pw) {
+          g.userData.pw !== it.pw || g.userData.mat !== it.mat) {
         structuralChange = true;
       }
       this.poseItem(g, it, def, wallH, lvlY);
@@ -1297,6 +1298,14 @@ export class Viewer3D {
         const tool = this.store.tool;
         const now = (typeof performance !== 'undefined' ? performance.now() : 0);
         const longPress = now - (g.downT || 0) >= 450;
+        // Double-tap is an easier alternative to the long-press for grabbing big
+        // ground-cover surfaces (patios, decks, the yard): two quick taps in
+        // roughly the same spot. A single drag still orbits, so this never
+        // fights the camera.
+        const near = this._lastTap && Math.abs(g.x - this._lastTap.x) < 40 && Math.abs(g.y - this._lastTap.y) < 40;
+        const doubleTap = !!this._lastTap && near && (now - this._lastTap.t) < 320;
+        this._lastTap = { x: g.x, y: g.y, t: now };
+        const surfaceSelect = longPress || doubleTap;
         // MOVE MODE: a tap drops the item being moved onto the tapped point
         if (this.store.moveId && this.store.item(this.store.moveId)) {
           this.moveItemTo(this.store.moveId, tap);
@@ -1310,7 +1319,7 @@ export class Viewer3D {
         } else if (g.tapItemId && this.store.item(g.tapItemId)) {
           // a piece of furniture selects on a plain tap; big ground-cover
           // surfaces only select on a long-press so orbiting past them is free
-          if (!g.tapGroundish || longPress) {
+          if (!g.tapGroundish || surfaceSelect) {
             this.store.select({ kind: 'item', id: g.tapItemId });
           } else {
             this.store.select(null);
@@ -1325,8 +1334,8 @@ export class Viewer3D {
             this.store.select({ kind: 'room', id: arch.roomKey });
           } else if (arch?.exteriorWallId && this.store.wall(arch.exteriorWallId)) {
             this.store.select({ kind: 'wall', id: arch.exteriorWallId, exterior: true });
-          } else if (longPress && this.castGround(tap)) {
-            // long-press the yard/grass → edit the ground cover (a quick tap
+          } else if (surfaceSelect && this.castGround(tap)) {
+            // long-press or double-tap the yard/grass → edit the ground cover (a quick tap
             // just clears the selection so it reads as a navigation gesture)
             this.store.select({ kind: 'ground' });
           } else {
