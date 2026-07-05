@@ -548,7 +548,14 @@ export class Editor2D {
     const o = store.addOpening(near.wall.id, type, t);
     store.commit(true);
     store.select({ kind: 'opening', id: o.id });
-    store.setTool('select');
+    // Continue the press into a drag to size the opening: the point you pressed
+    // is one jamb, your finger is the other, with a live width readout on the
+    // plan. A plain tap (no drag) keeps the default width. Switches to the
+    // select tool on release.
+    this.mode = {
+      name: 'placeOpening', id: o.id, wallId: near.wall.id,
+      startT: near.t, moved: false, dragging: true
+    };
   }
 
   downPlace(w) {
@@ -829,6 +836,25 @@ export class Editor2D {
         store.commit(true);
         break;
       }
+      case 'placeOpening': {
+        const o = store.opening(m.id);
+        const wall = o && store.wall(o.wallId);
+        if (!wall) break;
+        const len = wallLength(wall);
+        // press point = one jamb, finger = the other; opening spans between
+        const r = pointSegDist(w.x, w.y, wall.ax, wall.ay, wall.bx, wall.by);
+        const curT = clamp(r.t, 0, 1);
+        const span = Math.abs(curT - m.startT) * len;
+        if (span < 24 && !m.moved) break; // barely moved yet — keep default width
+        m.moved = true;
+        const width = clamp(Math.round(span), 40, Math.max(40, len - 12));
+        let t = (m.startT + curT) / 2;
+        t = clamp(t, (width / 2 + 6) / len, 1 - (width / 2 + 6) / len);
+        o.width = width;
+        o.t = t;
+        store.commit(true);
+        break;
+      }
       case 'pathDraw': {
         if (m.shape === 'free') {
           const last = m.pts[m.pts.length - 1];
@@ -1048,6 +1074,12 @@ export class Editor2D {
       // click without movement — the checkpoint taken on pointerdown is redundant
       store.undoStack.pop();
       store.emit('history');
+    }
+    if (m.name === 'placeOpening') {
+      // the opening is already placed (default width on a tap, dragged-out
+      // width if you sized it) — just hand back to the select tool
+      store.commit(true);
+      store.setTool('select');
     }
     if (m.name === 'dragItem' && m.moved) {
       // a wall-mounted piece dragged along/onto a wall re-remembers its host
@@ -1932,6 +1964,28 @@ export class Editor2D {
         ctx.fill();
         ctx.fillStyle = '#2b6fe0';
         ctx.fillText(text, s.x, s.y + 4);
+      }
+    }
+    // live opening width while placing (drag-to-size) or resizing a door/window
+    if (this.mode.name === 'placeOpening' || this.mode.name === 'resizeOpening') {
+      const o = store.opening(this.mode.id);
+      const wl = o && store.wall(o.wallId);
+      if (o && wl) {
+        const c = wallPoint(wl, o.t);
+        const ang = wallAngle(wl);
+        const off = wl.thickness / 2 + 24 / this.view.scale;
+        const sp = this.toScreen(c.x + Math.sin(ang) * off, c.y - Math.cos(ang) * off);
+        const text = fmtFtIn(o.width);
+        ctx.font = '700 12px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.94)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(sp.x - tw / 2 - 7, sp.y - 10, tw + 14, 19, 9.5);
+        else ctx.rect(sp.x - tw / 2 - 7, sp.y - 10, tw + 14, 19);
+        ctx.fill();
+        ctx.fillStyle = '#2b6fe0';
+        ctx.fillText(text, sp.x, sp.y + 4);
       }
     }
     // selected item dims
