@@ -240,11 +240,12 @@ export class Editor2D {
       const c = wallPoint(w, o.t);
       if (dist(wx, wy, c.x, c.y) < o.width / 2 + tol) return { kind: 'opening', id: o.id };
     }
-    // walls
-    let bestWall = null, bestD = tol + 6;
+    // walls — a generous grab band on touch so a thin wall line is easy to pick
+    const wallTol = (this.coarse ? 20 : 10) / this.view.scale;
+    let bestWall = null, bestD = wallTol + 6;
     for (const w of p.walls) {
       const { d } = pointSegDist(wx, wy, w.ax, w.ay, w.bx, w.by);
-      const lim = w.thickness / 2 + tol;
+      const lim = w.thickness / 2 + wallTol;
       if (d < lim && d < bestD) { bestD = d; bestWall = w; }
     }
     if (bestWall) return { kind: 'wall', id: bestWall.id };
@@ -411,11 +412,24 @@ export class Editor2D {
         }
       }
     }
-    // 2. wall endpoint handles of current wall selection
+    // 2. wall handles of current wall selection
     if (sel?.kind === 'wall') {
       const wall = store.wall(sel.id);
       if (wall && !wall.locked) {
         const tolPx = this.handleHit;
+        // 2a. midpoint move handle → slide the whole wall (adjacent walls follow)
+        if (this._wallMoveHandle &&
+            Math.hypot(this._wallMoveHandle.sx - sx, this._wallMoveHandle.sy - sy) < tolPx) {
+          store.checkpoint();
+          this.mode = {
+            name: 'dragWall', id: wall.id, startX: w.x, startY: w.y, moved: false, dragging: true,
+            origin: { ax: wall.ax, ay: wall.ay, bx: wall.bx, by: wall.by },
+            linkedA: this.coincidentEndpoints(wall.ax, wall.ay, wall.id),
+            linkedB: this.coincidentEndpoints(wall.bx, wall.by, wall.id)
+          };
+          return;
+        }
+        // 2b. end handles reshape the wall
         for (const end of ['a', 'b']) {
           const pt = this.toScreen(wall[end + 'x'], wall[end + 'y']);
           if (Math.hypot(pt.x - sx, pt.y - sy) < tolPx) {
@@ -2062,6 +2076,7 @@ export class Editor2D {
     if (sel?.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) return;
+      // white end handles reshape the wall (drag an end)
       for (const [x, y] of [[w.ax, w.ay], [w.bx, w.by]]) {
         const s = this.toScreen(x, y);
         ctx.beginPath();
@@ -2071,6 +2086,37 @@ export class Editor2D {
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = '#3884ff';
         ctx.stroke();
+      }
+      // blue midpoint handle MOVES the whole wall (adjacent walls follow,
+      // the room reshapes but doesn't jump)
+      this._wallMoveHandle = null;
+      if (!w.locked) {
+        const mid = this.toScreen((w.ax + w.bx) / 2, (w.ay + w.by) / 2);
+        const r = this.handleR + 3;
+        ctx.beginPath();
+        ctx.arc(mid.x, mid.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#3884ff';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        // 4-way move glyph
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        const a = r * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(mid.x - a, mid.y); ctx.lineTo(mid.x + a, mid.y);
+        ctx.moveTo(mid.x, mid.y - a); ctx.lineTo(mid.x, mid.y + a);
+        // arrowheads
+        for (const [dx, dy] of [[-a, 0], [a, 0], [0, -a], [0, a]]) {
+          const ux = dx ? Math.sign(dx) : 0, uy = dy ? Math.sign(dy) : 0;
+          ctx.moveTo(mid.x + dx, mid.y + dy);
+          ctx.lineTo(mid.x + dx - ux * 4 - uy * 3, mid.y + dy - uy * 4 - ux * 3);
+          ctx.moveTo(mid.x + dx, mid.y + dy);
+          ctx.lineTo(mid.x + dx - ux * 4 + uy * 3, mid.y + dy - uy * 4 + ux * 3);
+        }
+        ctx.stroke();
+        this._wallMoveHandle = { sx: mid.x, sy: mid.y };
       }
     }
     if (sel?.kind === 'opening') {
