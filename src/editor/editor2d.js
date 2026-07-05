@@ -117,6 +117,10 @@ export class Editor2D {
 
   snapPoint(x, y, opts = {}) {
     const p = this.store.project;
+    // snapping off (the magnet toggle): draw exactly where the finger is — no
+    // grid, endpoint, wall or angle snapping. Keeps the "free placement" promise
+    // consistent between drawing walls/rooms and dropping furniture.
+    if (!this.store.snapEnabled) return { x: Math.round(x), y: Math.round(y), kind: 'free' };
     const tol = (this.coarse ? 24 : 14) / this.view.scale;
 
     const endpointNear = (px, py) => {
@@ -366,17 +370,6 @@ export class Editor2D {
       return;
     }
 
-    // on-object delete badge: one tap on the red × removes the selection,
-    // so a room/piece you just made is never a chore to get rid of
-    if (this._delBadge) {
-      const b = this._delBadge;
-      if (Math.hypot(sx - b.sx, sy - b.sy) <= b.r + 5) {
-        if (!store.deleteSelection() && this.onLockedDelete) this.onLockedDelete();
-        this.requestRender();
-        return;
-      }
-    }
-
     // a tap on a room's name label selects that room — reliable even when
     // its floor is covered in furniture (which would otherwise grab the tap)
     if (this._roomLabels) {
@@ -434,6 +427,17 @@ export class Editor2D {
             return;
           }
         }
+      }
+    }
+
+    // 3. on-object delete badge (red ×). Checked AFTER the resize/rotate/endpoint
+    // handles so a badge sitting near a handle can't swallow a resize drag.
+    if (this._delBadge) {
+      const b = this._delBadge;
+      if (Math.hypot(sx - b.sx, sy - b.sy) <= b.r + 5) {
+        if (!store.deleteSelection() && this.onLockedDelete) this.onLockedDelete();
+        this.requestRender();
+        return;
       }
     }
 

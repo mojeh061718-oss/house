@@ -737,7 +737,9 @@ export class UI {
     const rect = room && this.roomRect(room);
     if (!rect) { this.toast('This room can’t be auto-furnished'); return; }
     const style = store.roomStyle(sel.id);
-    const ftId = guessType(style.name);
+    // a freshly-drawn room has no name yet, so guessType() returns null — fall
+    // back to a living-room layout instead of silently doing nothing
+    const ftId = guessType(style.name) || 'living';
     store.checkpoint();
     const n = furnishRoom(store, rect, ftId);
     if (n > 0) {

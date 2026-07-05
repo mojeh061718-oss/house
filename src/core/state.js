@@ -54,21 +54,26 @@ export function emptyProject(name = 'Untitled project') {
 
 /** Normalize any saved shape (v1 flat or v2 levels) into a bound v2 project. */
 export function hydrateProject(data, base = emptyProject()) {
+  // Deep-copy every level array/object so the store NEVER shares references with
+  // the caller's record. Otherwise editing an opened project mutates the cached
+  // home-screen copy in place, so "Don't save" can't discard and edits leak
+  // between projects. Walls/openings are flat; items carry a nested path array.
+  const cloneLevel = (l) => ({
+    walls: (l.walls || []).map(w => ({ ...w })),
+    openings: (l.openings || []).map(o => ({ ...o })),
+    items: (l.items || []).map(it => it.path ? { ...it, path: it.path.map(pt => ({ ...pt })) } : { ...it }),
+    roomStyles: Object.fromEntries(Object.entries(l.roomStyles || {}).map(([k, v]) => [k, { ...v }]))
+  });
+  const levels = (data.levels?.length ? data.levels : [{
+    walls: data.walls, openings: data.openings, items: data.items, roomStyles: data.roomStyles
+  }]).map(cloneLevel);
   const p = {
     ...base,
     name: data.name ?? base.name,
     settings: { ...base.settings, ...data.settings },
     version: 2,
-    activeLevel: Math.max(0, Math.min(data.activeLevel ?? 0, (data.levels?.length ?? 1) - 1)),
-    levels: data.levels?.length
-      ? data.levels.map(l => ({
-          walls: l.walls || [], openings: l.openings || [],
-          items: l.items || [], roomStyles: l.roomStyles || {}
-        }))
-      : [{
-          walls: data.walls || [], openings: data.openings || [],
-          items: data.items || [], roomStyles: data.roomStyles || {}
-        }]
+    activeLevel: Math.max(0, Math.min(data.activeLevel ?? 0, levels.length - 1)),
+    levels
   };
   return bindLevel(p);
 }

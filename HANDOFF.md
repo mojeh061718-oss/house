@@ -16,7 +16,31 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.22.5** (dev branch only, not yet on live) — fixes the PWA
+- Current version: **2.22.6** (dev branch only, not yet on live) — audit-fix
+  batch (P1 + four P2s from the 7-area functionality audit).
+  - **[P1] discard/leak:** `hydrateProject()` (state.js) now DEEP-COPIES every
+    level's walls/openings/items(+nested path)/roomStyles, so the store never
+    shares references with the caller's cached record. Fixes "Don't save" not
+    discarding and edits leaking between projects.
+  - **[P2] furnish unnamed room:** `furnishSelectedRoom` (ui.js) now
+    `guessType(name) || 'living'`, so a freshly-drawn (unnamed) room furnishes as
+    a living room and auto-names itself instead of falsely reporting "too small".
+  - **[P2] resize-deletes-opening:** the 2D on-object delete badge hit-test was
+    moved in `editor2d.downSelect` to run AFTER the opening/item/wall handle
+    checks, so grabbing a jamb/resize handle that sits under the badge resizes
+    instead of deleting. Badge still deletes when not over a handle.
+  - **[P2] snap toggle for drawing:** `editor2d.snapPoint` now early-returns the
+    raw point when `store.snapEnabled` is false — walls/rooms honor the magnet
+    toggle's "free placement", matching furniture.
+  - **[P2] sailboat sails:** `packs/docks.js` boat_sailboat now uses thin
+    triangular `prism` sails (main + jib) + a fore-aft boom, instead of the
+    `wavyPanel` accordion that looked like window blinds.
+  - Audit verdict recap: 3D nav, levels/floors/paths/area-draw, catalog, and new
+    content (all pools show water) passed clean; the Delete-after-Move and
+    pool-water regressions stayed fixed. Remaining known-minor (deferred): rename
+    uses native prompt; wall-mounts don't re-anchor to a moved wall; dock_boatlift
+    reads as a table; Split hidden on phone width.
+- v2.22.5 (dev) — fixes the PWA
   serving a stale/old version.
   - **BUG:** the service worker (`public/sw.js`) used a CONSTANT cache name
     (`honeycutt-v2`). Because the name never changed between deploys, the browser

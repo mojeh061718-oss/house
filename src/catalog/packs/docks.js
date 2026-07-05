@@ -378,17 +378,16 @@ export const DOCKS_ITEMS = [
       // mast
       const mast = metal('#d2d5d8', 0.35);
       cyl(g, mast, 3.5, 350, 0, 56, -10);
-      // boom
-      cyl(g, mast, 2.5, 150, 0, 70, 40, { rz: Math.PI / 2 });
-      // mainsail (wavyPanel) between mast and boom
-      const sail = wavyPanel(g, solid('#f2efe6', 0.85), 150, 260, 4, 8);
-      sail.position.set(-2, 70, -6);
-      sail.rotation.y = Math.PI / 2;
-      // jib sail toward the bow
-      const jib = wavyPanel(g, solid('#eae7dd', 0.85), 110, 200, 3, 6);
-      jib.position.set(0, 60, -140);
-      jib.rotation.y = Math.PI / 2;
-      jib.rotation.z = 0.18;
+      // boom running fore-aft from the mast
+      cyl(g, mast, 2.5, 150, 0, 58, 20, { rx: Math.PI / 2 });
+      // mainsail: a taut triangular cloth — a thin prism reads as a clean
+      // triangle from the side (the old wavyPanel looked like window blinds),
+      // foot along the boom, apex up toward the masthead
+      const main = prism(g, solid('#f4f1e8', 0.9), 3, 250, 150, 0, 44, 12);
+      main.castShadow = true;
+      // jib: smaller triangular headsail forward of the mast
+      const jib = prism(g, solid('#ece9df', 0.9), 3, 200, 120, 0, 40, -120);
+      jib.castShadow = true;
       return g;
     }
   },
