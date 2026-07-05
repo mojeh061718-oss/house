@@ -76,7 +76,10 @@ export function solid(hex, rough = 0.8, metal = 0) {
     m = new THREE.MeshStandardMaterial({
       color: hex, roughness: rough, metalness: metal,
       bumpMap: metal > 0.5 ? null : getMicroBump(),
-      bumpScale: 0.25
+      bumpScale: 0.25,
+      // let metals/polished finishes catch the environment for a richer,
+      // physically-lit look; matte surfaces stay subtle
+      envMapIntensity: metal > 0.5 ? 1.35 : 0.85
     });
     solidCache.set(key, m);
   }
@@ -102,7 +105,8 @@ export function wood(hex, rough = 0.55) {
       color: hex, roughness: rough,
       map: getGrainTex(),
       bumpMap: getGrainTex(),
-      bumpScale: 0.35
+      bumpScale: 0.35,
+      envMapIntensity: 0.6   // a soft satin sheen on wood
     });
     woodCache.set(key, m);
   }

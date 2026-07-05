@@ -825,6 +825,22 @@ MATERIALS.push(
 
 export const MATERIAL_MAP = new Map(MATERIALS.map(m => [m.id, m]));
 
+// Every photo-scanned texture ships as a local JPG under BASE_URL. This is the
+// full manifest the offline installer precaches so the design library works
+// with no network at all.
+export const PHOTO_TEXTURE_FILES = MATERIALS.filter(m => m.file).map(m => m.file);
+export function photoTextureUrls() {
+  const base = (import.meta.env?.BASE_URL || '/');
+  return PHOTO_TEXTURE_FILES.map(f => base + f);
+}
+/** Force every photo texture through the loader (warms the SW/HTTP cache and
+ *  the in-memory canvas cache). Used as the offline fallback when no SW. */
+export function warmAllTextures(onEach) {
+  const ids = MATERIALS.filter(m => m.file).map(m => m.id);
+  ids.forEach((id, i) => { ensureTexture(id); onEach?.(i + 1, ids.length); });
+  return ids.length;
+}
+
 // Listeners re-flag GPU textures / 2D patterns when a photo texture arrives.
 const texWatchers = [];
 export function watchTextures(fn) { texWatchers.push(fn); }

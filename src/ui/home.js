@@ -109,11 +109,13 @@ export class Home {
   showSplash() {
     const el = $('#splash');
     el.classList.remove('hidden', 'fade-out');
+    // hold long enough for the build-the-house title sequence to finish
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     setTimeout(() => {
       el.classList.add('fade-out');
-      setTimeout(() => el.classList.add('hidden'), 450);
+      setTimeout(() => el.classList.add('hidden'), 520);
       this.show();
-    }, 1300);
+    }, reduce ? 900 : 2850);
   }
 
   show() {
@@ -161,7 +163,7 @@ export class Home {
           <span class="home-logo">${ICONS.logo}</span>
           <div>
             <h1>Honeycutt <b>Home Studio</b></h1>
-            <p>Design your space in 2D &amp; 3D</p>
+            <p>Design · Measure · Walk through — in 2D &amp; 3D</p>
           </div>
           <span class="home-head-actions">
             ${this.selectMode ? `

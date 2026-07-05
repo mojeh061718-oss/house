@@ -19,7 +19,8 @@ export function emptyLevel() {
     walls: [],       // {id, ax, ay, bx, by, thickness, height}
     openings: [],    // {id, wallId, type, t, width, height, sill, flip, swing}
     items: [],       // {id, defId, x, y, rotation, w, d, h, elevation, palette}
-    roomStyles: {}   // roomKey -> {name, floor, wall}
+    roomStyles: {},  // roomKey -> {name, floor, wall}
+    dims: []         // {id, ax, ay, bx, by, off}  persistent measurement annotations
   };
 }
 
@@ -31,6 +32,7 @@ export function bindLevel(project) {
   project.openings = lvl.openings;
   project.items = lvl.items;
   project.roomStyles = lvl.roomStyles;
+  project.dims = lvl.dims || (lvl.dims = []); // older levels predate dims
   return project;
 }
 
@@ -62,7 +64,8 @@ export function hydrateProject(data, base = emptyProject()) {
     walls: (l.walls || []).map(w => ({ ...w })),
     openings: (l.openings || []).map(o => ({ ...o })),
     items: (l.items || []).map(it => it.path ? { ...it, path: it.path.map(pt => ({ ...pt })) } : { ...it }),
-    roomStyles: Object.fromEntries(Object.entries(l.roomStyles || {}).map(([k, v]) => [k, { ...v }]))
+    roomStyles: Object.fromEntries(Object.entries(l.roomStyles || {}).map(([k, v]) => [k, { ...v }])),
+    dims: (l.dims || []).map(d => ({ ...d }))
   });
   const levels = (data.levels?.length ? data.levels : [{
     walls: data.walls, openings: data.openings, items: data.items, roomStyles: data.roomStyles
@@ -207,6 +210,14 @@ export class Store {
   opening(id) { return this.project.openings.find(o => o.id === id); }
   item(id) { return this.project.items.find(i => i.id === id); }
   room(key) { return this.rooms.find(r => r.key === key); }
+  dim(id) { return this.project.dims.find(d => d.id === id); }
+
+  /** Add a persistent dimension annotation (a non-structural change). */
+  addDim(ax, ay, bx, by, off = 40) {
+    const d = { id: uid('d'), ax, ay, bx, by, off };
+    this.project.dims.push(d);
+    return d;
+  }
 
   roomStyle(key) {
     let s = this.project.roomStyles[key];
@@ -329,7 +340,7 @@ export class Store {
     const sel = this.selection;
     if (!sel) return false;
     const p = this.project;
-    if (!['item', 'multi', 'opening', 'wall', 'room'].includes(sel.kind)) return false;
+    if (!['item', 'multi', 'opening', 'wall', 'room', 'dim'].includes(sel.kind)) return false;
     const room = sel.kind === 'room' ? this.room(sel.id) : null;
 
     // Decide whether anything can actually be removed BEFORE taking a
@@ -348,13 +359,20 @@ export class Store {
       if (!this.wall(sel.id)) return false;
     } else if (sel.kind === 'room') {
       if (!room) return false;
+    } else if (sel.kind === 'dim') {
+      if (!this.dim(sel.id)) return false;
     }
 
     this.checkpoint();
     const cut = (arr, pred) => {
       for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) arr.splice(i, 1);
     };
-    if (sel.kind === 'item') {
+    if (sel.kind === 'dim') {
+      cut(p.dims, d => d.id === sel.id);
+      this.select(null);
+      this.commit(false);
+      return true;
+    } else if (sel.kind === 'item') {
       cut(p.items, i => i.id === sel.id);
     } else if (sel.kind === 'multi') {
       const ids = new Set(sel.ids);
@@ -453,7 +471,7 @@ export class Store {
   addLevel() {
     if (this.project.levels.length >= 4) return false;
     this.checkpoint();
-    this.project.levels.push({ walls: [], openings: [], items: [], roomStyles: {} });
+    this.project.levels.push({ walls: [], openings: [], items: [], roomStyles: {}, dims: [] });
     this.setActiveLevel(this.project.levels.length - 1, false);
     this.commit(true);
     return true;

@@ -1,5 +1,6 @@
 // One-tap style themes: re-material the whole home coherently.
 import { ITEM_MAP } from '../catalog/items.js';
+import { pointInPolygon } from './geometry.js';
 
 export const THEMES = [
   {
@@ -44,6 +45,27 @@ export function applyTheme(project, theme) {
     style.wall = isBath ? theme.bathWall : theme.wall;
   }
   for (const it of project.items) {
+    const def = ITEM_MAP.get(it.defId);
+    const first = def?.palettes?.[0];
+    if (!first) continue;
+    if (first.fabric) it.palette = Math.min(theme.fabric, def.palettes.length - 1);
+    else if (first.wood) it.palette = Math.min(theme.wood, def.palettes.length - 1);
+  }
+}
+
+/** Apply a coordinated style to a SINGLE room: its floor + wall finish and the
+ *  finish of every piece of furniture standing inside it. The premium
+ *  "design this room" flow — restyle one space without touching the rest. */
+export function applyThemeToRoom(store, roomKey, theme) {
+  const style = store.roomStyle(roomKey);
+  const isBath = /bath|shower|wc|powder/i.test(style.name || '');
+  style.floor = isBath ? theme.bathFloor : theme.floor;
+  style.wall = isBath ? theme.bathWall : theme.wall;
+  const room = store.room(roomKey);
+  if (!room) return;
+  for (const it of store.project.items) {
+    if ((it.elevation || 0) >= 200) continue;              // roofs etc. aren't the room's
+    if (!pointInPolygon(it.x, it.y, room.polygon)) continue;
     const def = ITEM_MAP.get(it.defId);
     const first = def?.palettes?.[0];
     if (!first) continue;

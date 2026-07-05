@@ -6,8 +6,9 @@ import pkg from '../../package.json';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview, watchTextures, ensureTexture } from '../core/textures.js';
 import { wallLength, wallAngle, pointInPolygon } from '../core/geometry.js';
-import { fmtFtIn, fmtArea, parseFtIn } from '../core/units.js';
-import { THEMES, applyTheme } from '../core/themes.js';
+import { fmtLen, fmtArea, parseLen, unitSystem, setUnitSystem, unitPlaceholder } from '../core/units.js';
+import { installLibrary, libraryInstalled, libraryCount, librarySizeMB } from '../core/offline.js';
+import { THEMES, applyTheme, applyThemeToRoom } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
 import { OPENING_TYPES, OPENING_MAP } from '../core/openings.js';
@@ -79,12 +80,15 @@ export class UI {
     store.on('projectLoaded', () => {
       const inp = $('#projectName');
       if (inp) inp.value = store.project.name || 'Untitled';
+      setUnitSystem(store.project.settings.units || 'imperial');
+      $('#mUnitsVal') && ($('#mUnitsVal').textContent = unitSystem() === 'metric' ? 'Metric' : 'Imperial');
       this.closeDrawer('catalog');
       this.closeDrawer('props');
       this.renderProps();
       this.syncFabs();
       this.syncLevels();
       this.showHint();
+      this.maybePromptOffline();
     });
     store.on('level', () => this.syncLevels());
     store.on('history', () => this.syncLevels());
@@ -130,6 +134,8 @@ export class UI {
         <button id="mClear">${icon('trash')} Clear plan</button>
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
         <button id="mFull">${icon('expand')} Toggle full screen</button>
+        <button id="mUnits">${icon('measure')} Units: <b id="mUnitsVal">Imperial</b></button>
+        <button id="mOffline">${icon('download')} <span id="mOfflineLbl">Save for offline use</span></button>
         <button id="mSave">${icon('download')} Download project file</button>
         <button id="mOpen">${icon('open')} Open project file</button>
         <button id="mBackup">${icon('save')} Back up all projects</button>
@@ -216,6 +222,31 @@ export class UI {
       this.toast('Snapshot saved as PNG');
     };
     $('#mShot').onclick = shoot;
+    const syncUnitsLabel = () => { const el = $('#mUnitsVal'); if (el) el.textContent = unitSystem() === 'metric' ? 'Metric' : 'Imperial'; };
+    syncUnitsLabel();
+    $('#mUnits').onclick = () => {
+      const next = unitSystem() === 'metric' ? 'imperial' : 'metric';
+      setUnitSystem(next);
+      store.project.settings.units = next;
+      syncUnitsLabel();
+      this.editor.requestRender();
+      this.renderProps();
+      this.toast(next === 'metric' ? 'Metric (m / cm)' : 'Imperial (ft / in)');
+    };
+    const syncOfflineLbl = () => { const el = $('#mOfflineLbl'); if (el) el.textContent = libraryInstalled() ? 'Available offline ✓' : 'Save for offline use'; };
+    syncOfflineLbl();
+    $('#mOffline').onclick = async () => {
+      $('#fileMenu')?.classList.add('hidden');
+      if (libraryInstalled()) { this.toast('Design library is already saved for offline use'); return; }
+      const ok = await this.confirm({
+        title: 'Save for offline use?',
+        message: `Download the full photo-realistic material library (${libraryCount()} textures, about ${librarySizeMB()} MB) so the app works with no internet — on a plane, a job site, anywhere. You only do this once.`,
+        okLabel: 'Download'
+      });
+      if (!ok) return;
+      await this.runOfflineInstall();
+      syncOfflineLbl();
+    };
     $('#mClear').onclick = async () => {
       $('#fileMenu').classList.add('hidden');
       const ok = await this.confirm({
@@ -349,14 +380,19 @@ export class UI {
       ${tool('window', 'Window', 'Choose a window style & place it')}
       ${tool('cut', 'Cut', 'Cut an opening: drag along a wall to remove that part')}
       ${tool('multi', 'Multi', 'Select several items at once')}
+      <span class="rail-div"></span>
+      ${tool('measure', 'Measure', 'Tape measure — tap points to measure distance & angle')}
+      ${tool('dimension', 'Dimension', 'Add a permanent dimension: tap two points, pull it out, tap to place')}
       <span class="rail-spacer"></span>`;
     rail.querySelectorAll('.tool').forEach(b => {
       b.onclick = () => {
         const t = b.dataset.tool;
-        // drawing happens on the plan — jump back when a draw tool is picked in 3D
-        if ((t === 'wall' || t === 'room' || t === 'multi') && store.viewMode === '3d') {
+        // drawing/measuring happens on the plan — jump back when picked in 3D
+        if ((t === 'wall' || t === 'room' || t === 'multi' || t === 'measure' || t === 'dimension') && store.viewMode === '3d') {
           store.setViewMode('2d');
         }
+        if (t === 'measure' && store.tool !== t) this.toast('Tape measure — tap points; tap Measure again to clear');
+        if (t === 'dimension' && store.tool !== t) this.toast('Dimension — tap two points, slide out, tap to place');
         if (t === 'door' || t === 'window') {
           // second tap on the active tool closes the picker & disarms
           if (store.tool === t && this._typePop) {
@@ -851,6 +887,53 @@ export class UI {
   /** Let the user pick a photo from their device for a picture-frame item. The
    *  image is downscaled to keep the saved project small, then stored on the
    *  item as a data URL and rendered onto the frame. */
+  /** Offer the offline download once, the first time someone opens a project. */
+  async maybePromptOffline() {
+    if (this._offlinePrompted) return;
+    this._offlinePrompted = true;
+    try { if (localStorage.getItem('hhs.offlinePrompted')) return; } catch { return; }
+    if (libraryInstalled() || !navigator.onLine) return;
+    // let the project settle in first
+    await new Promise(r => setTimeout(r, 1400));
+    try { localStorage.setItem('hhs.offlinePrompted', '1'); } catch { /* private mode */ }
+    const ok = await this.confirm({
+      title: 'Work anywhere, even offline',
+      message: `Save the photo-realistic material library (${libraryCount()} textures, ~${librarySizeMB()} MB) to this device so the studio keeps working with no internet. You can also do this later from the menu.`,
+      okLabel: 'Save now', cancelLabel: 'Later'
+    });
+    if (ok) { await this.runOfflineInstall(); const el = $('#mOfflineLbl'); if (el) el.textContent = 'Available offline ✓'; }
+  }
+
+  /** Download the offline library with a live progress bar. */
+  async runOfflineInstall() {
+    const ov = document.createElement('div');
+    ov.className = 'offline-ov';
+    ov.innerHTML = `
+      <div class="offline-card">
+        <div class="offline-title">Saving library for offline use…</div>
+        <div class="offline-sub" id="offSub">Starting…</div>
+        <div class="offline-track"><div class="offline-fill" id="offFill"></div></div>
+      </div>`;
+    document.body.appendChild(ov);
+    const fill = ov.querySelector('#offFill');
+    const sub = ov.querySelector('#offSub');
+    try {
+      await installLibrary((done, total) => {
+        const pct = total ? Math.round((done / total) * 100) : 0;
+        if (fill) fill.style.width = pct + '%';
+        if (sub) sub.textContent = `${done} of ${total} textures · ${pct}%`;
+      });
+      if (sub) sub.textContent = 'Done — the app now works fully offline';
+      if (fill) fill.style.width = '100%';
+      this.toast('Saved for offline use ✓');
+      await new Promise(r => setTimeout(r, 650));
+    } catch {
+      this.toast('Offline download interrupted — try again');
+    } finally {
+      ov.remove();
+    }
+  }
+
   pickPhotoFor(it) {
     // iOS Safari drops a detached <input type=file> when it backgrounds the tab
     // to show the photo picker, so `change` never fires. Attaching it to the DOM
@@ -1182,7 +1265,7 @@ export class UI {
         card.innerHTML = `
           <span class="thumb"><canvas></canvas></span>
           <span class="cat-card-name">${shell.name}</span>
-          <span class="cat-card-dims">${fmtFtIn(shell.size[0])} × ${fmtFtIn(shell.size[1])}</span>
+          <span class="cat-card-dims">${fmtLen(shell.size[0])} × ${fmtLen(shell.size[1])}</span>
           <span class="shell-desc">${shell.desc}</span>`;
         drawShellPreview(card.querySelector('canvas'), shell);
         card.onclick = () => this.addShell(shell);
@@ -1217,7 +1300,7 @@ export class UI {
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
         <span class="cat-card-name">${def.name}</span>
-        <span class="cat-card-dims">${fmtFtIn(def.w)} × ${fmtFtIn(def.d)} × ${fmtFtIn(def.h)}</span>`;
+        <span class="cat-card-dims">${fmtLen(def.w)} × ${fmtLen(def.d)} × ${fmtLen(def.h)}</span>`;
       card.onclick = () => {
         this.closeDrawer('catalog');
         // roofs fit themselves to the house — no hand-sizing
@@ -1499,7 +1582,7 @@ export class UI {
       panel.innerHTML = `${head(sel.exterior ? 'Exterior wall' : 'Wall')}
         <div class="props-body">
           <div class="props-grid2">
-            ${this.lenRow('pLen', 'Length', wallLength(w), true)}
+            ${this.lenRow('pLen', 'Length', wallLength(w))}
             ${this.lenRow('pThick', 'Thickness', w.thickness)}
             ${this.lenRow('pWH', 'Height', w.height)}
           </div>
@@ -1513,6 +1596,23 @@ export class UI {
             <button class="action danger" id="pDel">${icon('trash')} Delete wall</button>
           </div>
         </div>`;
+      this.bindLen('pLen', v => {
+        const newLen = Math.max(20, Math.round(v));
+        const cur = wallLength(w);
+        if (cur < 1) return;
+        const ux = (w.bx - w.ax) / cur, uy = (w.by - w.ay) / cur;
+        const nbx = w.ax + ux * newLen, nby = w.ay + uy * newLen;
+        const oldbx = w.bx, oldby = w.by;
+        store.checkpoint();
+        // carry along any wall endpoints joined at the moving end
+        for (const ow of store.project.walls) {
+          if (ow === w) continue;
+          if (Math.hypot(ow.ax - oldbx, ow.ay - oldby) < 1) { ow.ax = nbx; ow.ay = nby; }
+          if (Math.hypot(ow.bx - oldbx, ow.by - oldby) < 1) { ow.bx = nbx; ow.by = nby; }
+        }
+        w.bx = nbx; w.by = nby;
+        store.commit(true);
+      });
       this.bindLen('pThick', v => {
         store.checkpoint(); w.thickness = Math.max(5, Math.min(60, Math.round(v))); store.commit(true);
       });
@@ -1601,6 +1701,8 @@ export class UI {
           <div class="props-stat">Area&ensp;<b>${fmtArea(room.area)}</b></div>
           ${rect ? `<div class="props-section-title">Auto-furnish</div>
           <div class="furnish-row" id="furnishRow"></div>` : ''}
+          <div class="props-section-title">Design this room — coordinated finishes in one tap</div>
+          <div class="theme-list" id="roomThemeList"></div>
           <div class="props-section-title">Floor</div>
           <div class="mat-grid" id="matFloor"></div>
           <div class="props-section-title">Walls</div>
@@ -1649,6 +1751,21 @@ export class UI {
           row.appendChild(b);
         }
       }
+      const rtl = $('#roomThemeList');
+      if (rtl) {
+        for (const th of THEMES) {
+          const b = el('button', 'theme-btn',
+            `<span class="theme-dots"><i style="background:${th.chips[0]}"></i><i style="background:${th.chips[1]}"></i></span>${th.name}`);
+          b.onclick = () => {
+            store.checkpoint();
+            applyThemeToRoom(store, sel.id, th);
+            store.commit(true);
+            this.toast(`${th.name} applied to this room`);
+            this.renderProps();
+          };
+          rtl.appendChild(b);
+        }
+      }
       this.matGrid('#matFloor', 'floor', style.floor, id => {
         store.checkpoint(); store.roomStyle(sel.id).floor = id; store.commit(true);
       });
@@ -1667,22 +1784,22 @@ export class UI {
     if (sel?.kind === 'item') {
       const it = store.item(sel.id);
       if (!it) return;
-      this.setVal('pW', fmtFtIn(it.w)); this.setVal('pD', fmtFtIn(it.d)); this.setVal('pH', fmtFtIn(it.h));
+      this.setVal('pW', fmtLen(it.w)); this.setVal('pD', fmtLen(it.d)); this.setVal('pH', fmtLen(it.h));
       this.setVal('pRot', deg(it.rotation));
-      this.setVal('pElev', fmtFtIn(it.elevation || 0));
-      this.setVal('pPW', it.pw !== undefined ? fmtFtIn(it.pw) : undefined);
+      this.setVal('pElev', fmtLen(it.elevation || 0));
+      this.setVal('pPW', it.pw !== undefined ? fmtLen(it.pw) : undefined);
     } else if (sel?.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) return;
-      this.setVal('pLen', fmtFtIn(wallLength(w)));
-      this.setVal('pThick', fmtFtIn(w.thickness));
-      this.setVal('pWH', fmtFtIn(w.height));
+      this.setVal('pLen', fmtLen(wallLength(w)));
+      this.setVal('pThick', fmtLen(w.thickness));
+      this.setVal('pWH', fmtLen(w.height));
     } else if (sel?.kind === 'opening') {
       const o = store.opening(sel.id);
       if (!o) return;
-      this.setVal('pOW', fmtFtIn(o.width));
-      this.setVal('pOH', fmtFtIn(o.height));
-      this.setVal('pOS', fmtFtIn(o.sill || 0));
+      this.setVal('pOW', fmtLen(o.width));
+      this.setVal('pOH', fmtLen(o.height));
+      this.setVal('pOS', fmtLen(o.sill || 0));
     }
   }
 
@@ -1736,11 +1853,12 @@ export class UI {
     </label>`;
   }
 
-  /** Length row: stored in cm, shown and edited as feet/inches (9'4"). */
+  /** Length row: stored in cm, shown/edited in the active unit system. */
   lenRow(id, label, cmValue, readonly = false) {
     return `<label class="field"><span>${label}</span>
       <span class="num-wrap"><input id="${id}" type="text" inputmode="text" autocapitalize="off"
-        value="${fmtFtIn(cmValue).replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''}/></span>
+        placeholder="${unitPlaceholder().replace(/"/g, '&quot;')}"
+        value="${fmtLen(cmValue).replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''}/></span>
     </label>`;
   }
 
@@ -1758,7 +1876,7 @@ export class UI {
     const inp = document.getElementById(id);
     if (!inp) return;
     inp.addEventListener('change', () => {
-      const cm = parseFtIn(inp.value);
+      const cm = parseLen(inp.value);
       if (!Number.isNaN(cm) && cm >= 0) fn(cm);
       this.fillPropValues();
     });

@@ -12,6 +12,8 @@ export const ICONS = {
   multi: svg('<rect x="3.5" y="3.5" width="13" height="13" rx="1.5" stroke-dasharray="3 2.5"/><rect x="7" y="7" width="6" height="6" rx="1"/><path d="M15.5 15.5 20 20"/>'),
   cut: svg('<circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M20 4 8.3 15.7"/><path d="M14.2 14.2 20 20"/><path d="M8.3 8.3 12 12"/>'),
   image: svg('<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="M21 15.5 15.5 10 5 19"/>'),
+  measure: svg('<path d="M3 8h18v8H3z"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/>'),
+  dimension: svg('<path d="M4 6v12M20 6v12M4 12h16"/><path d="m7 9-3 3 3 3M17 9l3 3-3 3"/>'),
   undo: svg('<path d="M8 6 4 10l4 4"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/>'),
   redo: svg('<path d="m16 6 4 4-4 4"/><path d="M20 10H10a6 6 0 0 0 0 12h3"/>'),
   d2: svg('<rect x="3.5" y="5" width="17" height="14" rx="1.5"/><text x="12" y="16" text-anchor="middle" font-size="8.5" font-weight="700" stroke="none" fill="currentColor">2D</text>'),

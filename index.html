@@ -18,10 +18,52 @@
 <body>
   <div id="app">
     <div id="splash">
-      <div class="splash-inner">
-        <span class="splash-logo"></span>
-        <h1>Honeycutt <b>Home Studio</b></h1>
-        <p>Design · Furnish · Walk through</p>
+      <div class="splash-bg" aria-hidden="true">
+        <svg class="splash-hex" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
+          <polygon class="hex h1" points="60,20 95,40 95,80 60,100 25,80 25,40"/>
+          <polygon class="hex h2" points="320,60 352,78 352,116 320,134 288,116 288,78"/>
+          <polygon class="hex h3" points="120,300 150,317 150,351 120,368 90,351 90,317"/>
+          <polygon class="hex h4" points="300,290 335,310 335,350 300,370 265,350 265,310"/>
+        </svg>
+      </div>
+      <div class="splash-stage" aria-hidden="true">
+        <div class="splash-glow"></div>
+        <svg class="splash-house" viewBox="0 0 300 232" fill="none">
+          <!-- warm interior light behind the windows -->
+          <g class="sh-lightwash">
+            <rect x="92" y="100" width="116" height="70" rx="2" fill="url(#warm)"/>
+          </g>
+          <defs>
+            <radialgradient id="warm" cx="0.5" cy="0.4" r="0.8">
+              <stop offset="0" stop-color="#ffd98a" stop-opacity="0.9"/>
+              <stop offset="1" stop-color="#ffb35c" stop-opacity="0"/>
+            </radialgradient>
+          </defs>
+          <!-- roof -->
+          <path class="sh-draw sh-roof" pathLength="1" d="M74 106 L150 60 L226 106"/>
+          <!-- walls + floor -->
+          <path class="sh-draw sh-walls" pathLength="1" d="M92 170 L92 100 M208 170 L208 100 M88 170 L212 170"/>
+          <!-- door -->
+          <path class="sh-draw sh-door" pathLength="1" d="M134 170 L134 132 L166 132 L166 170"/>
+          <!-- windows -->
+          <rect class="sh-draw sh-win" pathLength="1" x="104" y="116" width="20" height="20" rx="1.5"/>
+          <rect class="sh-draw sh-win sh-win2" pathLength="1" x="176" y="116" width="20" height="20" rx="1.5"/>
+          <!-- warm glass -->
+          <rect class="sh-glass" x="104" y="116" width="20" height="20" rx="1.5"/>
+          <rect class="sh-glass sh-glass2" x="176" y="116" width="20" height="20" rx="1.5"/>
+          <!-- CAD dimension line (the precision nod) -->
+          <g class="sh-dim">
+            <path class="sh-draw sh-dimline" pathLength="1" d="M92 196 L208 196"/>
+            <path class="sh-tick" d="M92 190 L92 202 M208 190 L208 202"/>
+            <path class="sh-arrow" d="M92 196 L100 193 M92 196 L100 199 M208 196 L200 193 M208 196 L200 199"/>
+          </g>
+        </svg>
+      </div>
+      <div class="splash-word">
+        <h1>Honeycutt <b>Home&nbsp;Studio</b></h1>
+        <span class="splash-rule"></span>
+        <p>Design · Measure · Walk&nbsp;through</p>
+        <span class="splash-ver">Version 3.0</span>
       </div>
     </div>
     <div id="home" class="hidden"></div>

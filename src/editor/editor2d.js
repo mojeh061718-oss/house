@@ -2,7 +2,7 @@
 // zoom / two-finger pan) and pen via Pointer Events. World units: centimeters.
 import {
   dist, pointSegDist, wallLength, wallAngle, wallPoint, snapAngle,
-  pointInPolygon, pointInItemRect, clamp, EPS
+  pointInPolygon, pointInItemRect, clamp, EPS, segSegIntersect
 } from '../core/geometry.js';
 import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
 import { ITEM_MAP } from '../catalog/items.js';
@@ -10,7 +10,7 @@ import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
-import { fmtFtIn, fmtArea } from '../core/units.js';
+import { fmtLen, fmtArea, fmtAngle } from '../core/units.js';
 import { snapPose, createPathItem, shapePolyline, anchorWallItem, reanchorWallItems } from '../core/placement.js';
 
 const GRID = 10;            // snap grid (cm)
@@ -116,39 +116,74 @@ export class Editor2D {
   // ---- snapping ------------------------------------------------------------
 
   snapPoint(x, y, opts = {}) {
+    const r = this._snapPoint(x, y, opts);
+    // remember the live snap so the renderer can draw a CAD osnap marker at it
+    this._snap = (this.store.snapEnabled && r.kind && r.kind !== 'free' && r.kind !== 'grid') ? r : null;
+    return r;
+  }
+
+  /**
+   * CAD-grade object snapping. In priority order it locks onto: wall endpoints,
+   * midpoints, true wall–wall intersections, the perpendicular foot from the
+   * drawing reference, a point on a wall edge (T-junction), axis/alignment with
+   * existing geometry, then the grid. Every result is tagged with a `kind` so
+   * the overlay can draw the matching osnap glyph (□ ▷ ✕ ⊾ …).
+   */
+  _snapPoint(x, y, opts = {}) {
     const p = this.store.project;
-    // snapping off (the magnet toggle): draw exactly where the finger is — no
-    // grid, endpoint, wall or angle snapping. Keeps the "free placement" promise
-    // consistent between drawing walls/rooms and dropping furniture.
+    // snapping off (the magnet toggle): draw exactly where the finger is.
     if (!this.store.snapEnabled) return { x: Math.round(x), y: Math.round(y), kind: 'free' };
     const tol = (this.coarse ? 24 : 14) / this.view.scale;
+    const walls = p.walls.filter(w => w.id !== opts.excludeWall);
 
-    const endpointNear = (px, py) => {
-      let best = null, bestD = tol;
-      for (const w of p.walls) {
-        if (opts.excludeWall === w.id) continue;
-        for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
-          const d = dist(px, py, ex, ey);
-          if (d < bestD) { bestD = d; best = { x: ex, y: ey, kind: 'endpoint' }; }
-        }
+    // ---- hard object snaps near the raw cursor (these always win) ----------
+    // Only walls whose body is within reach are worth probing for midpoint /
+    // intersection, keeping the pairwise intersection test cheap on big plans.
+    const near = walls.filter(w => pointSegDist(x, y, w.ax, w.ay, w.bx, w.by).d < tol * 6);
+    let best = null;
+    const consider = (px, py, kind, pri) => {
+      const d = dist(x, y, px, py);
+      if (d > tol) return;
+      if (!best || pri < best.pri || (pri === best.pri && d < best.d)) {
+        best = { x: px, y: py, kind, pri, d };
       }
-      return best;
     };
-
-    // 1. strongest: an existing wall endpoint near the cursor
-    const ep = endpointNear(x, y);
-    if (ep) return ep;
-
+    // endpoints (pri 0 — strongest, closes loops exactly)
+    for (const w of near) { consider(w.ax, w.ay, 'endpoint', 0); consider(w.bx, w.by, 'endpoint', 0); }
+    // midpoints (pri 1)
+    for (const w of near) consider((w.ax + w.bx) / 2, (w.ay + w.by) / 2, 'midpoint', 1);
+    // true intersections between crossing walls (pri 1)
+    for (let i = 0; i < near.length; i++) {
+      for (let j = i + 1; j < near.length; j++) {
+        const r = segSegIntersect(near[i], near[j]);
+        if (!r || r.t < -0.02 || r.t > 1.02 || r.u < -0.02 || r.u > 1.02) continue;
+        const pt = wallPoint(near[i], clamp(r.t, 0, 1));
+        consider(pt.x, pt.y, 'intersect', 1);
+      }
+    }
+    // perpendicular foot of the drawing reference onto a nearby wall (pri 1)
     if (opts.ref) {
-      // constrain to a clean angle from the reference point
+      for (const w of near) {
+        const f = this.perpFoot(opts.ref.x, opts.ref.y, w);
+        if (f) consider(f.x, f.y, 'perp', 1);
+      }
+    }
+    if (best && best.pri === 0) return best; // an exact vertex trumps everything
+
+    // ---- drawing from a reference point: angle-constrain, then re-snap -----
+    if (opts.ref) {
+      if (best) return best; // a midpoint/intersection/perp under the cursor wins
       const dx = x - opts.ref.x, dy = y - opts.ref.y;
       const ang = snapAngle(Math.atan2(dy, dx));
       const len = Math.hypot(dx, dy);
       let ax = opts.ref.x + Math.cos(ang) * len;
       let ay = opts.ref.y + Math.sin(ang) * len;
       // if an endpoint sits near the constrained tip, close onto it exactly
-      const ep2 = endpointNear(ax, ay);
-      if (ep2) return ep2;
+      let tip = null;
+      for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+        if (dist(ax, ay, ex, ey) < tol) { ax = ex; ay = ey; tip = { x: ex, y: ey, kind: 'endpoint' }; }
+      }
+      if (tip) return { x: ax, y: ay, kind: 'endpoint' };
       // landing on another wall's edge makes a clean T-junction
       const onWall = this.nearestWall(ax, ay, tol);
       if (onWall && onWall.wall.id !== opts.excludeWall) {
@@ -159,30 +194,22 @@ export class Editor2D {
       let guide = null;
       if (horiz) {
         ay = opts.ref.y;
-        // align the free end with other walls' endpoints
-        for (const w of p.walls) {
-          for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
-            if (Math.abs(ax - ex) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) {
-              ax = ex; guide = { x: ex, y: ey };
-            }
-          }
+        for (const w of p.walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+          if (Math.abs(ax - ex) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) { ax = ex; guide = { x: ex, y: ey }; }
         }
         if (!guide) ax = Math.round(ax / GRID) * GRID;
       } else if (vert) {
         ax = opts.ref.x;
-        for (const w of p.walls) {
-          for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
-            if (Math.abs(ay - ey) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) {
-              ay = ey; guide = { x: ex, y: ey };
-            }
-          }
+        for (const w of p.walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+          if (Math.abs(ay - ey) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) { ay = ey; guide = { x: ex, y: ey }; }
         }
         if (!guide) ay = Math.round(ay / GRID) * GRID;
       }
       return { x: ax, y: ay, kind: guide ? 'align' : 'axis', guide };
     }
 
-    // free placement: snap onto a nearby wall edge (clean T-junction start)
+    // ---- free placement ----------------------------------------------------
+    if (best) return best; // midpoint / intersection under the cursor
     const onWall = this.nearestWall(x, y, tol);
     if (onWall && onWall.wall.id !== opts.excludeWall) {
       return { x: onWall.px, y: onWall.py, kind: 'onwall' };
@@ -191,13 +218,38 @@ export class Editor2D {
     let gx = Math.round(x / GRID) * GRID;
     let gy = Math.round(y / GRID) * GRID;
     let guide = null;
-    for (const w of p.walls) {
-      for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
-        if (Math.abs(x - ex) < tol) { gx = ex; guide = { x: ex, y: ey }; }
-        if (Math.abs(y - ey) < tol) { gy = ey; guide = guide || { x: ex, y: ey }; }
-      }
+    for (const w of p.walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+      if (Math.abs(x - ex) < tol) { gx = ex; guide = { x: ex, y: ey }; }
+      if (Math.abs(y - ey) < tol) { gy = ey; guide = guide || { x: ex, y: ey }; }
     }
     return { x: gx, y: gy, kind: guide ? 'align' : 'grid', guide };
+  }
+
+  /** Foot of the perpendicular from (px,py) onto wall w, or null if it falls
+   *  outside the wall's span. Used for the CAD "perpendicular" osnap. */
+  perpFoot(px, py, w) {
+    const vx = w.bx - w.ax, vy = w.by - w.ay;
+    const len2 = vx * vx + vy * vy;
+    if (len2 < 1) return null;
+    const t = ((px - w.ax) * vx + (py - w.ay) * vy) / len2;
+    if (t < 0.02 || t > 0.98) return null;
+    return { x: w.ax + vx * t, y: w.ay + vy * t };
+  }
+
+  /** Which dimension annotation (if any) is under the screen point — hit along
+   *  the offset dimension line so it can be selected/deleted. */
+  dimAt(sx, sy) {
+    let best = null, bestD = 12;
+    for (const d of this.store.project.dims) {
+      const dx = d.bx - d.ax, dy = d.by - d.ay;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      const A = this.toScreen(d.ax + nx * d.off, d.ay + ny * d.off);
+      const B = this.toScreen(d.bx + nx * d.off, d.by + ny * d.off);
+      const r = pointSegDist(sx, sy, A.x, A.y, B.x, B.y);
+      if (r.d < bestD) { bestD = r.d; best = d.id; }
+    }
+    return best;
   }
 
   // ---- hit testing -----------------------------------------------------------
@@ -338,8 +390,31 @@ export class Editor2D {
       case 'door': case 'window': case 'cut': this.downOpening(w, store.tool); break;
       case 'multi': this.downMulti(w, sx, sy); break;
       case 'place': this.downPlace(w); break;
+      case 'measure': this.downMeasure(w); break;
+      case 'dimension': this.downDimension(w); break;
     }
     this.requestRender();
+  }
+
+  /** Tape tool: each tap drops a vertex; the running total + per-leg length and
+   *  angle show live. Tap the Measure tool again (or Esc) to clear. */
+  downMeasure(w) {
+    const s = this.snapPoint(w.x, w.y);
+    if (!this.measure) this.measure = { pts: [] };
+    this.measure.pts.push({ x: s.x, y: s.y });
+    this.measure.cur = { x: s.x, y: s.y };
+  }
+
+  /** Dimension tool: tap start, tap end, then move to pull the dimension line
+   *  off the geometry and tap once more to place a permanent, saved dimension. */
+  downDimension(w) {
+    const s = this.snapPoint(w.x, w.y);
+    const d = this.dimDraft;
+    if (!d) { this.dimDraft = { a: { x: s.x, y: s.y } }; return; }
+    if (!d.b) { d.b = { x: s.x, y: s.y }; return; }
+    // both ends set: the third interaction pulls the dimension line off the
+    // geometry — a drag sets the standoff, a plain tap uses a default.
+    this.mode = { name: 'dimOffset', dragging: true };
   }
 
   /** Multi-select tool: tap toggles an item, drag sweeps a marquee. */
@@ -382,6 +457,12 @@ export class Editor2D {
         }
       }
     }
+
+    // dimension annotations: a tap on the dimension line or its label selects
+    // it (so it can be deleted). Checked before geometry since dims float in
+    // otherwise-empty space beside the walls.
+    const dimId = this.dimAt(sx, sy);
+    if (dimId) { store.select({ kind: 'dim', id: dimId }); this.requestRender(); return; }
 
     // 0. jamb-end resize handles of current opening selection
     if (sel?.kind === 'opening') {
@@ -986,8 +1067,38 @@ export class Editor2D {
         store.commit(true);
         break;
       }
+      case 'dimOffset': {
+        const d = this.dimDraft;
+        if (d?.a && d?.b) { m.moved = true; d.off = this.dimOffset(d.a, d.b, w.x, w.y); }
+        break;
+      }
+    }
+    // measure / dimension tools work by taps, not drags: track the live point
+    if (!m.dragging && !this.pinch) {
+      const t = store.tool;
+      if (t === 'measure' && this.measure) {
+        const s = this.snapPoint(w.x, w.y);
+        this.measure.cur = { x: s.x, y: s.y };
+      } else if (t === 'dimension' && this.dimDraft) {
+        const s = this.snapPoint(w.x, w.y);
+        const d = this.dimDraft;
+        if (!d.b) d.cur = { x: s.x, y: s.y };
+        else d.off = this.dimOffset(d.a, d.b, w.x, w.y);
+      } else if (this.store.snapEnabled && (t === 'wall' || t === 'room' || t === 'measure' || t === 'dimension')) {
+        this.snapPoint(w.x, w.y); // sets this._snap for the overlay marker
+      } else if (m.name === 'idle') {
+        this._snap = null;
+      }
     }
     this.requestRender();
+  }
+
+  /** Signed perpendicular distance from the a→b line to a cursor point — the
+   *  standoff a dimension line is pulled out to. */
+  dimOffset(a, b, cx, cy) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return ((cx - a.x) * (-dy) + (cy - a.y) * dx) / len;
   }
 
   onUp(e) {
@@ -1028,6 +1139,21 @@ export class Editor2D {
       store.commit(false);
       store.setTool('select');
       store.select({ kind: 'item', id: it.id });
+    }
+    if (m.name === 'dimOffset') {
+      const d = this.dimDraft;
+      if (d?.a && d?.b) {
+        // a plain tap (no drag) uses a default standoff on the +normal side
+        let off = d.off;
+        if (!m.moved || Math.abs(off ?? 0) < 8) off = 40;
+        store.checkpoint();
+        store.addDim(d.a.x, d.a.y, d.b.x, d.b.y, off);
+        store.commit(false);
+      }
+      this.dimDraft = null;
+      this.mode = { name: 'idle' };
+      this.requestRender();
+      return;
     }
     if (m.name === 'roomRect' && m.start && m.cur) {
       const { start: s, cur: c } = m;
@@ -1121,6 +1247,9 @@ export class Editor2D {
 
   cancelMode(keepTool = false) {
     this.mode = { name: 'idle' };
+    this.measure = null;
+    this.dimDraft = null;
+    this._snap = null;
     if (!keepTool) this.requestRender();
   }
 
@@ -1253,8 +1382,185 @@ export class Editor2D {
     this.drawRulers(ctx, W, H);
     this.drawRoomLabels(ctx);
     this.drawDimensions(ctx);
+    this.drawDimAnnotations(ctx);
+    this.drawMeasure(ctx);
+    this.drawDimDraft(ctx);
     this.drawSelectionHandles(ctx);
     this.drawDeleteBadge(ctx);
+    this.drawSnapMarker(ctx);
+  }
+
+  /** Render one architectural dimension (screen space): witness lines, a
+   *  dimension line with arrowheads, and the length in a legible pill. */
+  _drawDim(ctx, ax, ay, bx, by, off, opts = {}) {
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return null;
+    const nx = -dy / len, ny = dx / len;           // unit normal
+    const oa = { x: ax + nx * off, y: ay + ny * off };
+    const ob = { x: bx + nx * off, y: by + ny * off };
+    const A = this.toScreen(ax, ay), B = this.toScreen(bx, by);
+    const OA = this.toScreen(oa.x, oa.y), OB = this.toScreen(ob.x, ob.y);
+    const col = opts.color || (opts.selected ? '#3884ff' : '#33383f');
+    ctx.save();
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.lineWidth = opts.selected ? 2 : 1.25;
+    if (opts.live) ctx.setLineDash([6, 4]);
+    // witness (extension) lines, with a small gap off the geometry
+    const gap = 4, ext = 6;
+    for (const [P, O] of [[A, OA], [B, OB]]) {
+      const ux = O.x - P.x, uy = O.y - P.y, ul = Math.hypot(ux, uy) || 1;
+      ctx.beginPath();
+      ctx.moveTo(P.x + ux / ul * gap, P.y + uy / ul * gap);
+      ctx.lineTo(O.x + ux / ul * ext, O.y + uy / ul * ext);
+      ctx.stroke();
+    }
+    // dimension line
+    ctx.beginPath(); ctx.moveTo(OA.x, OA.y); ctx.lineTo(OB.x, OB.y); ctx.stroke();
+    ctx.setLineDash([]);
+    // arrowheads (tick-style) at each end
+    const ang = Math.atan2(OB.y - OA.y, OB.x - OA.x);
+    for (const [P, dir] of [[OA, ang], [OB, ang + Math.PI]]) {
+      for (const s of [0.4, -0.4]) {
+        ctx.beginPath();
+        ctx.moveTo(P.x, P.y);
+        ctx.lineTo(P.x + Math.cos(dir + s) * 9, P.y + Math.sin(dir + s) * 9);
+        ctx.stroke();
+      }
+    }
+    // length pill at the midpoint
+    const mid = { x: (OA.x + OB.x) / 2, y: (OA.y + OB.y) / 2 };
+    const text = fmtLen(len);
+    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(text).width;
+    ctx.fillStyle = opts.selected ? '#3884ff' : 'rgba(255,255,255,0.94)';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(mid.x - tw / 2 - 6, mid.y - 9, tw + 12, 18, 9); ctx.fill(); }
+    ctx.fillStyle = opts.selected ? '#fff' : '#2b3038';
+    ctx.fillText(text, mid.x, mid.y + 0.5);
+    ctx.restore();
+    return { mid, oa, ob };
+  }
+
+  drawDimAnnotations(ctx) {
+    const sel = this.store.selection;
+    for (const d of this.store.project.dims) {
+      const selected = sel?.kind === 'dim' && sel.id === d.id;
+      this._drawDim(ctx, d.ax, d.ay, d.bx, d.by, d.off, { selected });
+    }
+  }
+
+  drawDimDraft(ctx) {
+    const d = this.dimDraft;
+    if (!d?.a) return;
+    if (!d.b) {
+      // rubber-band from the first point to the live cursor
+      const c = d.cur || this.hover;
+      const A = this.toScreen(d.a.x, d.a.y), C = this.toScreen(c.x, c.y);
+      ctx.save();
+      ctx.strokeStyle = '#3884ff'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(C.x, C.y); ctx.stroke();
+      ctx.restore();
+    } else {
+      this._drawDim(ctx, d.a.x, d.a.y, d.b.x, d.b.y, d.off ?? 40, { color: '#3884ff', live: true });
+    }
+  }
+
+  /** The tape/measure overlay: dashed legs, per-leg length, running total. */
+  drawMeasure(ctx) {
+    const mz = this.measure;
+    if (!mz?.pts?.length) return;
+    const pts = mz.cur ? [...mz.pts, mz.cur] : mz.pts;
+    ctx.save();
+    ctx.strokeStyle = '#e8873b'; ctx.fillStyle = '#e8873b'; ctx.lineWidth = 1.75;
+    ctx.setLineDash([7, 4]);
+    ctx.beginPath();
+    pts.forEach((pt, i) => { const s = this.toScreen(pt.x, pt.y); i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // vertex dots
+    for (const pt of pts) { const s = this.toScreen(pt.x, pt.y); ctx.beginPath(); ctx.arc(s.x, s.y, 3.5, 0, Math.PI * 2); ctx.fill(); }
+    // per-leg length + angle labels
+    ctx.font = '700 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const legLen = dist(a.x, a.y, b.x, b.y); total += legLen;
+      const s = this.toScreen((a.x + b.x) / 2, (a.y + b.y) / 2);
+      const label = `${fmtLen(legLen)}  ${fmtAngle(Math.atan2(b.y - a.y, b.x - a.x))}`;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.94)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(s.x - tw / 2 - 6, s.y - 9, tw + 12, 18, 9); ctx.fill(); }
+      ctx.fillStyle = '#b45a12'; ctx.fillText(label, s.x, s.y + 0.5);
+    }
+    // running total near the last point
+    if (pts.length > 2) {
+      const last = this.toScreen(pts[pts.length - 1].x, pts[pts.length - 1].y);
+      const label = `Σ ${fmtLen(total)}`;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = '#e8873b';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(last.x - tw / 2 - 7, last.y + 12, tw + 14, 19, 9.5); ctx.fill(); }
+      ctx.fillStyle = '#fff'; ctx.fillText(label, last.x, last.y + 22);
+    }
+    ctx.restore();
+  }
+
+  /** CAD osnap glyph at the live snap point: □ endpoint · ▷ midpoint · ✕
+   *  intersection · ⊾ perpendicular · ◇ on-wall, with a short label. */
+  drawSnapMarker(ctx) {
+    const s = this._snap;
+    if (!s) return;
+    const drawing = this.mode?.dragging || ['wall', 'room', 'measure', 'dimension'].includes(this.store.tool);
+    if (!drawing) return;
+    const p = this.toScreen(s.x, s.y);
+    const C = '#00bfa5', R = 7;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    // alignment guide line back to the reference geometry
+    if (s.guide) {
+      const g = this.toScreen(s.guide.x, s.guide.y);
+      ctx.strokeStyle = 'rgba(0,191,165,0.55)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.strokeStyle = C; ctx.fillStyle = C; ctx.lineWidth = 2;
+    // white halo so the glyph reads on any floor texture
+    ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 3;
+    ctx.beginPath();
+    switch (s.kind) {
+      case 'endpoint':
+        ctx.strokeRect(p.x - R, p.y - R, R * 2, R * 2); break;
+      case 'midpoint':
+        ctx.moveTo(p.x, p.y - R); ctx.lineTo(p.x + R, p.y + R);
+        ctx.lineTo(p.x - R, p.y + R); ctx.closePath(); ctx.stroke(); break;
+      case 'intersect':
+        ctx.moveTo(p.x - R, p.y - R); ctx.lineTo(p.x + R, p.y + R);
+        ctx.moveTo(p.x + R, p.y - R); ctx.lineTo(p.x - R, p.y + R); ctx.stroke(); break;
+      case 'perp':
+        ctx.moveTo(p.x - R, p.y - R); ctx.lineTo(p.x - R, p.y + R);
+        ctx.lineTo(p.x + R, p.y + R);
+        ctx.moveTo(p.x - R, p.y + 2); ctx.lineTo(p.x - 2, p.y + 2);
+        ctx.lineTo(p.x - 2, p.y + R); ctx.stroke(); break;
+      case 'onwall':
+        ctx.moveTo(p.x, p.y - R); ctx.lineTo(p.x + R, p.y);
+        ctx.lineTo(p.x, p.y + R); ctx.lineTo(p.x - R, p.y); ctx.closePath(); ctx.stroke(); break;
+      default: // align / axis — a small ring
+        ctx.arc(p.x, p.y, R - 1, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    const label = { endpoint: 'END', midpoint: 'MID', intersect: 'INT', perp: 'PERP', onwall: 'ON', align: 'ALIGN', axis: '' }[s.kind];
+    if (label) {
+      ctx.font = '700 9px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(0,0,0,0.62)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(p.x + R + 3, p.y - R - 3, tw + 8, 13, 3); ctx.fill(); }
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, p.x + R + 7, p.y - R + 6);
+    }
+    ctx.restore();
   }
 
   /** Screen-space bounding box of the current selection, or null. */
@@ -1958,19 +2264,23 @@ export class Editor2D {
       ctx.textAlign = 'center';
       ctx.font = selected ? '600 12px system-ui, sans-serif' : '10px system-ui, sans-serif';
       ctx.fillStyle = selected ? '#2b6fe0' : 'rgba(40,44,52,0.5)';
-      ctx.fillText(fmtFtIn(len), 0, 0);
+      ctx.fillText(fmtLen(len), 0, 0);
       ctx.restore();
     }
-    // live wall-draw length
+    // live wall-draw length + bearing angle
     if (this.mode.name === 'wallDraw' && this.mode.preview) {
       const { start, preview } = this.mode;
       const len = dist(start.x, start.y, preview.x, preview.y);
       if (len > 5) {
         const s = this.toScreen((start.x + preview.x) / 2, (start.y + preview.y) / 2);
-        ctx.font = '600 13px system-ui, sans-serif';
+        const text = `${fmtLen(len)}   ${fmtAngle(Math.atan2(preview.y - start.y, preview.x - start.x))}`;
+        ctx.font = '700 12.5px system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(s.x - tw / 2 - 7, s.y - 24, tw + 14, 19, 9.5); ctx.fill(); }
         ctx.fillStyle = '#2b6fe0';
-        ctx.textAlign = 'center';
-        ctx.fillText(fmtFtIn(len), s.x, s.y - 14);
+        ctx.fillText(text, s.x, s.y - 14.5);
       }
     }
     // live dimensions while dragging out a room or an area surface
@@ -1982,7 +2292,7 @@ export class Editor2D {
         ctx.font = '700 14px system-ui, sans-serif';
         ctx.fillStyle = '#2b6fe0';
         ctx.textAlign = 'center';
-        ctx.fillText(`${fmtFtIn(w)} × ${fmtFtIn(d)}`, s.x, s.y);
+        ctx.fillText(`${fmtLen(w)} × ${fmtLen(d)}`, s.x, s.y);
       }
     }
     // live wall-gap labels while dragging an item
@@ -1991,7 +2301,7 @@ export class Editor2D {
       ctx.textAlign = 'center';
       for (const g of this.mode.gaps) {
         const s = this.toScreen((g.x1 + g.x2) / 2, (g.y1 + g.y2) / 2);
-        const text = fmtFtIn(g.gap);
+        const text = fmtLen(g.gap);
         const tw = ctx.measureText(text).width;
         ctx.fillStyle = 'rgba(255,255,255,0.92)';
         ctx.beginPath();
@@ -2011,7 +2321,7 @@ export class Editor2D {
         const ang = wallAngle(wl);
         const off = wl.thickness / 2 + 24 / this.view.scale;
         const sp = this.toScreen(c.x + Math.sin(ang) * off, c.y - Math.cos(ang) * off);
-        const text = fmtFtIn(o.width);
+        const text = fmtLen(o.width);
         ctx.font = '700 12px system-ui, sans-serif';
         ctx.textAlign = 'center';
         const tw = ctx.measureText(text).width;
@@ -2035,7 +2345,7 @@ export class Editor2D {
         // lowest on-screen point of the selection decoration
         let maxSy = s.y + (it.d / 2) * this.view.scale;
         for (const h of hs) maxSy = Math.max(maxSy, h.sy + this.handleR + 3);
-        const text = `${fmtFtIn(it.w)} × ${fmtFtIn(it.d)}`;
+        const text = `${fmtLen(it.w)} × ${fmtLen(it.d)}`;
         ctx.font = '600 11px system-ui, sans-serif';
         ctx.textAlign = 'center';
         const tw = ctx.measureText(text).width;
