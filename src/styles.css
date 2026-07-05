@@ -833,6 +833,7 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -842,6 +843,19 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   padding: 11px 8px;
   cursor: pointer;
 }
+.action svg { width: 16px; height: 16px; }
+.prop-text {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  padding: 11px 12px;
+  box-sizing: border-box;
+}
+.prop-text:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
 .action:hover { border-color: var(--accent); }
 .action.danger { color: var(--danger); }
 .action.danger:hover { border-color: var(--danger); }

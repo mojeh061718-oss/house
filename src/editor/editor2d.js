@@ -1510,9 +1510,15 @@ export class Editor2D {
           break;
         }
         default: {
-          // hinged door: jambs + panel leaf + swing arc
-          jambs();
-          leafArc(o.swing ? hw : -hw, o.width, sideY);
+          if (o.type.startsWith('window')) {
+            // any other window style: glazed rectangle with a centre bar
+            ctx.strokeRect(-hw, -th, o.width, th * 2);
+            ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0); ctx.stroke();
+          } else {
+            // hinged door: jambs + panel leaf + swing arc
+            jambs();
+            leafArc(o.swing ? hw : -hw, o.width, sideY);
+          }
         }
       }
       ctx.restore();

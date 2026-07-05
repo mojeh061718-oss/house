@@ -26,6 +26,9 @@ function el(tag, cls = '', html = '') {
 
 const deg = rad => Math.round((rad * 180 / Math.PI) % 360);
 
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 export class UI {
   constructor(store, editor, viewer, onHome) {
     this.store = store;
@@ -839,6 +842,43 @@ export class UI {
     }
   }
 
+  /** Let the user pick a photo from their device for a picture-frame item. The
+   *  image is downscaled to keep the saved project small, then stored on the
+   *  item as a data URL and rendered onto the frame. */
+  pickPhotoFor(it) {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 700;
+          const s = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * s));
+          c.height = Math.max(1, Math.round(img.height * s));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          let url;
+          try { url = c.toDataURL('image/jpeg', 0.82); } catch { url = reader.result; }
+          this.store.checkpoint();
+          it.photo = url;
+          this.store.commit(false);
+          this.renderProps();
+          this.toast('Photo added');
+        };
+        img.onerror = () => this.toast('Couldn’t read that image');
+        img.src = reader.result;
+      };
+      reader.onerror = () => this.toast('Couldn’t read that file');
+      reader.readAsDataURL(file);
+    };
+    inp.click();
+  }
+
   /** Is the current selection a locked item (or all-locked group)? */
   selectionLocked() {
     const store = this.store;
@@ -1362,6 +1402,8 @@ export class UI {
           </div>
           ${isPath ? '<div class="props-section-title">Drag the path on the plan to move it. Duplicate to branch it.</div>' : ''}
           ${surfacePick ? '<div class="props-section-title">Surface texture — any material you like</div><div class="mat-grid" id="matSurface"></div>' : ''}
+          ${def?.photo ? `<div class="props-section-title">Photo</div><button class="action" id="pPhoto">${icon('image')} ${it.photo ? 'Change photo' : 'Add a photo from your device'}</button>${it.photo ? '<button class="action" id="pPhotoClear">Remove photo</button>' : ''}` : ''}
+          ${def?.sign ? `<div class="props-section-title">Sign text</div><input class="prop-text" id="pSign" value="${escapeHtml(it.sign ?? def.signDefault ?? '')}" maxlength="14" placeholder="${escapeHtml(def.signDefault || 'Type here')}"/>` : ''}
           ${def?.palettes && !surfacePick ? '<div class="props-section-title">Finish</div><div class="chip-row" id="palRow"></div>' : ''}
           <div class="btn-row">
             <button class="action" id="pDup">${icon('copy')} Duplicate</button>
@@ -1398,6 +1440,17 @@ export class UI {
           });
         });
         this.loadSwatchTextures('props');
+      }
+      if (def?.photo) {
+        $('#pPhoto').onclick = () => this.pickPhotoFor(it);
+        const clr = $('#pPhotoClear');
+        if (clr) clr.onclick = () => { commit(() => { delete it.photo; }); this.renderProps(); };
+      }
+      if (def?.sign) {
+        const si = $('#pSign');
+        // commit on blur/enter so typing a number is one undo step, not one per key
+        si.onchange = () => commit(() => { it.sign = si.value; });
+        si.onkeydown = (e) => { if (e.key === 'Enter') si.blur(); };
       }
       $('#pDup').onclick = () => this.duplicateSelection();
       $('#pDel').onclick = () => store.deleteSelection();

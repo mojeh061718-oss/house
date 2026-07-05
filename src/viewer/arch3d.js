@@ -496,11 +496,98 @@ function buildOpeningModel(o, thickness) {
       g.add(bay);
       break;
     }
+    case 'window_double_hung': {
+      windowFrame();
+      // meeting rail in the middle + a horizontal muntin in each sash
+      bar(g, frameMat, w - jamb, 3.5, 2.5, 0, sill + h / 2, 3);
+      bar(g, frameMat, w - jamb, 2, 1.6, 0, sill + h * 0.28, 3);
+      bar(g, frameMat, w - jamb, 2, 1.6, 0, sill + h * 0.72, 3);
+      bar(g, frameMat, 2, h - jamb, 1.6, 0, sill + h / 2, 3);
+      break;
+    }
+    case 'window_arched': {
+      const r = w / 2;
+      const archBase = sill + h - r;   // spring line of the arch
+      const rectH = archBase - sill;
+      bar(g, frameMat, w + 4, jamb, t, 0, archBase, 0);
+      bar(g, frameMat, w + 8, jamb, t + 4, 0, sill + jamb / 2, 0);
+      bar(g, frameMat, jamb, rectH, t, -w / 2 + jamb / 2, sill + rectH / 2, 0);
+      bar(g, frameMat, jamb, rectH, t, w / 2 - jamb / 2, sill + rectH / 2, 0);
+      bar(g, glassMat, w - jamb, rectH - jamb, 1, 0, sill + rectH / 2, 0);
+      bar(g, frameMat, w - jamb, 2, 1.4, 0, sill + rectH * 0.55, 1.5);
+      bar(g, frameMat, 2, rectH - jamb, 1.4, 0, sill + rectH / 2, 1.5);
+      // semicircular glass fan + arc frame ring
+      const fan = new THREE.Mesh(new THREE.CircleGeometry(r - jamb, 18, 0, Math.PI), glassMat);
+      fan.position.set(0, archBase, 0);
+      g.add(fan);
+      const seg = 18;
+      for (let i = 0; i < seg; i++) {
+        const a1 = Math.PI * (i / seg), a2 = Math.PI * ((i + 1) / seg);
+        const x1 = Math.cos(a1) * r, y1 = archBase + Math.sin(a1) * r;
+        const x2 = Math.cos(a2) * r, y2 = archBase + Math.sin(a2) * r;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2 - x1, y2 - y1) + 1, jamb, t), frameMat);
+        b.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
+        b.rotation.z = Math.atan2(y2 - y1, x2 - x1);
+        g.add(b);
+      }
+      for (const a of [0.33, 0.66]) {
+        const ang = Math.PI * a;
+        const xe = Math.cos(ang) * (r - jamb), ye = archBase + Math.sin(ang) * (r - jamb);
+        const b = new THREE.Mesh(new THREE.BoxGeometry(r - jamb, 2, 1.4), frameMat);
+        b.position.set(xe / 2, (archBase + ye) / 2, 1.5);
+        b.rotation.z = ang;
+        g.add(b);
+      }
+      break;
+    }
     case 'gap':
       // a raw cut — no frame, no leaf, just the hole
       break;
     case 'doorway': {
       doorFrame(); // cased opening only
+      break;
+    }
+    case 'entry_sidelights': {
+      doorFrame();
+      const doorW = Math.min(96, w * 0.52);
+      const sideW = Math.max(14, (w - doorW) / 2 - jamb * 1.5);
+      const transomH = Math.min(42, h * 0.2);
+      const bodyH = h - transomH;
+      // centre door leaf (closed, paneled)
+      bar(g, doorMat, doorW, bodyH - 2, 5, 0, bodyH / 2, 1);
+      // two stacked raised panels on the door
+      for (let i = 0; i < 2; i++) {
+        bar(g, frameMat, doorW - 22, bodyH * 0.36, 1.4, 0, bodyH * (0.3 + i * 0.4), 3.4);
+      }
+      bar(g, handleMat, 3, 3, 4, doorW / 2 - 8, 100, 4);
+      // sidelights each side (tall glass with muntins)
+      for (const sx of [-1, 1]) {
+        const cx = sx * (doorW / 2 + jamb + sideW / 2);
+        bar(g, frameMat, sideW + 4, jamb, t, cx, bodyH - jamb / 2, 0);
+        bar(g, frameMat, jamb, bodyH, t, cx - sx * (sideW / 2 + jamb / 2), bodyH / 2, 0);
+        bar(g, glassMat, sideW, bodyH - jamb, 1, cx, bodyH / 2, 0);
+        for (let i = 1; i < 4; i++) bar(g, frameMat, sideW, 1.8, 1.4, cx, bodyH * (i / 4), 1.5);
+      }
+      // transom across the whole top
+      bar(g, frameMat, w, jamb, t, 0, bodyH + jamb / 2, 0);
+      bar(g, glassMat, w - jamb, transomH - jamb, 1, 0, bodyH + transomH / 2, 0);
+      for (let i = 1; i < 5; i++) bar(g, frameMat, 1.8, transomH - jamb, 1.4, -w / 2 + w * (i / 5), bodyH + transomH / 2, 1.5);
+      break;
+    }
+    case 'craftsman_door': {
+      doorFrame();
+      // solid paneled slab with a row of small square lites across the top
+      bar(g, doorMat, w - jamb, h - jamb, 5, 0, (h - jamb) / 2, 1);
+      const liteY = h - 34;
+      const cols = 4, lw2 = (w - jamb - 16) / cols;
+      for (let i = 0; i < cols; i++) {
+        const cx = -w / 2 + jamb / 2 + 8 + lw2 * (i + 0.5);
+        bar(g, glassMat, lw2 - 5, 22, 1, cx, liteY, 3.4);
+        bar(g, frameMat, lw2, 2, 2, cx, liteY + 12, 3.6);
+      }
+      // three raised lower panels
+      for (let i = 0; i < 3; i++) bar(g, frameMat, w - jamb - 20, (h - 70) / 3 - 8, 1.4, 0, 24 + ((h - 70) / 3) * (i + 0.5), 3.4);
+      bar(g, handleMat, 3, 3, 4, w / 2 - 12, 100, 4);
       break;
     }
     case 'door': {

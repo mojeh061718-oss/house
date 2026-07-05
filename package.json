@@ -1,7 +1,7 @@
 {
   "name": "honeycutt-home-studio",
   "private": true,
-  "version": "2.27.0",
+  "version": "2.28.0",
   "description": "Honeycutt Home Studio — professional 2D/3D home design studio for iPhone, iPad and desktop",
   "type": "module",
   "scripts": {

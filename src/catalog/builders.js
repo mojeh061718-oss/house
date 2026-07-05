@@ -155,6 +155,35 @@ export function tex(matId, repeatX = 1, repeatY = 1) {
 export const metal = (hex = '#b8bcc0', rough = 0.35) => solid(hex, rough, 0.85);
 export const chrome = () => solid('#d5d9dd', 0.15, 1);
 
+/** Material showing a user photo (a data URL from their camera roll). Unique
+ *  per item, so it's tagged owned + ownedMap to be disposed on rebuild. */
+export function photoMaterial(dataUrl) {
+  const t = new THREE.TextureLoader().load(dataUrl);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0 });
+  m.userData.owned = true; m.userData.ownedMap = true;
+  return m;
+}
+
+/** Material with rendered text — house numbers, signs. */
+export function textMaterial(text, opts = {}) {
+  const c = document.createElement('canvas');
+  c.width = opts.w || 512; c.height = opts.h || 256;
+  const g = c.getContext('2d');
+  g.fillStyle = opts.bg || '#26292e';
+  g.fillRect(0, 0, c.width, c.height);
+  if (opts.border) { g.strokeStyle = opts.border; g.lineWidth = 10; g.strokeRect(8, 8, c.width - 16, c.height - 16); }
+  g.fillStyle = opts.fg || '#ece7da';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `${opts.weight || 700} ${opts.size || 150}px ${opts.font || 'Georgia, "Times New Roman", serif'}`;
+  g.fillText(String(text ?? '').slice(0, 14), c.width / 2, c.height / 2 + 6);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.1 });
+  m.userData.owned = true; m.userData.ownedMap = true;
+  return m;
+}
+
 let glassMat = null;
 export function glass() {
   if (!glassMat) {

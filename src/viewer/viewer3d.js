@@ -363,6 +363,10 @@ export class Viewer3D {
         // palette's mat/scale that the surface builders read
         let pal = paletteFor(it, def);
         if (it.mat) pal = { ...pal, mat: it.mat, scale: it.matScale || pal.scale || 200 };
+        // a user's photo (picture frames) or sign text (house numbers) rides in
+        // on the palette so the builder can render it
+        if (it.photo) pal = { ...pal, photo: it.photo };
+        if (it.sign != null) pal = { ...pal, sign: it.sign };
         // size-true builders (decks, pools, pads) rebuild at the item's real
         // dimensions so surface textures never stretch
         const model = isPath ? buildPathModel(it, def)
@@ -378,6 +382,8 @@ export class Viewer3D {
         outer.userData.w = it.w; outer.userData.d = it.d; outer.userData.h = it.h;
         outer.userData.pw = it.pw;
         outer.userData.mat = it.mat;
+        outer.userData.photo = it.photo;
+        outer.userData.sign = it.sign;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
         if (def.light && this._litItems.has(it.id)) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
@@ -435,7 +441,8 @@ export class Viewer3D {
       const def = ITEM_MAP.get(it.defId);
       const model = g.children[0];
       if (g.userData.palette !== it.palette || g.userData.w !== it.w || g.userData.d !== it.d || g.userData.h !== it.h ||
-          g.userData.pw !== it.pw || g.userData.mat !== it.mat) {
+          g.userData.pw !== it.pw || g.userData.mat !== it.mat ||
+          g.userData.photo !== it.photo || g.userData.sign !== it.sign) {
         structuralChange = true;
       }
       this.poseItem(g, it, def, wallH, lvlY);
@@ -455,7 +462,10 @@ export class Viewer3D {
       // ones tagged `owned` (glow/foliage/grass/flags/shades) are freed here, or
       // they'd leak on every rebuild and eventually crash the tab
       const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
-      for (const m of mats) if (m?.userData?.owned) m.dispose();
+      for (const m of mats) if (m?.userData?.owned) {
+        if (m.userData.ownedMap) m.map?.dispose(); // unique photo/sign texture
+        m.dispose();
+      }
       if (obj.isInstancedMesh) obj.dispose();
     });
     group.clear();
