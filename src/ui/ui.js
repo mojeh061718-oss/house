@@ -867,6 +867,10 @@ export class UI {
       actions.querySelectorAll('.fab.mini:not(.move-only)').forEach(b => { b.style.display = 'none'; });
       return;
     }
+    // leaving move mode: restore every non-move button first, THEN re-apply the
+    // item/room filters below — otherwise buttons hidden during move (Delete,
+    // Edit) would stay hidden.
+    actions.querySelectorAll('.fab.mini:not(.move-only)').forEach(b => { b.style.display = ''; });
     const isItem = sel?.kind === 'item';
     actions.querySelectorAll('.item-only').forEach(b => {
       b.style.display = isItem ? '' : 'none';

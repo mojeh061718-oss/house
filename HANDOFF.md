@@ -16,7 +16,16 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.22.3** (dev branch only, not yet on live) — action-bar
+- Current version: **2.22.4** (dev branch only, not yet on live) — fixes Delete
+  vanishing after using Move.
+  - **BUG:** entering move mode hid every non-move button inline
+    (`.fab.mini:not(.move-only) → display:none`), but exiting only re-applied the
+    item-only/room-only filters, so the unclassed buttons (**Delete**, **Edit**)
+    stayed hidden until the next full rebuild — Delete "randomly disappeared"
+    after any Move. Fixed in syncFabs: on leaving move mode, reset ALL
+    `.fab.mini:not(.move-only)` to visible FIRST, then re-apply the item/room
+    filters. Regression-tested across repeated Move + Adjust cycles.
+- v2.22.3 (dev) — action-bar
   declutter: one Adjust tool + Delete no longer clipped.
   - **BUG:** adding Move/Done widened the selection action bar past a phone's
     width and, since it was a non-wrapping flex row, **Delete got clipped off**.
