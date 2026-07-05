@@ -6,7 +6,10 @@ import { pointSegDist, wallAngle } from './geometry.js';
 const GRID = 10;
 const NO_WALL_SNAP = new Set([
   'rug', 'rugRound', 'plant', 'slab', 'car', 'hedge', 'fence', 'box', 'pond', 'pool',
-  'rings', 'hottub', 'swingset', 'patioset', 'pergola', 'hoop', 'path', 'roof'
+  'rings', 'hottub', 'swingset', 'patioset', 'pergola', 'hoop', 'path', 'roof',
+  // stairs keep the rotation you give them — wall snapping used to spin them to
+  // face whatever wall was nearby, which read as them "turning weirdly"
+  'stairs'
 ]);
 
 function nearestWall(walls, x, y, maxDist) {
