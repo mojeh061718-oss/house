@@ -1,5 +1,114 @@
 # HANDOFF — Honeycutt Home Studio
 
+> ⚠️ **START HERE — CURRENT STATE (v3.0.1), written 2026-07-05.**
+> Everything below the `═══ OLDER HISTORY ═══` divider is earlier context, kept
+> for reference but partly stale (it predates v3.0). Trust THIS top section first.
+
+## 0. Your mandate for this session
+
+You are continuing a large, high-stakes update for a **non-technical, iPhone-first**
+user who reviews on the live/dev site. Work to these standards:
+
+- **Max effort, zero mistakes.** This user explicitly wants best-in-market
+  quality. Verify every change end-to-end before claiming it works. Prefer
+  reading the real code over assuming. Use subagents (parallel `Agent` calls) to
+  investigate/branch-check, and use the `code-review` skill on non-trivial diffs.
+- **First task: a full VISUAL + CODE debug of the v3.0 build** (see §4). Drive
+  the actual app and look at it; don't just read code. Then fix what's broken,
+  most-severe first.
+- **Stay token-aware.** This is a long-lived project. Don't re-read huge files
+  in full when a targeted `Grep`/offset-`Read` will do. Delegate broad searches
+  to `Explore`/`general-purpose` subagents so their file dumps stay out of your
+  context — keep only conclusions. Don't paste large tool outputs back. Batch
+  independent tool calls in one message.
+- **Reliability > cleverness.** The app's whole value prop is that it never
+  crashes on a phone. Don't regress that.
+
+## 1. Where things stand
+
+- **Live** (root, from `main`): **v2.29.0**. URL: `https://mojeh061718-oss.github.io/house/`
+- **Dev** (from branch `claude/handoff-md-completion-8vnjdh` → `/house/dev/`): **v3.0.1**.
+  URL: `https://mojeh061718-oss.github.io/house/dev/`
+- **DEV-ONLY CONSTRAINT (in force):** everything from v2.27.0 onward — including
+  ALL of v3.0.x — ships to the **dev branch only**. Do NOT push to `main`/live
+  without the user's explicit say-so. Develop on `claude/handoff-md-completion-8vnjdh`.
+- Deploy: push → `.github/workflows/deploy.yml` → gh-pages (dev branch → `/dev/`
+  slot, `main` → root). The internal "pages build and deployment" step is flaky;
+  re-run via `mcp__github__actions_run_trigger` (rerun_workflow_run) if needed.
+  Verify with `mcp__github__actions_list` (its output is huge — parse the saved
+  file with python, don't inline it).
+
+## 2. What v3.0.0 + v3.0.1 added (all on dev)
+
+- **CAD precision suite** (`src/editor/editor2d.js`): object-snap engine
+  (`_snapPoint`/`perpFoot`/`wallSplitTs`) with subtle snap glyphs (labels were
+  REMOVED on purpose — user wanted no jargon); **Measure/tape tool** (per-leg
+  length + angle + "Total"); **persistent Dimension tool** (annotations saved per
+  level in `project.dims`, drawn via `_drawDim`/`drawDimAnnotations`, selectable
+  via `dimAt` → `deleteSelection`); live wall length+angle while drawing.
+- **Typed exact entry + metric/imperial** (`src/core/units.js`: `fmtLen`/
+  `parseLen`/`setUnitSystem`; toggle in the menu; editable wall length). Units
+  re-sync on undo via the `history` listener in ui.js.
+- **Offline library** (`src/core/offline.js` + `public/sw.js`): "Save for offline
+  use" downloads all `public/tex/*.jpg` into a persistent SW cache (`honeycutt-lib`)
+  that survives app updates; first-run prompt (`maybePromptOffline`); airplane
+  mode verified working. `installLibrary` returns false (and stays honest) when
+  there's no controlling SW.
+- **Style-aware "Design this room"** (`src/core/themes.js` `applyThemeToRoom`):
+  per-room coordinated floor+wall+furniture palette, wired in the room props panel.
+- **Premium 3D materials**: `envMapIntensity` on solid/wood in `src/catalog/builders.js`.
+- **New animated splash** (`index.html` #splash + `src/styles.css` splash block):
+  a blueprint house draws itself, gold CAD dimension line, warm windows, honey
+  wordmark, honeycomb motif. Hold time 2850ms in `home.showSplash`.
+- **v3.0.1 fixes:** furnish now works on **L/T-shaped rooms** (`roomBBox` fallback
+  + polygon clip in `furnishRoom(store, box, type, poly)`); **per-segment wall
+  measurements** (each split gets its own legible pill label); selected door/window
+  shows its width; splash plays under Reduce Motion.
+
+## 3. Known-open threads / risks to check
+
+1. **Splash on the real device** — user reported "no animation." v3.0.1 fixed the
+   likely cause (Reduce Motion + an animated drop-shadow filter). NOT yet
+   confirmed on their iPhone. If it still doesn't animate, the next theory is the
+   **forced-landscape rotation** (`src/core/orientation.js` rotates `#app` 90°):
+   consider rendering the splash un-rotated in portrait, or counter-rotating it.
+2. **Test harness flakiness** — in the previous session, Playwright against the
+   local preview started timing out (`networkidle` hangs; even `goto` after many
+   runs). Root cause was resource exhaustion from many spawned vite/chromium
+   procs + the agent proxy routing loopback. A fresh container should fix it.
+   Working recipe when it behaves: `chromium.launch({args:['--use-gl=angle',
+   '--use-angle=swiftshader','--no-sandbox']})`, `page.goto(url,{waitUntil:'commit'})`,
+   then `waitForTimeout`. Preview: `node_modules/.bin/vite preview --port 4180 --strictPort`.
+   The app exposes `window.homestudio = {store, editor, viewer, ui, home}` for driving.
+3. **Furnish on L-rooms** — the bounding-box templates may still place a piece
+   oddly in concave rooms even with the polygon clip; visually confirm.
+4. **Performance instancing** was deferred — repeated items (fences, chairs) are
+   not instanced yet; dense scenes can drop frames on a phone.
+5. Bundle is ~1 MB JS (single chunk). Fine for now; note if it grows.
+
+## 4. Your first job: visual + code debug (do this before new features)
+
+**Visual (drive the real app on dev or a local preview, in a phone viewport):**
+- Splash: does the house actually animate in? (Test with and without Reduce Motion.)
+- Draw a wall, split it with a partition → both segments show legible length pills?
+- Place a door and a window → each shows its width when selected?
+- Select an L-shaped room → do Auto-furnish buttons appear and place sensible
+  furniture inside the real floor (not the notch)?
+- Measure + Dimension tools: snap glyphs subtle (no END/MID/INT jargon)? Dimension
+  respects where you pull it out?
+- 3D: materials look richer (metals/wood reflect)? No regressions vs live.
+- Metric toggle flips every readout; offline "Save" shows progress + works offline.
+
+**Code (use the `code-review` skill + targeted subagents):**
+- Re-review `src/editor/editor2d.js` precision code and `src/core/state.js` `dims`
+  schema for edge cases. Re-check `src/core/offline.js` + `public/sw.js`.
+- Confirm no console/page errors on boot and when exercising each new tool.
+
+Report findings, fix most-severe first, verify, then bump patch version, commit,
+push to **dev**, confirm the deploy is green.
+
+═══════════════════════════ OLDER HISTORY (pre-v3.0, partly stale) ═══════════════════════════
+
 For the next agent continuing this project in a fresh session. Read this
 whole file before touching code. The user is non-technical, iPhone-first,
 and reviews everything on the **live site**, so every change must end with
