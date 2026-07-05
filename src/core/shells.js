@@ -169,6 +169,43 @@ export const SHELLS = [
     }
   },
   {
+    id: 'container_empty_40',
+    name: 'Empty Container 40 ft',
+    desc: 'Bare corrugated shell — 4 walls, a door & windows, nothing inside. Build it out yourself.',
+    size: [1220, 244],
+    build(api) {
+      api.settings({ wallHeight: 260, exteriorWall: 'corrugated_gray' });
+      const n = api.wall(0, 0, 1220, 0, 8);
+      const e = api.wall(1220, 0, 1220, 244, 8);
+      const s = api.wall(1220, 244, 0, 244, 8);
+      const w = api.wall(0, 244, 0, 0, 8);
+      // one way in and some daylight — no partitions, no rooms: the whole
+      // interior is one open space you fill with your own walls & furniture
+      api.opening(w, 'door', 0.5, { width: 90 });
+      api.opening(s, 'window', 0.3, { width: 180 });
+      api.opening(s, 'window', 0.7, { width: 180 });
+      api.opening(n, 'window', 0.5, { width: 200 });
+      api.item('roof_flat', 610, 122, 0, { w: 1300, d: 330, h: 30, elevation: 260 });
+    }
+  },
+  {
+    id: 'container_empty_20',
+    name: 'Empty Container 20 ft',
+    desc: 'Bare 20 ft corrugated shell — 4 walls, a door & window, nothing inside.',
+    size: [610, 244],
+    build(api) {
+      api.settings({ wallHeight: 260, exteriorWall: 'corrugated_gray' });
+      const n = api.wall(0, 0, 610, 0, 8);
+      const e = api.wall(610, 0, 610, 244, 8);
+      const s = api.wall(610, 244, 0, 244, 8);
+      const w = api.wall(0, 244, 0, 0, 8);
+      api.opening(w, 'door', 0.5, { width: 90 });
+      api.opening(s, 'window', 0.5, { width: 160 });
+      api.opening(n, 'window', 0.5, { width: 160 });
+      api.item('roof_flat', 305, 122, 0, { w: 680, d: 330, h: 30, elevation: 260 });
+    }
+  },
+  {
     id: 'container_single',
     name: 'Container Home 40 ft',
     desc: 'Single high-cube container: open studio + bath, corrugated steel',
