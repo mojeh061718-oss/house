@@ -614,10 +614,12 @@ export class UI {
     const c = $('#fabCluster');
     c.innerHTML = `
       <div class="adjust-pop hidden" id="adjustPop">
-        <label class="adj-row"><span class="adj-lbl">Turn <b id="adjRotVal">0°</b></span>
-          <input type="range" id="adjRot" min="0" max="360" step="5" value="0" aria-label="Rotate"/></label>
-        <label class="adj-row"><span class="adj-lbl">Size <b id="adjSizeVal">100%</b></span>
-          <input type="range" id="adjSize" min="25" max="300" step="5" value="100" aria-label="Resize"/></label>
+        <div class="adj-sliders">
+          <label class="adj-row"><span class="adj-lbl">Turn <b id="adjRotVal">0°</b></span>
+            <input type="range" id="adjRot" min="0" max="360" step="5" value="0" aria-label="Rotate"/></label>
+          <label class="adj-row"><span class="adj-lbl">Size <b id="adjSizeVal">100%</b></span>
+            <input type="range" id="adjSize" min="25" max="300" step="5" value="100" aria-label="Resize"/></label>
+        </div>
         <button class="fab mini ok" id="adjDone" title="Done">${ICONS.check}<span>Done</span></button>
       </div>
       <div class="sel-actions hidden" id="selActions">
@@ -738,12 +740,14 @@ export class UI {
     rot.value = deg; $('#adjRotVal').textContent = `${deg}°`;
     size.value = 100; $('#adjSizeVal').textContent = '100%';
     $('#adjustPop').classList.remove('hidden');
+    $('#fabCluster')?.classList.add('adjusting');
     $('#selAdjust').classList.add('active');
   }
 
   closeAdjust() {
     const pop = $('#adjustPop');
     if (pop) pop.classList.add('hidden');
+    $('#fabCluster')?.classList.remove('adjusting');
     $('#selAdjust')?.classList.remove('active');
     this._adjBase = null;
     this._adjDrag = false;
