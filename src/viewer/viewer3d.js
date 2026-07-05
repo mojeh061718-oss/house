@@ -1314,8 +1314,8 @@ export class Viewer3D {
         }
         if (tool === 'place' && this.store.placeDefId) {
           this.placeItemAt(tap);
-        } else if (tool === 'door' || tool === 'window') {
-          this.placeOpeningAt(tap, tool === 'door' ? this.store.doorType : this.store.windowType);
+        } else if (tool === 'door' || tool === 'window' || tool === 'cut') {
+          this.placeOpeningAt(tap, tool === 'cut' ? 'gap' : tool === 'door' ? this.store.doorType : this.store.windowType);
         } else if (g.tapItemId && this.store.item(g.tapItemId)) {
           // a piece of furniture selects on a plain tap; big ground-cover
           // surfaces only select on a long-press so orbiting past them is free

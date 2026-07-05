@@ -496,6 +496,9 @@ function buildOpeningModel(o, thickness) {
       g.add(bay);
       break;
     }
+    case 'gap':
+      // a raw cut — no frame, no leaf, just the hole
+      break;
     case 'doorway': {
       doorFrame(); // cased opening only
       break;
@@ -613,8 +616,9 @@ export function buildWalls(project, rooms) {
         const oc = c - len / 2;
         const left = oc - o.width / 2, right = oc + o.width / 2;
         if (left > x0 + 0.5) segs.push({ x0, x1: left, y0: 0, y1: H });
-        // above opening
-        const topY = (o.sill || 0) + o.height;
+        // above opening — a 'gap' (Cut tool) removes the wall full height, so
+        // nothing is left over the opening
+        const topY = o.type === 'gap' ? H : (o.sill || 0) + o.height;
         if (topY < H - 0.5) segs.push({ x0: left, x1: right, y0: topY, y1: H });
         // below window
         if ((o.sill || 0) > 0.5) segs.push({ x0: left, x1: right, y0: 0, y1: o.sill });

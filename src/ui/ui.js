@@ -341,13 +341,14 @@ export class UI {
       ${tool('room', 'Room', 'Drag out a rectangular room')}
       ${tool('door', 'Door', 'Choose a door style & place it')}
       ${tool('window', 'Window', 'Choose a window style & place it')}
+      ${tool('cut', 'Cut', 'Cut an opening: drag along a wall to remove that part')}
       ${tool('multi', 'Multi', 'Select several items at once')}
       <span class="rail-spacer"></span>`;
     rail.querySelectorAll('.tool').forEach(b => {
       b.onclick = () => {
         const t = b.dataset.tool;
         // drawing happens on the plan — jump back when a draw tool is picked in 3D
-        if ((t === 'wall' || t === 'room' || t === 'multi') && store.viewMode === '3d') {
+        if ((t === 'wall' || t === 'room' || t === 'multi' || t === 'cut') && store.viewMode === '3d') {
           store.setViewMode('2d');
         }
         if (t === 'door' || t === 'window') {
@@ -469,7 +470,7 @@ export class UI {
     const store = this.store;
     const pop = el('div', 'type-pop');
     const current = kind === 'door' ? store.doorType : store.windowType;
-    for (const t of OPENING_TYPES.filter(t => t.kind === kind)) {
+    for (const t of OPENING_TYPES.filter(t => t.kind === kind && !t.hidden)) {
       const card = el('button', 'type-card' + (t.id === current ? ' active' : ''));
       const cv = document.createElement('canvas');
       cv.width = 192; cv.height = 112; // 2x for crisp lines on retina
@@ -1391,10 +1392,10 @@ export class UI {
       if (!o) { store.select(null); return; }
       const tdef = OPENING_MAP.get(o.type);
       const isWin = tdef ? tdef.kind === 'window' : o.type === 'window';
-      const types = OPENING_TYPES.filter(t => t.kind === (isWin ? 'window' : 'door'));
+      const types = OPENING_TYPES.filter(t => t.kind === (isWin ? 'window' : 'door') && !t.hidden);
       const hasFlip = ['door', 'double_door', 'french_door', 'window_casement', 'window_bay', 'garage_door'].includes(o.type);
       const hasSwing = ['door', 'window_casement'].includes(o.type);
-      panel.innerHTML = `${head(tdef ? `${tdef.name} ${isWin ? 'window' : 'door'}` : (isWin ? 'Window' : 'Door'))}
+      panel.innerHTML = `${head(o.type === 'gap' ? 'Wall cut' : tdef ? `${tdef.name} ${isWin ? 'window' : 'door'}` : (isWin ? 'Window' : 'Door'))}
         <div class="props-body">
           <div class="props-section-title">Style</div>
           <div class="type-row" id="oType">
@@ -1807,6 +1808,7 @@ export class UI {
         room: 'Drag to draw a rectangular room',
         door: `${tap} a wall to place the door`,
         window: `${tap} a wall to place the window`,
+        cut: 'Drag along a wall to cut an opening — that part disappears',
         multi: `Drag a box around items, or ${tap.toLowerCase()} items to add them — then Copy or Delete`,
         place: ITEM_MAP.get(store.placeDefId)?.path
           ? `Drag along the plan to lay the ${ITEM_MAP.get(store.placeDefId).name.toLowerCase()}`

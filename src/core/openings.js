@@ -11,6 +11,9 @@ export const OPENING_TYPES = [
   { id: 'pocket_door',  kind: 'door', name: 'Pocket',      width: 90,  height: 205, sill: 0 },
   { id: 'doorway',      kind: 'door', name: 'Open Doorway', width: 100, height: 205, sill: 0 },
   { id: 'garage_door',  kind: 'door', name: 'Garage',      width: 250, height: 215, sill: 0 },
+  // a plain cut in the wall — a full-height opening with no frame or leaf,
+  // placed by the Cut tool. Hidden from the door/window style pickers.
+  { id: 'gap',          kind: 'door', name: 'Cut Opening',  width: 120, height: 210, sill: 0, hidden: true },
   // windows
   { id: 'window',           kind: 'window', name: 'Standard', width: 120, height: 130, sill: 90 },
   { id: 'window_picture',   kind: 'window', name: 'Picture',  width: 210, height: 160, sill: 60 },

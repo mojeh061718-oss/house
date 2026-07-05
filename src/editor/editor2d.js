@@ -334,7 +334,7 @@ export class Editor2D {
       case 'select': this.downSelect(w, sx, sy); break;
       case 'wall': this.downWall(w); break;
       case 'room': this.mode = { name: 'roomRect', start: this.snapPoint(w.x, w.y), cur: null, dragging: true }; break;
-      case 'door': case 'window': this.downOpening(w, store.tool); break;
+      case 'door': case 'window': case 'cut': this.downOpening(w, store.tool); break;
       case 'multi': this.downMulti(w, sx, sy); break;
       case 'place': this.downPlace(w); break;
     }
@@ -539,7 +539,7 @@ export class Editor2D {
     const store = this.store;
     const near = this.nearestWall(w.x, w.y, 40 / this.view.scale + 20);
     if (!near) return;
-    const type = tool === 'door' ? store.doorType : store.windowType;
+    const type = tool === 'cut' ? 'gap' : tool === 'door' ? store.doorType : store.windowType;
     const width = openingDefaults(type).width;
     const len = wallLength(near.wall);
     if (len < width + 12) return;
@@ -1450,6 +1450,11 @@ export class Editor2D {
           ctx.setLineDash([6 * px, 5 * px]);
           jambs();
           ctx.restore();
+          break;
+        }
+        case 'gap': {
+          // a raw cut: the wall is already cleared above; just cap the two ends
+          jambs();
           break;
         }
         case 'slidingDoor': {
