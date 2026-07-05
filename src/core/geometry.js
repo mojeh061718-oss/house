@@ -28,6 +28,20 @@ export function wallLength(w) {
   return dist(w.ax, w.ay, w.bx, w.by);
 }
 
+/** Parametric intersection of segments AB (w) and CD (o). Returns {t, u} where
+ *  t is along w and u along o, or null when parallel/collinear. Interior
+ *  crossings have both t and u strictly between 0 and 1. */
+export function segSegIntersect(w, o) {
+  const r1x = w.bx - w.ax, r1y = w.by - w.ay;
+  const r2x = o.bx - o.ax, r2y = o.by - o.ay;
+  const denom = r1x * r2y - r1y * r2x;
+  if (Math.abs(denom) < 1e-9) return null; // parallel or collinear
+  const dx = o.ax - w.ax, dy = o.ay - w.ay;
+  const t = (dx * r2y - dy * r2x) / denom;
+  const u = (dx * r1y - dy * r1x) / denom;
+  return { t, u };
+}
+
 export function wallAngle(w) {
   return Math.atan2(w.by - w.ay, w.bx - w.ax);
 }
@@ -108,6 +122,11 @@ export function detectRooms(walls) {
         const r = pointSegDist(px, py, w.ax, w.ay, w.bx, w.by);
         if (r.d < EPS * 3 && r.t > 0.001 && r.t < 0.999) cuts.push(r.t);
       }
+      // X-crossing: two walls crossing in their interiors (from rooms that
+      // overlap) must share a graph node too — otherwise the tracer emits two
+      // overlapping faces and their floors z-fight
+      const ix = segSegIntersect(w, o);
+      if (ix && ix.t > 0.001 && ix.t < 0.999 && ix.u > 0.001 && ix.u < 0.999) cuts.push(ix.t);
     }
     cuts.sort((a, b) => a - b);
     for (let i = 0; i < cuts.length - 1; i++) {

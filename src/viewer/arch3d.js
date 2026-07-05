@@ -2,7 +2,7 @@
 // windows, ground) from the project data. Units: centimeters, +Y up.
 // Plan (x, y) maps to 3D (x, z).
 import * as THREE from 'three';
-import { wallLength, wallAngle, pointInPolygon } from '../core/geometry.js';
+import { wallLength, wallAngle, pointInPolygon, polygonArea } from '../core/geometry.js';
 import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
 
 const matCache = new Map();
@@ -678,7 +678,14 @@ function roomShape(polygon, holes) {
 
 export function buildFloors(project, rooms, holes = []) {
   const group = new THREE.Group();
-  for (const r of rooms) {
+  // Larger rooms sit fractionally lower, so a smaller room that overlaps or
+  // sits inside another (e.g. a closet drawn inside a bedroom) renders its
+  // floor cleanly on top instead of z-fighting. The steps are sub-millimetre
+  // — hidden under walls between rooms, invisible everywhere else.
+  const ordered = rooms
+    .map(r => ({ r, area: Math.abs(polygonArea(r.polygon)) }))
+    .sort((a, b) => b.area - a.area);
+  ordered.forEach(({ r }, rank) => {
     const style = project.roomStyles[r.key];
     const matId = style?.floor || project.settings.defaultFloor;
     const def = MATERIAL_MAP.get(matId);
@@ -690,12 +697,12 @@ export function buildFloors(project, rooms, holes = []) {
     }
     geo.rotateX(-Math.PI / 2);
     const mesh = new THREE.Mesh(geo, archMat(matId));
-    mesh.position.y = 0.6;
+    mesh.position.y = 0.6 + rank * 0.08;
     mesh.receiveShadow = true;
     mesh.userData.roomKey = r.key;
     mesh.userData.walkable = true;
     group.add(mesh);
-  }
+  });
   return group;
 }
 
