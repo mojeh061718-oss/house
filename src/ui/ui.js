@@ -388,6 +388,20 @@ export class UI {
     };
     $('#viewport').appendChild(snap);
 
+    // lock-all padlock: freezes every asset, wall & opening in place so a stray
+    // drag can't nudge a finished layout. One-way — to free one piece, select it
+    // and tap its padlock. (It never unlocks, so it's safe to tap any time.)
+    const lockAll = el('button', 'view-fit view-lock', ICONS.lock);
+    lockAll.id = 'btnLockAll';
+    lockAll.title = 'Lock everything in place';
+    lockAll.onclick = () => {
+      const n = store.lockAll();
+      this.toast(n
+        ? `Locked ${n} piece${n === 1 ? '' : 's'} in place — tap a piece’s padlock to free it`
+        : 'Everything is already locked');
+    };
+    $('#viewport').appendChild(lockAll);
+
     // shape picker for drawn paths/water: line / free / rectangle / circle
     const shapeBar = el('div', 'shape-bar');
     shapeBar.id = 'shapeBar';

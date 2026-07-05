@@ -414,7 +414,7 @@ export class Editor2D {
     // 2. wall endpoint handles of current wall selection
     if (sel?.kind === 'wall') {
       const wall = store.wall(sel.id);
-      if (wall) {
+      if (wall && !wall.locked) {
         const tolPx = this.handleHit;
         for (const end of ['a', 'b']) {
           const pt = this.toScreen(wall[end + 'x'], wall[end + 'y']);
@@ -466,11 +466,13 @@ export class Editor2D {
       this.mode = { name: 'dragItem', id: it.id, offX: w.x - it.x, offY: w.y - it.y, moved: false, dragging: true };
     } else if (hit?.kind === 'opening') {
       store.select(hit);
+      if (store.opening(hit.id)?.locked) return; // locked: selectable, not movable
       store.checkpoint();
       this.mode = { name: 'dragOpening', id: hit.id, moved: false, dragging: true };
     } else if (hit?.kind === 'wall') {
       const wall = store.wall(hit.id);
       store.select(hit);
+      if (wall.locked) return; // locked: selectable, not movable
       store.checkpoint();
       this.mode = {
         name: 'dragWall', id: hit.id, startX: w.x, startY: w.y, moved: false, dragging: true,
@@ -482,6 +484,9 @@ export class Editor2D {
       // second press on the already-selected room → drag the whole room:
       // its walls (openings ride along) plus the furniture standing inside it
       const room = store.room(hit.id);
+      if (room && [...room.wallIds].some(id => store.wall(id)?.locked)) {
+        return; // locked room: selectable, not movable
+      }
       if (room) {
         // Only move walls that belong solely to this room. If it shares any
         // wall with a neighbour (open-plan / partitioned layouts), moving those

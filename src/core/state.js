@@ -267,6 +267,29 @@ export class Store {
     return created;
   }
 
+  /** Lock every asset, wall and opening on every floor in place. One-way: it
+   *  never unlocks — a piece is freed by selecting it and tapping its padlock.
+   *  Returns the number of newly-locked pieces (0 if everything was already
+   *  locked, so the caller can skip an empty checkpoint). */
+  lockAll() {
+    let already = true;
+    for (const lvl of this.project.levels) {
+      for (const arr of [lvl.items, lvl.walls, lvl.openings]) {
+        for (const el of (arr || [])) if (!el.locked) { already = false; break; }
+      }
+    }
+    if (already) return 0;
+    this.checkpoint();
+    let n = 0;
+    for (const lvl of this.project.levels) {
+      for (const arr of [lvl.items, lvl.walls, lvl.openings]) {
+        for (const el of (arr || [])) if (!el.locked) { el.locked = true; n++; }
+      }
+    }
+    this.commit(false);
+    return n;
+  }
+
   deleteSelection() {
     const sel = this.selection;
     if (!sel) return false;

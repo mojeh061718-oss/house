@@ -1250,8 +1250,13 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 }
 .view-fit svg { width: 19px; height: 19px; }
 .view-fit:active { transform: scale(0.94); color: var(--text); }
-/* snap toggle sits just under the fit button */
-.view-snap { top: 62px; }
+/* lock-all sits just under the fit button; a touch smaller so it reads as a
+   secondary "freeze it" control rather than another primary view button */
+.view-lock { top: 60px; width: 36px; height: 36px; right: calc(15px + var(--safe-r)); }
+.view-lock svg { width: 16px; height: 16px; }
+.view-lock:active { transform: scale(0.94); color: var(--text); }
+/* snap toggle sits under the lock button */
+.view-snap { top: 104px; }
 .view-snap.active { color: #fff; background: var(--accent); border-color: var(--accent); }
 
 /* shape picker for drawn paths & water (line / free / rectangle / circle) */
