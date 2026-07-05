@@ -16,7 +16,43 @@ README).
 - Branch: `claude/mobile-home-design-app-l2mc9l` (deploys fire from here).
   Recent versions were developed on `claude/handoff-md-completion-8vnjdh`
   and merged across to deploy.
-- Current version: **2.21.0** (dev branch only, not yet on live) — outdoor
+- Current version: **2.22.0** (dev branch only, not yet on live) — a 153-item
+  content drop (catalog now 345 items). All ships to `/house/dev/` only.
+  - **New content architecture:** items now live in themed packs under
+    `src/catalog/packs/*.js`, each exporting a `*_ITEMS` array; `src/catalog/
+    extras.js` imports & concatenates them into `EXTRA_ITEMS`, and `items.js`
+    does `ITEMS.push(...EXTRA_ITEMS)` before building `ITEM_MAP`. Add future
+    content as a new pack + one line in extras.js. New builder helpers used:
+    `glow(hex,i,rough)` (non-cached emissive), `flagTexture`, `buildFlag`.
+  - **8 packs (153 items):** games (18) — ping-pong, foosball, air hockey,
+    billiards, arcade, pinball, dartboard, cornhole, chess/poker, basketball,
+    shuffleboard, claw, jukebox, skee-ball, slot… (new `games` category);
+    decor (22) — floor/arched mirrors, neon sign, record console, bar cart, wine
+    rack, ladder shelf, room divider, floor/tripod lamps, pouf, bean bag,
+    sculpture, globe, vases, fiddle-leaf/snake/pampas/hanging plants; poolside
+    (22) — donut/flamingo/swan/ring/raft/beachball floats, chaise, double
+    lounger, cabana, umbrella, bistro, bar, diving board, slide, ladder, volley
+    net, life ring, shower, towel rack, cooler; pools (16) — infinity, lap,
+    plunge, kidney, rect-modern, L-shape, lagoon, spa-combo, tanning, oval,
+    roman, cocktail, splash pad, round/square/stock spas (13 areaDraw with
+    buildSized, water-tint palettes); water (15) — koi/lily/natural ponds,
+    reflecting pool, stream, 3-tier & 2-tier fountains, birdbath, bubble rock,
+    orb, water wall, wall spout, tsukubai, pondless fall, rain chain; docks (20)
+    — straight/L/T/floating docks, swim raft, pier, ladder, boat lift, cleat,
+    buoy + kayak, canoe, SUP, rowboat, sailboat, pontoon, jet ski, dinghy,
+    inflatable, gondola; lounge (18) — sectional, loveseat, egg swing, hammock,
+    hammock chair, Adirondack, fire table, kitchen island, pizza oven, bar
+    counter, TV stand, projector screen, patio heater, chiminea, canopy daybed,
+    porch swing, coffee table, sun lounger; structures (22) — slat pergola,
+    cabana, she-shed, greenhouse, outdoor shower, raised bed, vertical garden,
+    planter, privacy screen, slat fence, bike rack, EV charger, mailbox,
+    fountain post, trellis arch, wood shed, barrel sauna, cold plunge, outdoor
+    sink, potting bench, arbor bench, house number.
+  - **New 2D plan symbols:** boat, dock, lounger, umbrella (plansymbols.js).
+  - Regression: all 153 build a 3D model + draw a 2D symbol with NO throws, NO
+    empty builds, NO duplicate ids (345 total), NO console errors; daylight +
+    thumbnail render verified. Known minor polish: sailboat mast a touch tall.
+- v2.21.0 (dev) — outdoor
   content + a big 3D-navigation fix. Everything ships to `/house/dev/` only.
   - **3D NAVIGATION FIX (top ask):** selection no longer happens on pointer-DOWN.
     A drag over an unselected asset now ORBITS the camera instead of grabbing it;

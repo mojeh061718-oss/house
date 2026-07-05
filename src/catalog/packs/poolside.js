@@ -74,6 +74,7 @@ export const POOLSIDE_ITEMS = [
   {
     id: 'float_swan', name: 'Swan Float', cat: 'outdoor', w: 96, d: 168, h: 96, noShadow: true,
     palettes: null,
+    plan: { type: 'rugRound' },
     build: () => {
       const g = G();
       const white = solid('#f4f4f2', 0.6);
