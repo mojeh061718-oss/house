@@ -1287,6 +1287,19 @@ export class UI {
     });
     const grid = $('#catGrid');
     grid.innerHTML = '';
+    // ONE shared lazy-thumbnail observer per render: a card only builds its 3D
+    // preview when it scrolls into view, so opening a big category no longer
+    // renders hundreds of models in a burst (that was OOM-crashing phones).
+    if (this._thumbIO) this._thumbIO.disconnect();
+    this._thumbQueue = [];
+    this._thumbIO = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        obs.unobserve(e.target);
+        this._thumbQueue.push(e.target);
+      }
+      this.drainThumbs();
+    }, { root: grid, rootMargin: '250px' });
     // a search query overrides the active tab and matches item names everywhere
     const q = this.catSearch || '';
     if (q) {
@@ -1331,6 +1344,27 @@ export class UI {
     this.renderCatalogCards(grid, items);
   }
 
+  /** Build queued card thumbnails a few per animation frame, so revealing many
+   *  cards at once (a fast scroll) never renders a big batch of 3D models in one
+   *  synchronous burst — that memory spike is what OOM-crashed phones. */
+  drainThumbs() {
+    if (this._thumbDraining) return;
+    this._thumbDraining = true;
+    const step = () => {
+      let n = 0;
+      while (this._thumbQueue && this._thumbQueue.length && n < 4) {
+        const img = this._thumbQueue.shift();
+        if (img.isConnected && img.dataset.defId && !img.src.startsWith('data:')) {
+          try { img.src = thumbnail(img.dataset.defId); } catch {}
+        }
+        n++;
+      }
+      if (this._thumbQueue && this._thumbQueue.length) requestAnimationFrame(step);
+      else this._thumbDraining = false;
+    };
+    requestAnimationFrame(step);
+  }
+
   /** Render furniture cards into the grid (shared by tab view and search). */
   renderCatalogCards(grid, items) {
     const store = this.store;
@@ -1366,7 +1400,10 @@ export class UI {
       };
       grid.appendChild(card);
       const img = card.querySelector('img');
-      setTimeout(() => { img.src = thumbnail(def.id); }, 0);
+      img.dataset.defId = def.id;
+      // build the 3D preview only when the card scrolls into view
+      if (this._thumbIO) this._thumbIO.observe(img);
+      else img.src = thumbnail(def.id);
     }
   }
 

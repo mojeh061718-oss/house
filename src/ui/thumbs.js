@@ -44,7 +44,21 @@ export function thumbnail(defId) {
   renderer.render(scene, camera);
   const url = renderer.domElement.toDataURL();
   scene.remove(model);
-  model.traverse(o => o.geometry?.dispose?.());
+  // dispose geometry AND per-item unique (owned) materials/textures — otherwise
+  // building a card for every catalog item leaks GPU textures and OOM-crashes
+  // mobile. Cached/shared materials (solid/wood/tex) are left for their caches.
+  model.traverse(o => {
+    o.geometry?.dispose?.();
+    const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+    for (const mt of mats) {
+      if (mt?.userData?.owned) {
+        if (mt.userData.ownedMap) {
+          mt.map?.dispose?.(); mt.bumpMap?.dispose?.(); mt.alphaMap?.dispose?.();
+        }
+        mt.dispose?.();
+      }
+    }
+  });
   cache.set(defId, url);
   return url;
 }
