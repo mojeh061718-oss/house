@@ -12,6 +12,7 @@ on:
       - main
       - claude/mobile-home-design-app-l2mc9l
       - claude/handoff-md-completion-8vnjdh
+      - claude/v3-debug-and-test-q82tn4
   workflow_dispatch:
 
 permissions:
@@ -37,11 +38,10 @@ jobs:
       - name: Publish to gh-pages (prod → root, dev branch → /dev)
         run: |
           set -e
-          if [ "${GITHUB_REF_NAME}" = "claude/handoff-md-completion-8vnjdh" ]; then
-            SLOT=dev
-          else
-            SLOT=root
-          fi
+          case "${GITHUB_REF_NAME}" in
+            claude/handoff-md-completion-8vnjdh|claude/v3-debug-and-test-q82tn4) SLOT=dev ;;
+            *) SLOT=root ;;
+          esac
           REPO="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           rm -rf gh-pages
           # Start from the currently published site so the other slot survives.
