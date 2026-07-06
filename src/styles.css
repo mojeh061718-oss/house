@@ -753,12 +753,13 @@ canvas { display: block; }
 /* ---- catalog ---- */
 .cat-empty { padding: 26px 16px; color: var(--text-dim); font-size: 13.5px; text-align: center; }
 
-/* single slim toolbar: search icon + horizontally-scrolling category chips +
-   close button — replaces the old title row, full-width search box and wrapped
-   chip rows so the item grid gets the height. */
+/* single slim toolbar: search icon + wrapping category chips + close button —
+   replaces the old title row and full-width search box. The chips wrap so every
+   category is visible at once (no horizontal scroll, nothing bleeding off the
+   edge) while the search/close icons stay pinned to the top corners. */
 .cat-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   padding: 8px 8px;
   border-bottom: 1px solid var(--border);
@@ -803,18 +804,15 @@ canvas { display: block; }
 .cat-bar.searching .cat-tabs { display: none; }
 
 .cat-tabs {
-  /* one horizontal-scroll strip so the categories never eat vertical space */
+  /* wrap every category onto as many rows as needed — all visible, no scroll */
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 5px;
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 2px;
+  align-content: flex-start;
+  padding: 1px;
 }
-.cat-tabs::-webkit-scrollbar { display: none; }
 .cat-tab { flex: none; white-space: nowrap; }
 .cat-tab {
   background: var(--panel-2);

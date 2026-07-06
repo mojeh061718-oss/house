@@ -699,10 +699,12 @@ export class Editor2D {
       return;
     }
     if (def.areaDraw) {
-      // patios/pools are drawn as an area: drag corner to corner
-      this.mode = { name: 'areaDraw', def, start: { x: w.x, y: w.y }, cur: null, dragging: true };
+      // patios/pools are drawn as an area: drag corner to corner (corners snap
+      // to nearby walls / existing surfaces so drawn floors align cleanly)
+      this.mode = { name: 'areaDraw', def, start: this.snapAreaCorner(w.x, w.y), cur: null, dragging: true };
       return;
     }
+
     const pos = this.placePose(w, def);
     store.checkpoint();
     const it = store.addItem(def.id, pos.x, pos.y, pos.rot, def);
@@ -730,11 +732,23 @@ export class Editor2D {
     return snapPose(this.store.project.walls, def, w.x, w.y, opts);
   }
 
+  /** Is this a floor/ground surface (patio, deck, flooring pad, pool, pond)?
+   *  These snap by their EDGES to the surrounding area, not by their centre. */
+  isSurfaceDef(def) {
+    return !!def && (def.areaDraw || ['slab', 'pool', 'pond'].includes(def.plan?.type));
+  }
+
   /** While dragging: snap into center-alignment with other items and measure
-   *  live gaps to the nearest wall in each direction (drawn as guides). */
+   *  live gaps to the nearest wall in each direction (drawn as guides).
+   *  Floor surfaces instead edge-snap flush to nearby walls and other floors. */
   updateDragGuides(it, m) {
     m.alignV = m.alignH = null;
     m.gaps = null;
+    if (this.store.snapEnabled && this.isSurfaceDef(ITEM_MAP.get(it.defId))) {
+      this.snapSurfaceEdges(it);
+      m.gaps = this.wallGaps(it);
+      return;
+    }
     const tol = 10 / this.view.scale;
     let bestX = tol, bestY = tol;
     for (const o of this.store.project.items) {
@@ -746,6 +760,64 @@ export class Editor2D {
     if (m.alignV) it.x = m.alignV.x;
     if (m.alignH) it.y = m.alignH.y;
     m.gaps = this.wallGaps(it);
+  }
+
+  /** Candidate x / y lines a floor surface can snap to: every axis-aligned wall
+   *  face plus the edges & centre of every other floor surface. `excludeId`
+   *  skips the surface being moved. */
+  surfaceSnapLines(excludeId) {
+    const vlines = [], hlines = [];
+    for (const w of this.store.project.walls) {
+      if (Math.abs(w.ax - w.bx) < EPS) vlines.push(w.ax - w.thickness / 2, w.ax + w.thickness / 2);
+      else if (Math.abs(w.ay - w.by) < EPS) hlines.push(w.ay - w.thickness / 2, w.ay + w.thickness / 2);
+    }
+    for (const o of this.store.project.items) {
+      if (o.id === excludeId || o.path || !this.isSurfaceDef(ITEM_MAP.get(o.defId))) continue;
+      const oc = Math.cos(o.rotation), os = Math.sin(o.rotation);
+      const ohx = (Math.abs(o.w * oc) + Math.abs(o.d * os)) / 2;
+      const ohy = (Math.abs(o.w * os) + Math.abs(o.d * oc)) / 2;
+      vlines.push(o.x - ohx, o.x + ohx, o.x);
+      hlines.push(o.y - ohy, o.y + ohy, o.y);
+    }
+    return { vlines, hlines };
+  }
+
+  /** Snap a floor surface so its nearest edge (or centre) lines up flush with a
+   *  surrounding wall face or another surface's edge — X and Y independently, so
+   *  a patio tucks against the house and adjacent decks butt together cleanly. */
+  snapSurfaceEdges(it) {
+    const cos = Math.cos(it.rotation), sin = Math.sin(it.rotation);
+    const hx = (Math.abs(it.w * cos) + Math.abs(it.d * sin)) / 2;
+    const hy = (Math.abs(it.w * sin) + Math.abs(it.d * cos)) / 2;
+    const tol = 16 / this.view.scale;
+    const { vlines, hlines } = this.surfaceSnapLines(it.id);
+    // for each axis, snap whichever of {near edge, far edge, centre} is closest
+    const snap = (pos, half, lines) => {
+      let best = null, bestD = tol;
+      for (const line of lines) {
+        for (const e of [-half, half, 0]) {
+          const d = Math.abs(line - e - pos);
+          if (d < bestD) { bestD = d; best = line - e; }
+        }
+      }
+      return best;
+    };
+    const nx = snap(it.x, hx, vlines); if (nx != null) it.x = nx;
+    const ny = snap(it.y, hy, hlines); if (ny != null) it.y = ny;
+  }
+
+  /** Snap a raw corner point (while dragging out a new patio/deck area) onto the
+   *  nearest wall face or existing surface edge, so drawn floors align cleanly. */
+  snapAreaCorner(x, y) {
+    if (!this.store.snapEnabled) return { x, y };
+    const tol = 16 / this.view.scale;
+    const { vlines, hlines } = this.surfaceSnapLines(null);
+    const near = (p, lines) => {
+      let best = p, bestD = tol;
+      for (const l of lines) { const d = Math.abs(l - p); if (d < bestD) { bestD = d; best = l; } }
+      return best;
+    };
+    return { x: near(x, vlines), y: near(y, hlines) };
   }
 
   /** Clear gap from each side of an item to the nearest facing wall. */
@@ -996,7 +1068,7 @@ export class Editor2D {
         break;
       }
       case 'areaDraw': {
-        m.cur = { x: w.x, y: w.y };
+        m.cur = this.snapAreaCorner(w.x, w.y);
         break;
       }
       case 'dragItem': {
