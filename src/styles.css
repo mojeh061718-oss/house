@@ -82,6 +82,20 @@ canvas { display: block; }
 }
 #splash.fade-out { opacity: 0; pointer-events: none; }
 
+/* Hold every splash animation at frame 0 until JS adds `.play` (in beginSplash,
+   at boot). On an installed iOS PWA a native launch image paints first, so
+   auto-playing at parse time risks the whole sequence being consumed behind it
+   before the user ever sees it — this guarantees it starts when the web view
+   is actually on screen. */
+#splash:not(.play) .splash-stage,
+#splash:not(.play) .splash-glow,
+#splash:not(.play) .splash-hex .hex,
+#splash:not(.play) [class*="sh-"],
+#splash:not(.play) h1,
+#splash:not(.play) .splash-rule,
+#splash:not(.play) p,
+#splash:not(.play) .splash-ver { animation-play-state: paused !important; }
+
 /* drifting honeycomb — a faint nod to "Honeycutt" */
 .splash-bg { position: absolute; inset: 0; pointer-events: none; }
 .splash-hex { position: absolute; inset: -8% ; width: 116%; height: 116%; opacity: 0.5; }
@@ -103,7 +117,10 @@ canvas { display: block; }
 .splash-stage {
   position: relative;
   width: min(74vw, 340px);
-  filter: drop-shadow(0 24px 44px rgba(0, 0, 0, 0.5));
+  /* NB: no drop-shadow filter on this element. It wraps the animating house
+     SVG, and on iOS Safari a filter on the ancestor rasterises the subtree
+     once and never repaints — freezing the stroke-draw so the house never
+     animates in. Depth comes from the warm glow instead. */
   animation: stage-settle 1s cubic-bezier(.2,.7,.2,1) both;
 }
 @keyframes stage-settle {
