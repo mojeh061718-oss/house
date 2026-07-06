@@ -70,7 +70,11 @@ canvas { display: block; }
 /* v3.0 title sequence: a blueprint house draws itself, a CAD dimension line
    ticks out, the windows glow warm, and the honey-gold wordmark rises. */
 #splash {
-  position: absolute;
+  /* fixed + top-level (a sibling of #app, NOT inside it) so it always renders
+     UPRIGHT — the force-landscape rotation applies to #app, and if the splash
+     lived inside it, opening the app in portrait showed a sideways, half-drawn
+     splash. Keeping it out gives a clean start in either orientation. */
+  position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
