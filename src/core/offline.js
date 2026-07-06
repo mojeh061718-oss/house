@@ -47,16 +47,21 @@ export async function installLibrary(onProgress) {
   if (sw && navigator.serviceWorker) {
     return new Promise((resolve) => {
       let settled = false;
-      const finish = () => { if (settled) return; settled = true; navigator.serviceWorker.removeEventListener('message', onMsg); markInstalled(); resolve(true); };
+      // Only a real LIBRARY_DONE marks the library installed. If the worker
+      // never reports back (it was replaced, the connection stalled), we must
+      // NOT claim "Available offline" — that would suppress the prompt forever
+      // with nothing actually cached. Resolve false instead so the UI stays
+      // honest and a later load can retry.
+      const finish = (ok) => { if (settled) return; settled = true; navigator.serviceWorker.removeEventListener('message', onMsg); if (ok) markInstalled(); resolve(ok); };
       const onMsg = (e) => {
         const m = e.data || {};
         if (m.type === 'LIBRARY_PROGRESS') onProgress?.(m.done, m.total || total);
-        if (m.type === 'LIBRARY_DONE') { onProgress?.(m.total || total, m.total || total); finish(); }
+        if (m.type === 'LIBRARY_DONE') { onProgress?.(m.total || total, m.total || total); finish(true); }
       };
       navigator.serviceWorker.addEventListener('message', onMsg);
       sw.postMessage({ type: 'CACHE_LIBRARY', urls });
-      // safety net if the worker never reports done (e.g. it was replaced)
-      setTimeout(finish, 90000);
+      // safety net if the worker never reports done — resolve honestly (not installed)
+      setTimeout(() => finish(false), 180000);
     });
   }
 
