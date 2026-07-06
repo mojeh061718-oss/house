@@ -1231,24 +1231,41 @@ export class UI {
 
   buildCatalog() {
     const panel = $('#catalog');
+    // One slim toolbar row instead of a title bar + a full-width search box +
+    // wrapped category rows: a search icon that expands inline, the categories
+    // on a single horizontal-scroll strip, and the close button — so the grid
+    // gets almost all the height.
     panel.innerHTML = `
-      <div class="panel-head">
-        <span>Add furniture</span>
-        <button class="tb-btn" data-close="catalog">${ICONS.close}</button>
-      </div>
-      <div class="cat-search">
-        <input id="catSearch" type="search" placeholder="Search all furniture…"
+      <div class="cat-bar">
+        <button class="cat-icon-btn" id="catSearchBtn" title="Search furniture" aria-label="Search furniture">${ICONS.search}</button>
+        <div class="cat-tabs" id="catTabs"></div>
+        <input id="catSearch" class="cat-search-input" type="search" placeholder="Search all furniture…"
           autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"/>
+        <button class="cat-icon-btn" data-close="catalog" title="Close" aria-label="Close furniture">${ICONS.close}</button>
       </div>
-      <div class="cat-tabs" id="catTabs"></div>
       <div class="cat-grid" id="catGrid"></div>`;
     panel.querySelector('[data-close]').onclick = () => this.closeDrawer('catalog');
 
+    const bar = panel.querySelector('.cat-bar');
     const search = $('#catSearch');
+    const searchBtn = $('#catSearchBtn');
+    const collapseSearch = () => {
+      if (search.value.trim()) return;        // keep open while a query is active
+      bar.classList.remove('searching');
+      this.catSearch = '';
+      this.renderCatalogGrid();
+    };
+    searchBtn.onclick = () => {
+      if (bar.classList.contains('searching')) { search.value = ''; collapseSearch(); }
+      else { bar.classList.add('searching'); search.focus(); }
+    };
     search.addEventListener('input', () => {
       this.catSearch = search.value.trim().toLowerCase();
+      searchBtn.classList.toggle('has-query', !!this.catSearch);
       this.renderCatalogGrid();
     });
+    search.addEventListener('blur', collapseSearch);
+    search.addEventListener('keydown', (e) => { if (e.key === 'Escape') { search.value = ''; collapseSearch(); search.blur(); } });
 
     const tabs = $('#catTabs');
     for (const c of [{ id: 'all', name: 'All' }, { id: 'shells', name: 'Home Shells' }, ...CATEGORIES]) {

@@ -32,6 +32,7 @@ export const ICONS = {
   download: svg('<path d="M12 4v11M7 11l5 5 5-5"/><path d="M4 20h16"/>'),
   camera: svg('<path d="M4 8h4l2-2.5h4L16 8h4v11H4z"/><circle cx="12" cy="13" r="3.2"/>'),
   menu: svg('<path d="M4 6.5h16M4 12h16M4 17.5h16"/>'),
+  search: svg('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>'),
   close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
   chevL: svg('<path d="m14 6-6 6 6 6"/>'),
   chevR: svg('<path d="m10 6 6 6-6 6"/>'),
