@@ -627,6 +627,102 @@ function genStone(ctx, bctx, p) {
   }
 }
 
+// ---- Hardscape: asphalt drives, gravel beds, broom-finished sidewalks -------
+// All read ctx.canvas.width so they honour a material's `res` (set 1024 for
+// crisp close-ups). Each paints a colour canvas + a matching grayscale bump.
+
+function genAsphalt(ctx, bctx, p) {
+  const S = ctx.canvas.width;
+  const base = hexToRgb(p.base || '#34353b');
+  const rand = mulberry32(p.seed ?? 200);
+  const mott = makeNoise((p.seed ?? 200) + 5, 4, 3);   // broad tonal patches / wear
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const m = (mott(x / S, y / S) - 0.5) * 20;
+      const idx = (y * S + x) * 4;
+      img.data[idx] = base[0] + m; img.data[idx + 1] = base[1] + m; img.data[idx + 2] = base[2] + m; img.data[idx + 3] = 255;
+      const b = 120 + m * 2;
+      bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = b; bimg.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0); bctx.putImageData(bimg, 0, 0);
+  // dense aggregate grains — light quartz + dark stone flecks
+  const grains = Math.round(S * S / 34);
+  for (let i = 0; i < grains; i++) {
+    const x = rand() * S, y = rand() * S, r = 0.5 + rand() * 1.5;
+    const light = rand() < 0.5;
+    const t = light ? 55 + rand() * 55 : -(28 + rand() * 42);
+    ctx.fillStyle = `rgba(${base[0] + t | 0},${base[1] + t | 0},${base[2] + t | 0},0.55)`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    const bv = light ? 168 : 92;
+    bctx.fillStyle = `rgba(${bv},${bv},${bv},0.5)`;
+    bctx.beginPath(); bctx.arc(x, y, r, 0, 7); bctx.fill();
+  }
+}
+
+function genGravel(ctx, bctx, p) {
+  const S = ctx.canvas.width;
+  const rand = mulberry32(p.seed ?? 300);
+  // dark substrate = the shadow between stones
+  ctx.fillStyle = p.gap || '#4a453d'; ctx.fillRect(0, 0, S, S);
+  bctx.fillStyle = 'rgb(66,66,66)'; bctx.fillRect(0, 0, S, S);
+  const tones = (p.tones || ['#9a938a', '#877f73', '#b3ac9e', '#7c746a', '#a99b87', '#8f8478']).map(hexToRgb);
+  const count = Math.round(S * S / 60);
+  for (let i = 0; i < count; i++) {
+    const x = rand() * S, y = rand() * S;
+    const rr = 3 + rand() * 7, ry = rr * (0.6 + rand() * 0.35), ang = rand() * Math.PI;
+    const col = tones[(rand() * tones.length) | 0];
+    const shade = -14 + rand() * 28;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.fillStyle = 'rgba(28,24,20,0.5)';                              // contact shadow
+    ctx.beginPath(); ctx.ellipse(0, ry * 0.4, rr, ry, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = `rgb(${col[0] + shade | 0},${col[1] + shade | 0},${col[2] + shade | 0})`;
+    ctx.beginPath(); ctx.ellipse(0, 0, rr, ry, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,250,0.16)';                         // top glint
+    ctx.beginPath(); ctx.ellipse(-rr * 0.25, -ry * 0.3, rr * 0.5, ry * 0.4, 0, 0, 7); ctx.fill();
+    ctx.restore();
+    const bv = 150 + shade * 2;
+    bctx.save(); bctx.translate(x, y); bctx.rotate(ang);
+    bctx.fillStyle = `rgb(${bv | 0},${bv | 0},${bv | 0})`;
+    bctx.beginPath(); bctx.ellipse(0, 0, rr, ry, 0, 0, 7); bctx.fill();
+    bctx.restore();
+  }
+}
+
+function genSidewalk(ctx, bctx, p) {
+  const S = ctx.canvas.width;
+  const base = hexToRgb(p.base || '#bdb9b1');
+  const rand = mulberry32(p.seed ?? 400);
+  const mott = makeNoise((p.seed ?? 400) + 3, 5, 3);
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const m = (mott(x / S, y / S) - 0.5) * 18;
+      const broom = Math.sin(y * 0.85 + Math.sin(x * 0.045) * 2) * 4;   // broom finish
+      const v = m + broom;
+      const idx = (y * S + x) * 4;
+      img.data[idx] = base[0] + v; img.data[idx + 1] = base[1] + v; img.data[idx + 2] = base[2] + v; img.data[idx + 3] = 255;
+      const b = 142 + broom * 3 + m;
+      bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = b; bimg.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0); bctx.putImageData(bimg, 0, 0);
+  for (let i = 0; i < S * S / 110; i++) {                              // fine aggregate
+    const x = rand() * S, y = rand() * S, t = rand() < 0.5 ? 38 : -28;
+    ctx.fillStyle = `rgba(${base[0] + t | 0},${base[1] + t | 0},${base[2] + t | 0},0.4)`;
+    ctx.fillRect(x, y, 1, 1);
+  }
+  // scored control joint framing each poured panel (recessed)
+  const lw = Math.max(2, S / 150);
+  ctx.strokeStyle = 'rgba(72,68,62,0.55)'; ctx.lineWidth = lw;
+  bctx.strokeStyle = 'rgb(46,46,46)'; bctx.lineWidth = lw;
+  ctx.strokeRect(lw / 2, lw / 2, S - lw, S - lw);
+  bctx.strokeRect(lw / 2, lw / 2, S - lw, S - lw);
+}
+
 const GENERATORS = {
   wood: genWoodPlanks,
   siding: genSiding,
@@ -639,6 +735,9 @@ const GENERATORS = {
   brick: genBrick,
   carpet: genCarpet,
   concrete: genConcrete,
+  asphalt: genAsphalt,
+  gravel: genGravel,
+  sidewalk: genSidewalk,
   paint: genPaint,
   stripes: genStripes,
   fabric: genFabric,
@@ -753,7 +852,9 @@ export const MATERIALS = [
   { id: 'grass', name: 'Lush Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 80 } },
   { id: 'grass_dry', name: 'Dry Lawn', use: 'ground', gen: 'grass', scale: 420, rough: 1.0, res: 1024, params: { seed: 83, soil: '#4a3f24', lush: '#6f7a38', mid: '#8a8a4a', dry: '#a89858', bladeWarm: 0.8 } },
   { id: 'pavement', name: 'Pavement', use: 'ground', gen: 'tiles', scale: 200, rough: 0.8, params: { seed: 81, count: 2, gap: 4, grout: '#6f6d68', colors: ['#a5a29b', '#98958e'], variation: 10 } },
-  { id: 'gravel', name: 'Gravel', use: 'ground', gen: 'concrete', scale: 160, rough: 0.95, params: { seed: 84, base: '#9a938a' } },
+  { id: 'gravel', name: 'Gravel', use: 'ground', gen: 'gravel', scale: 120, rough: 0.95, res: 1024, params: { seed: 84 } },
+  { id: 'asphalt', name: 'Asphalt', use: 'ground', gen: 'asphalt', scale: 320, rough: 0.92, res: 1024, params: { seed: 200, base: '#34353b' } },
+  { id: 'concrete_broom', name: 'Concrete Sidewalk', use: 'ground', gen: 'sidewalk', scale: 150, rough: 0.9, res: 1024, params: { seed: 400, base: '#bdb9b1' } },
   { id: 'fabric_gray', name: 'Fabric Grey', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 90, base: '#8e8e92' } },
   { id: 'fabric_beige', name: 'Fabric Beige', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 91, base: '#c4b49a' } },
   { id: 'fabric_blue', name: 'Fabric Blue', use: 'internal', gen: 'fabric', scale: 60, rough: 0.95, params: { seed: 92, base: '#5a6e8c' } },

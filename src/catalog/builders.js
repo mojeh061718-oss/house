@@ -210,30 +210,52 @@ export function mirror() {
 let waterMat = null;
 export function water() {
   if (!waterMat) {
-    // subtle procedural ripples so the surface catches light like real water
+    // A real water surface reads by how it bends the light, so drive it with a
+    // proper tangent-space NORMAL map baked from a multi-octave ripple height
+    // field (several wave trains at different scales + angles) rather than one
+    // sine. Seamless (integer frequencies over 0..2π), 512px for crisp glints.
+    const S = 512;
     const c = document.createElement('canvas');
-    c.width = c.height = 256;
+    c.width = c.height = S;
     const g = c.getContext('2d');
-    g.fillStyle = '#808080';
-    g.fillRect(0, 0, 256, 256);
-    for (let y = 0; y < 256; y += 2) {
-      for (let x = 0; x < 256; x += 2) {
-        const v = 128 +
-          Math.sin(x * 0.11 + Math.sin(y * 0.07) * 3) * 34 +
-          Math.sin((x + y) * 0.05) * 22 +
-          Math.sin(y * 0.13 - Math.cos(x * 0.04) * 4) * 18;
-        g.fillStyle = `rgb(${v | 0},${v | 0},${v | 0})`;
-        g.fillRect(x, y, 2, 2);
+    const img = g.createImageData(S, S);
+    const TAU = Math.PI * 2;
+    const height = (x, y) => {
+      const u = (x / S) * TAU, v = (y / S) * TAU;
+      return (
+        Math.sin(u * 3 + Math.sin(v * 2) * 1.4) * 0.50 +
+        Math.sin(v * 4 + Math.cos(u * 2) * 1.1) * 0.34 +
+        Math.sin((u + v) * 6 + 0.7) * 0.18 +
+        Math.sin((u - v) * 9 + 1.3) * 0.12 +
+        Math.sin(u * 15 + v * 4) * 0.07
+      );
+    };
+    const eps = 1.2, str = 2.2;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const hL = height((x - eps + S) % S, y), hR = height((x + eps) % S, y);
+        const hD = height(x, (y - eps + S) % S), hU = height(x, (y + eps) % S);
+        let nx = (hL - hR) * str, ny = (hD - hU) * str, nz = 1;
+        const inv = 1 / Math.hypot(nx, ny, nz);
+        nx *= inv; ny *= inv; nz *= inv;
+        const idx = (y * S + x) * 4;
+        img.data[idx] = (nx * 0.5 + 0.5) * 255;
+        img.data[idx + 1] = (ny * 0.5 + 0.5) * 255;
+        img.data[idx + 2] = (nz * 0.5 + 0.5) * 255;
+        img.data[idx + 3] = 255;
       }
     }
+    g.putImageData(img, 0, 0);
     const ripples = new THREE.CanvasTexture(c);
     ripples.wrapS = ripples.wrapT = THREE.RepeatWrapping;
-    ripples.repeat.set(3, 3);
+    ripples.repeat.set(5, 5);
+    ripples.colorSpace = THREE.NoColorSpace;
     waterMat = new THREE.MeshPhysicalMaterial({
-      color: '#2f86ac', roughness: 0.04, metalness: 0.1,
-      transparent: true, opacity: 0.8,
-      clearcoat: 1, clearcoatRoughness: 0.06,
-      bumpMap: ripples, bumpScale: 1.6
+      color: '#20718e', roughness: 0.05, metalness: 0,
+      transparent: true, opacity: 0.86,
+      clearcoat: 1, clearcoatRoughness: 0.04,
+      normalMap: ripples, normalScale: new THREE.Vector2(0.55, 0.55),
+      envMapIntensity: 1.25
     });
   }
   return waterMat;
@@ -394,6 +416,26 @@ export function pyramid(parent, mat, w, h, d, x = 0, y = 0, z = 0) {
   geo.scale(w, h, d);
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Tapered cylinder spanning two 3D points a=[x,y,z] → b=[x,y,z]: radius r0 at
+ *  a, tapering to r1 at b. The workhorse for organic forms — jointed animal
+ *  legs, arched necks, tails, and tapered/branching tree limbs. */
+export function segment(parent, mat, a, b, r0, r1 = r0, seg = 10) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const len = Math.hypot(dx, dy, dz) || 0.001;
+  const geo = new THREE.CylinderGeometry(r1, r0, len, seg);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+  // the cylinder is modelled along +Y — swing it to point from a toward b
+  mesh.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(dx, dy, dz).normalize()
+  );
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   parent.add(mesh);
