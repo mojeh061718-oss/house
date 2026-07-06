@@ -31,7 +31,7 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const body = solid(p.body, p.rough);
-      box(g, body, 60, 88, 64, 0, 44, 0, { r: 2 });
+      box(g, body, 60, 88, 64, 0, 0, 0, { r: 2 });
       box(g, solid('#111417', 0.3), 54, 10, 2, 0, 80, 32);           // control panel
       cyl(g, glow('#39d0e6', 0.5, 0.3), 1.2, 1, 20, 80, 33, { rz: Math.PI / 2 });
       box(g, solid('#2a2e33', 0.3), 14, 8, 2, -14, 80, 33);          // dial recess
@@ -48,7 +48,7 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const body = solid(p.body, p.rough);
-      box(g, body, 60, 88, 64, 0, 44, 0, { r: 2 });
+      box(g, body, 60, 88, 64, 0, 0, 0, { r: 2 });
       box(g, solid('#111417', 0.3), 54, 10, 2, 0, 80, 32);
       box(g, solid('#2a2e33', 0.3), 14, 8, 2, -14, 80, 33);
       knob(g, -14, 80, 34, 3);
@@ -68,7 +68,7 @@ export const UTILITY_ITEMS = [
       const g = G();
       const body = solid(p.body, p.rough);
       for (const yb of [0, 88]) {
-        box(g, body, 60, 86, 64, 0, 43 + yb, 0, { r: 2 });
+        box(g, body, 60, 86, 64, 0, yb, 0, { r: 2 });
         box(g, solid('#111417', 0.3), 54, 8, 2, 0, 78 + yb, 32);
         knob(g, -16, 78 + yb, 34, 2.6);
         frontDoor(g, body, 40 + yb);
@@ -84,9 +84,9 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const body = solid(p.body, p.rough);
-      box(g, body, 60, 36, 64, 0, 18, 0, { r: 2 });
-      box(g, solid('#20242a', 0.3), 52, 24, 2, 0, 18, 32.5);       // drawer face
-      handleBar(g, 0, 18, 34, 26, false, metal('#c9ced4', 0.3));
+      box(g, body, 60, 36, 64, 0, 0, 0, { r: 2 });
+      box(g, solid('#20242a', 0.3), 52, 24, 2, 0, 6, 32.5);       // drawer face
+      handleBar(g, 0, 22, 34, 26, false, metal('#c9ced4', 0.3));
       return g;
     }
   },
@@ -117,15 +117,15 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const cab = wood(p.wood, 0.5);
-      box(g, cab, 120, 86, 60, 0, 43, 0, { r: 1 });
+      box(g, cab, 120, 86, 60, 0, 0, 0, { r: 1 });
       // four drawer / door faces
       for (const sx of [-1, 1]) {
-        box(g, wood(p.wood, 0.45), 56, 40, 2, sx * 30, 60, 31);
-        box(g, wood(p.wood, 0.45), 56, 34, 2, sx * 30, 26, 31);
-        handleBar(g, sx * 30, 60, 33, 16, false, metal('#c9ced4', 0.3));
+        box(g, wood(p.wood, 0.45), 56, 40, 2, sx * 30, 44, 31);
+        box(g, wood(p.wood, 0.45), 56, 34, 2, sx * 30, 6, 31);
+        handleBar(g, sx * 30, 64, 33, 16, false, metal('#c9ced4', 0.3));
         handleBar(g, sx * 30, 26, 33, 16, false, metal('#c9ced4', 0.3));
       }
-      box(g, solid('#e9e7e2', 0.3), 124, 6, 63, 0, 89, 0, { r: 1 }); // stone counter
+      box(g, solid('#e9e7e2', 0.3), 124, 6, 63, 0, 86, 0, { r: 1 }); // stone counter
       return g;
     }
   },
@@ -151,14 +151,14 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const frame = wood(p.wood, 0.5);
-      for (const sx of [-1, 1]) box(g, frame, 5, 86, 55, sx * 56, 43, 0);
-      box(g, solid('#e9e7e2', 0.3), 120, 6, 57, 0, 89, 0, { r: 1 }); // counter
+      for (const sx of [-1, 1]) box(g, frame, 5, 86, 55, sx * 56, 0, 0);
+      box(g, solid('#e9e7e2', 0.3), 120, 6, 57, 0, 86, 0, { r: 1 }); // counter
       box(g, frame, 114, 4, 52, 0, 44, 0);                            // mid shelf
       // woven baskets on the shelf
       const baskets = ['#c9a978', '#9fae9a', '#c58f6a'];
       for (let i = -1; i <= 1; i++) {
-        box(g, solid(baskets[i + 1], 0.85), 32, 26, 42, i * 38, 60, 0, { r: 3 });
-        box(g, solid('#3a332a', 0.9), 28, 22, 38, i * 38, 61, 0, { r: 2 });
+        box(g, solid(baskets[i + 1], 0.85), 32, 26, 42, i * 38, 48, 0, { r: 3 });
+        box(g, solid('#3a332a', 0.9), 28, 22, 38, i * 38, 49, 0, { r: 2 });
       }
       return g;
     }
@@ -185,9 +185,9 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const cab = wood(p.wood, 0.5);
-      box(g, cab, 46, 200, 56, 0, 100, 0, { r: 1 });
-      box(g, wood(p.wood, 0.45), 42, 150, 2, 0, 96, 28);         // tall door
-      box(g, wood(p.wood, 0.45), 42, 40, 2, 0, 178, 28);        // upper door
+      box(g, cab, 46, 200, 56, 0, 0, 0, { r: 1 });
+      box(g, wood(p.wood, 0.45), 42, 150, 2, 0, 8, 28);         // tall door
+      box(g, wood(p.wood, 0.45), 42, 40, 2, 0, 160, 28);        // upper door
       handleBar(g, 16, 96, 30, 26, true, metal('#c9ced4', 0.3));
       handleBar(g, 16, 178, 30, 14, true, metal('#c9ced4', 0.3));
       return g;
@@ -200,7 +200,7 @@ export const UTILITY_ITEMS = [
     build: () => {
       const g = G();
       const tank = metal('#d3d7da', 0.4);
-      cyl(g, tank, 27, 138, 0, 70, 0, { seg: 28 });
+      cyl(g, tank, 27, 138, 0, 0, 0, { seg: 28 });
       cyl(g, tank, 27, 8, 0, 143, 0, { seg: 28, rTop: 24 });      // domed top
       box(g, solid('#9aa0a6', 0.5), 24, 16, 3, 0, 40, 27);        // control box
       // hot/cold pipes + flue
@@ -253,7 +253,7 @@ export const UTILITY_ITEMS = [
     plan: { type: 'box' },
     build: (p) => {
       const g = G();
-      box(g, solid(p.body, 0.9), 46, 60, 36, 0, 30, 0, { r: 6 });
+      box(g, solid(p.body, 0.9), 46, 60, 36, 0, 0, 0, { r: 6 });
       box(g, solid('#efe9dd', 0.9), 40, 8, 30, 0, 62, 0, { r: 4 }); // stuffed laundry
       box(g, solid(p.body, 0.85), 44, 6, 34, 0, 58, 0, { r: 5 });   // rolled rim
       return g;
@@ -267,9 +267,9 @@ export const UTILITY_ITEMS = [
       const g = G();
       const cab = wood(p.wood, 0.5);
       const back = wood(p.wood, 0.55);
-      box(g, back, 150, 200, 4, 0, 100, -19);                       // back panel
+      box(g, back, 150, 200, 4, 0, 0, -19);                       // back panel
       // three bays divided by uprights
-      for (let i = -1; i <= 1; i++) box(g, cab, 3, 200, 42, i * 49, 100, 0);
+      for (let i = -1; i <= 1; i++) box(g, cab, 3, 200, 42, i * 49, 0, 0);
       box(g, cab, 150, 3, 42, 0, 200, 0);                           // top
       // bench seat
       box(g, cab, 150, 5, 42, 0, 46, 0, { r: 1 });
@@ -296,9 +296,9 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const cab = wood(p.wood, 0.5);
-      box(g, cab, 88, 92, 32, 0, 46, -1, { r: 1 });                 // carcass
+      box(g, cab, 88, 92, 32, 0, 0, -1, { r: 1 });                 // carcass
       // 3 columns x 3 rows of open cubbies
-      for (let c = -1; c <= 1; c++) box(g, cab, 2, 88, 30, c * 28, 46, 1);
+      for (let c = -1; c <= 1; c++) box(g, cab, 2, 88, 30, c * 28, 0, 1);
       for (const ry of [24, 46, 68]) box(g, cab, 86, 2, 30, 0, ry, 1);
       // a couple of shoe pairs
       for (const [cx, cy] of [[-28, 12], [28, 34], [0, 56]]) {
@@ -330,9 +330,9 @@ export const UTILITY_ITEMS = [
     build: (p) => {
       const g = G();
       const cab = wood(p.wood, 0.5);
-      box(g, cab, 110, 40, 38, 0, 22, 0, { r: 1 });
-      box(g, solid('#d8ccb8', 0.8), 110, 6, 38, 0, 45, 0, { r: 2 }); // cushion top
-      for (let i = -1; i <= 1; i++) box(g, solid('#00000022', 1), 32, 30, 32, i * 36, 20, 2); // open cubbies
+      box(g, cab, 110, 40, 38, 0, 0, 0, { r: 1 });
+      box(g, solid('#d8ccb8', 0.8), 110, 6, 38, 0, 40, 0, { r: 2 }); // cushion top
+      for (let i = -1; i <= 1; i++) box(g, solid('#00000022', 1), 32, 30, 32, i * 36, 5, 2); // open cubbies
       return g;
     }
   },
@@ -379,14 +379,14 @@ export const UTILITY_ITEMS = [
     build: () => {
       const g = G();
       const basin = solid('#dcdfe1', 0.4);
-      box(g, basin, 62, 30, 62, 0, 15, 0, { r: 3 });
-      box(g, solid('#c2c6c9', 0.35), 52, 22, 52, 0, 18, 0, { r: 2 });
-      box(g, water(), 50, 2, 50, 0, 20, 0, { r: 2 });
-      cyl(g, chrome(), 2, 2, 8, 20, 8, { seg: 16 });
-      // tall service faucet with lever
-      cyl(g, chrome(), 1.8, 40, -22, 50, -24);
-      cyl(g, chrome(), 1.6, 22, -22, 88, -14, { rx: Math.PI / 2 });
-      box(g, chrome(), 10, 2, 2, -14, 86, -24);
+      box(g, basin, 62, 30, 62, 0, 0, 0, { r: 3 });
+      box(g, solid('#c2c6c9', 0.35), 52, 22, 52, 0, 3, 0, { r: 2 });
+      box(g, water(), 50, 2, 50, 0, 5, 0, { r: 2 });
+      cyl(g, chrome(), 2, 2, 8, 5, 8, { seg: 16 });
+      // service faucet with lever, rising just above the basin
+      cyl(g, chrome(), 1.8, 26, -22, 30, -24);
+      cyl(g, chrome(), 1.6, 22, -22, 54, -14, { rx: Math.PI / 2 });
+      box(g, chrome(), 10, 2, 2, -14, 52, -24);
       return g;
     }
   }

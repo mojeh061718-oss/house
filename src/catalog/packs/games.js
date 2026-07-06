@@ -563,23 +563,23 @@ export const GAMES_ITEMS = [
       const body = solid(p.body, 0.5);
       const wd = wood('#7a5a38', 0.5);
       // long lane with side rails
-      box(g, wd, 60, 12, 200, 0, 18, 30, { rx: 0.05 });
-      box(g, body, 6, 26, 200, 30, 18, 30);
-      box(g, body, 6, 26, 200, -30, 18, 30);
+      box(g, wd, 60, 12, 200, 0, 0, 30, { rx: 0.05 });
+      box(g, body, 6, 26, 200, 30, 0, 30);
+      box(g, body, 6, 26, 200, -30, 0, 30);
       // jump ramp near the far end
-      box(g, wd, 60, 6, 40, 0, 40, -78, { rx: -0.5 });
+      box(g, wd, 60, 6, 40, 0, 22, -78, { rx: -0.5 });
       // target backboard with lit scoring rings
-      box(g, body, 66, 96, 24, 0, 62, -120, { rx: -0.12 });
-      cyl(g, glow('#ffcf5a', 0.6), 12, 3, 0, 92, -112, { rx: Math.PI / 2, seg: 24 });
-      for (const [x, y] of [[-18, 118], [18, 118], [-22, 84], [22, 84]]) {
+      box(g, body, 66, 96, 24, 0, 44, -120, { rx: -0.12 });
+      cyl(g, glow('#ffcf5a', 0.6), 12, 3, 0, 74, -112, { rx: Math.PI / 2, seg: 24 });
+      for (const [x, y] of [[-18, 100], [18, 100], [-22, 66], [22, 66]]) {
         cyl(g, glow(p.accent, 0.55), 7, 3, x, y, -114, { rx: Math.PI / 2, seg: 20 });
       }
       // scoreboard hood
-      box(g, body, 66, 30, 18, 0, 150, -118);
-      box(g, glow('#fff2c4', 0.8), 54, 18, 2, 0, 156, -108);
+      box(g, body, 66, 30, 18, 0, 132, -118);
+      box(g, glow('#fff2c4', 0.8), 54, 18, 2, 0, 138, -108);
       // ball tray + balls at the player end
-      box(g, body, 60, 14, 26, 0, 24, 128);
-      for (let i = 0; i < 3; i++) sphere(g, solid('#c8875a', 0.5), 6, (i - 1) * 16, 40, 128);
+      box(g, body, 60, 14, 26, 0, 6, 128);
+      for (let i = 0; i < 3; i++) sphere(g, solid('#c8875a', 0.5), 6, (i - 1) * 16, 22, 128);
       return g;
     }
   },

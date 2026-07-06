@@ -2819,8 +2819,8 @@ export const ITEMS = [
     build: () => {
       const g = G();
       const wh = solid('#f4f2ee', 0.25);
-      sphere(g, wh, 84, 0, 42, 0, { sy: 0.62, seg: 26 });
-      const wt = sphere(g, water(), 76, 0, 47, 0, { sy: 0.12, seg: 24 });
+      sphere(g, wh, 84, 0, 30, 0, { sy: 0.36, seg: 26 });
+      const wt = sphere(g, water(), 76, 0, 50, 0, { sy: 0.12, seg: 24 });
       wt.receiveShadow = true;
       cyl(g, chrome(), 2.2, 60, 70, 0, -26);
       cyl(g, chrome(), 2, 24, 70, 58, -32, { rx: Math.PI / 2 });

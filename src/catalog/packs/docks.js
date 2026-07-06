@@ -169,12 +169,12 @@ export const DOCKS_ITEMS = [
       const rail = chrome();
       // two curved-over top rails
       for (const x of [-18, 18]) {
-        cyl(g, rail, 2.2, 100, x, 12, 8, {});
-        cyl(g, rail, 2.2, 20, x, 112, 0, { rx: Math.PI / 2 });
+        cyl(g, rail, 2.2, 100, x, 0, 8, {});
+        cyl(g, rail, 2.2, 20, x, 100, 0, { rx: Math.PI / 2 });
       }
       // rungs descending toward -z (into the water)
       for (let i = 0; i < 5; i++) {
-        cyl(g, rail, 1.6, 40, 0, 12 + i * 22, 8 - i * 3, { rz: Math.PI / 2 });
+        cyl(g, rail, 1.6, 40, 0, i * 22, 8 - i * 3, { rz: Math.PI / 2 });
       }
       return g;
     }
@@ -320,16 +320,16 @@ export const DOCKS_ITEMS = [
     build: (p) => {
       const g = G();
       const board = solid(p.hull, 0.4);
-      // flat elongated board with rounded ends
-      box(g, board, 70, 10, 300, 0, 4, 0, { r: 10, seg: 5 });
+      // flat elongated board lying deck-up, resting on its centre fin
+      box(g, board, 70, 10, 300, 0, 10, 0, { r: 10, seg: 5 });
       // deck pad traction
-      box(g, solid('#2b2d31', 0.9), 56, 2, 180, 0, 10, -20, { r: 8 });
-      // fin underneath
-      prism(g, board, 4, 14, 26, 0, -14, 130);
-      // paddle laid on top
+      box(g, solid('#2b2d31', 0.9), 56, 2, 180, 0, 20, -20, { r: 8 });
+      // swept fin under the tail (fills the gap to the ground)
+      prism(g, board, 4, 10, 26, 0, 0, 130);
+      // paddle laid lengthwise along the deck
       const shaft = solid('#d9d4c6', 0.5);
-      cyl(g, shaft, 1.6, 180, 10, 14, 40, { rx: 0.05 });
-      box(g, board, 14, 2, 24, 10, 13, 130, { r: 4 });
+      cyl(g, shaft, 1.6, 180, 12, 22, 20, { rx: Math.PI / 2 });
+      box(g, board, 14, 2, 24, 12, 22, 130, { r: 4 });
       return g;
     }
   },

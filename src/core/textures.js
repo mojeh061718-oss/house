@@ -962,11 +962,11 @@ const GENERATORS = {
 
 export const MATERIALS = [
   // Wood floors
-  { id: 'oak', group: 'Wood', name: 'Oak', use: 'floor', gen: 'wood', scale: 240, rough: 0.62, res: 1024, params: { seed: 11, base: '#b58a5c', dark: '#8a6238', light: '#d9b384', planks: 6 } },
-  { id: 'walnut', group: 'Wood', name: 'Walnut', use: 'floor', gen: 'wood', scale: 240, rough: 0.55, res: 1024, params: { seed: 23, base: '#6e4a30', dark: '#452b18', light: '#96693f', planks: 6 } },
+  { id: 'oak', group: 'Wood', name: 'Oak', use: 'floor', gen: 'wood', scale: 240, rough: 0.62, params: { seed: 11, base: '#b58a5c', dark: '#8a6238', light: '#d9b384', planks: 6 } },
+  { id: 'walnut', group: 'Wood', name: 'Walnut', use: 'floor', gen: 'wood', scale: 240, rough: 0.55, params: { seed: 23, base: '#6e4a30', dark: '#452b18', light: '#96693f', planks: 6 } },
   { id: 'ash_gray', group: 'Wood', name: 'Ash Grey', use: 'floor', gen: 'wood', scale: 240, rough: 0.66, params: { seed: 31, base: '#a89a8a', dark: '#7d7264', light: '#cfc2b0', planks: 6 } },
   { id: 'honey_pine', group: 'Wood', name: 'Honey Pine', use: 'floor', gen: 'wood', scale: 240, rough: 0.6, params: { seed: 47, base: '#c99a5f', dark: '#9c7038', light: '#e8c288', planks: 8 } },
-  { id: 'parquet', group: 'Wood', name: 'Herringbone', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.5, res: 1024, params: { seed: 13, base: '#a97e4f', dark: '#7c5a33', light: '#cfa76f' } },
+  { id: 'parquet', group: 'Wood', name: 'Herringbone', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.5, params: { seed: 13, base: '#a97e4f', dark: '#7c5a33', light: '#cfa76f' } },
   { id: 'chevron_blond', group: 'Wood', name: 'Chevron Blond', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.45, params: { seed: 17, base: '#c8a878', dark: '#a08252', light: '#e8cba0' } },
   { id: 'maple', group: 'Wood', name: 'Natural Maple', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 101, base: '#d9bc94', dark: '#b6976e', light: '#efd9b8', planks: 6 } },
   { id: 'cherry', group: 'Wood', name: 'Cherry', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 103, base: '#9c5a3c', dark: '#6e3a24', light: '#c07c56', planks: 6 } },
@@ -974,16 +974,16 @@ export const MATERIALS = [
   { id: 'espresso', group: 'Wood', name: 'Espresso', use: 'floor', gen: 'wood', scale: 240, rough: 0.45, params: { seed: 107, base: '#4a352a', dark: '#2e1f16', light: '#6a4f3e', planks: 6 } },
   { id: 'teak', group: 'Wood', name: 'Golden Teak', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 109, base: '#b08347', dark: '#825c2c', light: '#d8a968', planks: 7 } },
   { id: 'whitewash', group: 'Wood', name: 'Whitewashed', use: 'floor', gen: 'wood', scale: 240, rough: 0.6, params: { seed: 111, base: '#ddd2c2', dark: '#b3a894', light: '#f2ebdf', planks: 5 } },
-  { id: 'wide_oak', group: 'Wood', name: 'Wide Plank Oak', use: 'floor', gen: 'wood', scale: 300, rough: 0.55, res: 1024, params: { seed: 113, base: '#b08a5e', dark: '#84643e', light: '#d6b184', planks: 4 } },
+  { id: 'wide_oak', group: 'Wood', name: 'Wide Plank Oak', use: 'floor', gen: 'wood', scale: 300, rough: 0.55, params: { seed: 113, base: '#b08a5e', dark: '#84643e', light: '#d6b184', planks: 4 } },
   { id: 'barnwood', group: 'Wood', name: 'Barnwood', use: 'floor', gen: 'wood', scale: 300, rough: 0.8, params: { seed: 115, base: '#8a7a68', dark: '#5c5040', light: '#b0a28c', planks: 4 } },
   // Stone / tile floors
-  { id: 'tile_white', group: 'Stone & Tile', name: 'Porcelain White', use: 'floor', gen: 'tiles', scale: 120, rough: 0.25, res: 1024, params: { seed: 5, count: 2, gap: 3, grout: '#b9b6ae', colors: ['#e8e6e0'], variation: 8 } },
+  { id: 'tile_white', group: 'Stone & Tile', name: 'Porcelain White', use: 'floor', gen: 'tiles', scale: 120, rough: 0.25, params: { seed: 5, count: 2, gap: 3, grout: '#b9b6ae', colors: ['#e8e6e0'], variation: 8 } },
   { id: 'tile_gray', group: 'Stone & Tile', name: 'Slate Grey', use: 'floor', gen: 'tiles', scale: 120, rough: 0.4, params: { seed: 9, count: 2, gap: 3, grout: '#77746e', colors: ['#9a978f', '#8b8880'], variation: 12 } },
   { id: 'tile_beige', group: 'Stone & Tile', name: 'Travertine', use: 'floor', gen: 'tiles', scale: 120, rough: 0.45, params: { seed: 15, count: 2, gap: 3, grout: '#a99e8c', colors: ['#d6c9b2', '#cbbda4'], variation: 10 } },
   { id: 'tile_checker', group: 'Stone & Tile', name: 'Marble Checker', use: 'floor', gen: 'tiles', scale: 120, rough: 0.2, params: { seed: 19, count: 4, gap: 2, grout: '#888888', colors: ['#e9e7e3', '#3a3c40'], checker: true, marbled: true } },
-  { id: 'marble_white', group: 'Stone & Tile', name: 'Calacatta Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.15, res: 1024, params: { seed: 3, base: '#eceae6', tint: '#dcd8d2', vein: '#9aa0a8', sharp: 10, veinStrength: 0.8 } },
-  { id: 'marble_dark', group: 'Stone & Tile', name: 'Nero Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.18, res: 1024, params: { seed: 8, base: '#2b2d31', tint: '#3a3d43', vein: '#c9c4ba', sharp: 12, veinStrength: 0.85 } },
-  { id: 'concrete_floor', group: 'Stone & Tile', name: 'Polished Concrete', use: 'floor', gen: 'concrete', scale: 300, rough: 0.35, res: 1024, params: { seed: 27, base: '#a3a19c', trowel: true } },
+  { id: 'marble_white', group: 'Stone & Tile', name: 'Calacatta Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.15, params: { seed: 3, base: '#eceae6', tint: '#dcd8d2', vein: '#9aa0a8', sharp: 10, veinStrength: 0.8 } },
+  { id: 'marble_dark', group: 'Stone & Tile', name: 'Nero Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.18, params: { seed: 8, base: '#2b2d31', tint: '#3a3d43', vein: '#c9c4ba', sharp: 12, veinStrength: 0.85 } },
+  { id: 'concrete_floor', group: 'Stone & Tile', name: 'Polished Concrete', use: 'floor', gen: 'concrete', scale: 300, rough: 0.35, params: { seed: 27, base: '#a3a19c', trowel: true } },
   // Carpets
   { id: 'carpet_beige', group: 'Carpet', name: 'Wool Beige', use: 'floor', gen: 'carpet', scale: 100, rough: 0.95, params: { seed: 33, base: '#cdbfa5', dark: '#a3947a' } },
   { id: 'carpet_gray', group: 'Carpet', name: 'Loop Grey', use: 'floor', gen: 'carpet', scale: 100, rough: 0.95, params: { seed: 37, base: '#9c9ca0', dark: '#71716f' } },
