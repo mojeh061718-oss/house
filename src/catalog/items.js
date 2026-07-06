@@ -2,9 +2,9 @@
 // assembled from primitives (no external assets), with architectural 2D plan
 // symbols and selectable finish palettes.
 import {
-  G, box, cyl, sphere, legs4, handleBar, knob, shade, wavyPanel, prism, pyramid,
+  G, box, cyl, sphere, legs4, strut, handleBar, knob, shade, wavyPanel, prism, pyramid,
   solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond,
-  buildTallGrass, flagTexture, buildFlag, glow
+  buildTallGrass, flagTexture, buildFlag, glow, netMaterial
 } from './builders.js';
 import { EXTRA_ITEMS } from './extras.js';
 
@@ -133,6 +133,53 @@ function sofaBuilder(seats, W, D, H) {
     }
     return g;
   };
+}
+
+/**
+ * Dress a bed: plush mattress, a rumpled duvet built from overlapping soft
+ * "rolls" (real fold relief, cheaply), a turned-down top-sheet cuff, plump
+ * pillows and an optional folded throw at the foot. Head is at -Z, foot +Z.
+ *   g       group to add to
+ *   mw, md  mattress width (x) and depth (z)
+ *   topY    y of the bed platform the mattress rests on
+ *   opts    { pillows=2, duvet=<material>, throw=<hex|null>, puff=1 }
+ */
+function dressBed(g, mw, md, topY, opts = {}) {
+  const pillows = opts.pillows ?? 2;
+  const puff = opts.puff ?? 1;
+  const duvet = opts.duvet || solid('#e9e4d8', 0.85);
+  const linen = solid('#f7f4ec', 0.88);   // crisp top sheet / cuff
+  const mattH = 15 * puff;
+  const mTop = topY + mattH;
+  // plush mattress
+  box(g, solid('#f4f1ea', 0.9), mw, mattH, md, 0, topY, 0, { r: 7 });
+  // duvet zone: from just past the pillows to the foot
+  const zFoot = md / 2 - 6;
+  const zHead = -md / 2 + Math.min(md * 0.26, 52);
+  const duvD = Math.max(30, zFoot - zHead);
+  const rolls = Math.max(4, Math.round(duvD / 32));
+  const seg = duvD / rolls;
+  for (let i = 0; i < rolls; i++) {
+    const z = zHead + (i + 0.5) * seg;
+    const hh = (11 + (i % 2 ? 3 : 1)) * puff;    // alternate puffiness → rumples
+    box(g, duvet, mw * 0.99, hh, seg + 5, 0, mTop - 1.5, z,
+      { r: Math.min(hh / 2, seg * 0.6, 6) });
+  }
+  // turned-down top-sheet cuff over the duvet's head edge
+  box(g, linen, mw * 0.99, 7 * puff, 20, 0, mTop + 2.5 * puff, zHead + 4, { r: 3 });
+  // plump pillows resting against the head, leaning back
+  const pillow = solid('#fbfaf6', 0.92);
+  const pw = pillows > 1 ? mw * 0.42 : mw * 0.6;
+  const xs = pillows > 1 ? [-mw * 0.24, mw * 0.24] : [0];
+  for (let i = 0; i < xs.length; i++) {
+    const py = mTop + 8 * puff;
+    box(g, pillow, pw, 17 * puff, 40, xs[i], py, -md / 2 + 30,
+      { r: Math.min(9 * puff, pw * 0.4), rx: -0.22, ry: (i - 0.5) * 0.08 });
+  }
+  // optional folded throw across the foot
+  if (opts.throw) {
+    box(g, solid(opts.throw, 0.8), mw * 0.92, 11 * puff, 34, 0, mTop + 3, zFoot - 20, { r: 4 });
+  }
 }
 
 export const ITEMS = [
@@ -304,11 +351,7 @@ export const ITEMS = [
       legs4(g, frame, 160, 204, 10, 3, 6, true);
       box(g, frame, 168, 22, 212, 0, 8, 0, { r: 2 });
       box(g, frame, 168, 66, 8, 0, 30, -102, { r: 3 }); // headboard
-      box(g, solid('#f0ede6', 0.9), 156, 16, 196, 0, 26, 2, { r: 5 }); // mattress
-      box(g, blanket, 160, 12, 140, 0, 34, 32, { r: 4 });   // blanket
-      box(g, blanket, 160, 4, 30, 0, 33, -38, { r: 2 });    // folded edge
-      box(g, solid('#ffffff', 0.95), 62, 12, 38, -40, 40, -74, { r: 5, ry: 0.06 });
-      box(g, solid('#ffffff', 0.95), 62, 12, 38, 40, 40, -74, { r: 5, ry: -0.05 });
+      dressBed(g, 156, 196, 30, { pillows: 2, duvet: blanket });
       return g;
     }
   },
@@ -321,9 +364,7 @@ export const ITEMS = [
       legs4(g, frame, 90, 196, 10, 3, 6, true);
       box(g, frame, 96, 20, 204, 0, 8, 0, { r: 2 });
       box(g, frame, 96, 58, 8, 0, 28, -98, { r: 3 });
-      box(g, solid('#f0ede6', 0.9), 86, 15, 188, 0, 24, 2, { r: 5 });
-      box(g, tex(p.fabric, 2, 2), 90, 11, 132, 0, 31, 30, { r: 4 });
-      box(g, solid('#ffffff', 0.95), 58, 11, 36, 0, 36, -70, { r: 5 });
+      dressBed(g, 86, 188, 28, { pillows: 1, duvet: tex(p.fabric, 2, 2) });
       return g;
     }
   },
@@ -1344,23 +1385,36 @@ export const ITEMS = [
 
   // ======================= BACKYARD =======================
   {
-    id: 'swing_set', name: 'Swing Set', cat: 'outdoor', w: 300, d: 190, h: 225,
+    id: 'swing_set', name: 'Swing Set', cat: 'outdoor', w: 300, d: 200, h: 225,
     palettes: null, plan: { type: 'swingset' },
     build: () => {
       const g = G();
-      const frame = wood('#8a6a4a', 0.75);
-      const chain = metal('#9aa0a6', 0.5);
-      // A-frame ends + top beam
+      const frame = wood('#7c5c3e', 0.7);
+      const chain = metal('#a6acb2', 0.45);
+      const BEAM = 212;            // top-beam height
+      const EX = 138;             // A-frame half-span (x)
+      const SPREAD = 74;          // foot splay in z
+      // twin A-frames: two splayed legs per end meeting under the beam
       for (const sx of [-1, 1]) {
-        for (const sz of [-1, 1]) {
-          box(g, frame, 9, 235, 9, sx * 140, 0, sz * 4, { rx: sz * 0.38 });
-        }
+        const apex = sx * EX;
+        strut(g, frame, apex, 0, -SPREAD, apex, BEAM, 0, 6.5, { rTop: 5 });
+        strut(g, frame, apex, 0, SPREAD, apex, BEAM, 0, 6.5, { rTop: 5 });
+        // cross-tie low between the two feet
+        strut(g, frame, apex, 26, -SPREAD + 6, apex, 26, SPREAD - 6, 3);
       }
-      cyl(g, frame, 6, 296, 0, 213, 0, { rz: Math.PI / 2 });
-      // two swings
-      for (const sx of [-60, 60]) {
-        for (const c of [-16, 16]) cyl(g, chain, 0.9, 158, sx + c, 55, 0);
-        box(g, solid('#2e3440', 0.55), 44, 4.5, 17, sx, 52, 0, { r: 2 });
+      // top beam running the full span, just over the apexes
+      cyl(g, frame, 6.5, EX * 2 + 16, 0, BEAM, 0, { rz: Math.PI / 2, seg: 16 });
+      // hanger eyes + two belt swings
+      for (const sx of [-62, 62]) {
+        const seatY = 48, seatZ = 4;
+        for (const c of [-15, 15]) {
+          sphere(g, chain, 1.8, sx + c, BEAM - 4, 0, { seg: 8 });
+          strut(g, chain, sx + c, BEAM - 4, 0, sx + c, seatY + 3, seatZ, 0.9, { seg: 6 });
+        }
+        // slung rubber belt seat (dips in the middle)
+        const seat = solid('#26292f', 0.6);
+        box(g, seat, 46, 3.5, 15, sx, seatY, seatZ, { r: 1.6 });
+        box(g, seat, 46, 2.4, 9, sx, seatY - 1.6, seatZ, { r: 1.2 });
       }
       return g;
     }
@@ -1988,9 +2042,10 @@ export const ITEMS = [
       }
       for (const y of [22, 96]) {
         box(g, frame, 104, 8, 208, 0, y, 0, { r: 1 });
-        box(g, solid('#f0ede6', 0.7), 94, 12, 196, 0, y + 8, 0, { r: 4 });
-        box(g, solid(y > 50 ? '#7d94b8' : '#b8907d', 0.8), 94, 5, 90, 0, y + 17, -50, { r: 3 });
-        box(g, solid('#fdfdfb', 0.6), 60, 7, 34, 0, y + 18, -80, { r: 3 });
+        dressBed(g, 94, 196, y + 8, {
+          pillows: 1, puff: 0.82,
+          duvet: solid(y > 50 ? '#7d94b8' : '#b8907d', 0.82)
+        });
       }
       // guard rail + ladder
       box(g, frame, 100, 6, 4, 0, 122, 102);
@@ -2310,24 +2365,38 @@ export const ITEMS = [
     }
   },
   {
-    id: 'slide', name: 'Playground Slide', cat: 'outdoor', w: 96, d: 260, h: 165,
+    id: 'slide', name: 'Playground Slide', cat: 'outdoor', w: 96, d: 280, h: 165,
     palettes: null, plan: { type: 'box' },
     build: () => {
       const g = G();
       const steel = metal('#7d838c', 0.4);
-      const plastic = solid('#c8412e', 0.5);
-      // platform + ladder at the back
+      const plastic = solid('#d9482f', 0.5);
+      const yellow = solid('#e8b23a', 0.5);
+      const TOP = 120;
+      // support posts (back pair tall, front pair short) + angled foot braces
       for (const sx of [-1, 1]) {
-        box(g, steel, 5, 128, 5, sx * 30, 0, -100);
-        box(g, steel, 5, 118, 5, sx * 30, 0, -55, { rx: 0.1 });
+        box(g, steel, 5, TOP, 5, sx * 28, 0, -104);
+        box(g, steel, 5, 66, 5, sx * 28, 0, -44);
+        strut(g, steel, sx * 28, 6, -104, sx * 28, 6, -44, 2.2);   // side rail tie
       }
-      for (let i = 0; i < 5; i++) box(g, steel, 54, 4, 5, 0, 18 + i * 24, -100);
-      box(g, plastic, 64, 6, 44, 0, 126, -78, { r: 2 });
-      // slide surface with side rails
-      const ang = 0.52;
-      box(g, plastic, 52, 5, 210, 0, 62, 30, { rx: ang, r: 2 });
-      box(g, plastic, 6, 14, 210, -26, 66, 30, { rx: ang, r: 2 });
-      box(g, plastic, 6, 14, 210, 26, 66, 30, { rx: ang, r: 2 });
+      // deck + guard panels + grab hood at the top of the chute
+      box(g, plastic, 62, 6, 52, 0, TOP, -98, { r: 2 });
+      for (const sx of [-1, 1]) box(g, yellow, 4, 40, 52, sx * 30, TOP + 6, -98, { r: 2 });
+      box(g, yellow, 62, 40, 4, 0, TOP + 6, -122, { r: 2 });     // back guard
+      for (const sx of [-1, 1]) strut(g, steel, sx * 26, TOP, -74, sx * 26, TOP + 52, -74, 2.4);
+      cyl(g, steel, 2.4, 56, 0, TOP + 52, -74, { rz: Math.PI / 2, seg: 12 });  // hood grab bar
+      // angled ladder at the very back
+      for (const sx of [-1, 1]) strut(g, steel, sx * 26, 0, -152, sx * 26, TOP, -118, 3);
+      for (let i = 0; i < 5; i++) { const t = (i + 0.5) / 5; box(g, steel, 50, 3.5, 5, 0, t * (TOP - 6) + 4, -152 + t * 34, { r: 1.5 }); }
+      // two-part chute: steep upper run, flatter run-out, up-curved end lip
+      box(g, plastic, 54, 5, 148, 0, 73.5, -18, { rx: 0.64, r: 2.5 });   // steep bed
+      box(g, plastic, 54, 5, 86, 0, 20.5, 66, { rx: 0.27, r: 2.5 });      // run-out bed
+      box(g, plastic, 54, 5, 22, 0, 11, 118, { rx: -0.34, r: 2.5 });      // kick-up lip
+      // raised side rails hugging both chute segments
+      for (const sx of [-1, 1]) {
+        box(g, yellow, 6, 17, 148, sx * 27, 78, -18, { rx: 0.64, r: 2 });
+        box(g, yellow, 6, 15, 86, sx * 27, 25, 66, { rx: 0.27, r: 2 });
+      }
       return g;
     }
   },
@@ -2337,14 +2406,28 @@ export const ITEMS = [
     build: () => {
       const g = G();
       const frame = wood('#8a6a4a', 0.8);
-      box(g, frame, 170, 28, 18, 0, 0, -76);
-      box(g, frame, 170, 28, 18, 0, 0, 76);
-      box(g, frame, 18, 28, 134, -76, 0, 0);
-      box(g, frame, 18, 28, 134, 76, 0, 0);
-      box(g, solid('#d9c391', 0.98), 134, 20, 134, 0, 0, 0);
-      // bucket + shovel
-      cyl(g, solid('#2f6ea3', 0.5), 8, 12, 30, 20, 24, { rTop: 6.5 });
-      box(g, solid('#e0a33c', 0.5), 4, 2, 26, -26, 21, -12, { ry: 0.6 });
+      const cap = wood('#a5855c', 0.6);
+      const sand = solid('#dcc794', 0.98);
+      // plank walls
+      box(g, frame, 170, 26, 20, 0, 0, -75);
+      box(g, frame, 170, 26, 20, 0, 0, 75);
+      box(g, frame, 20, 26, 130, -75, 0, 0);
+      box(g, frame, 20, 26, 130, 75, 0, 0);
+      // mounded sand: flat fill + a gentle central rise
+      box(g, sand, 132, 15, 132, 0, 0, 0);
+      sphere(g, sand, 46, 0, 11, 2, { sy: 0.2, sx: 1.32, sz: 1.26, seg: 22 });
+      // triangular corner seats on the rails
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        box(g, cap, 50, 5, 50, sx * 52, 26, sz * 52, { r: 2, ry: Math.PI / 4 });
+      }
+      // toy pail (tapered, with a wire handle) + a dumped sand tower + shovel
+      cyl(g, solid('#2f8fd0', 0.5), 8, 14, 34, 16, 22, { rTop: 10.5, seg: 16 });
+      cyl(g, solid('#2f8fd0', 0.5), 10.5, 2.4, 34, 30, 22, { seg: 16 });
+      strut(g, metal('#c9ccd0', 0.35), 24, 30, 22, 44, 30, 22, 0.7, { seg: 6 });
+      cyl(g, sand, 11, 17, -32, 12, -20, { seg: 12 });   // sandcastle tower
+      cyl(g, sand, 8, 5, -32, 29, -20, { seg: 12 });
+      strut(g, solid('#e14e3a', 0.5), -18, 20, 34, -44, 33, 50, 1.3, { seg: 8 });  // shovel shaft
+      box(g, solid('#e14e3a', 0.5), 11, 2, 15, -46, 32, 52, { r: 1, ry: 0.5 });    // shovel blade
       return g;
     }
   },
@@ -2624,9 +2707,7 @@ export const ITEMS = [
       const g = G();
       const wd = wood(p.wood);
       box(g, wd, 175, 28, 212, 0, 6, 0, { r: 2 });
-      box(g, solid('#f0ede6', 0.9), 165, 22, 196, 0, 30, 2, { r: 7 });
-      box(g, tex('fabric_beige', 2, 2), 165, 10, 120, 0, 44, 38, { r: 6 });
-      for (const px of [-64, 64]) box(g, solid('#ffffff', 0.95), 58, 12, 38, px, 50, -76, { r: 6 });
+      dressBed(g, 165, 196, 34, { pillows: 2, duvet: tex('fabric_beige', 2, 2), throw: '#9c8a6a' });
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, wd, 7, 205, 7, sx * 84, 0, sz * 102);
       box(g, wd, 175, 5, 7, 0, 202, -102); box(g, wd, 175, 5, 7, 0, 202, 102);
       box(g, wd, 7, 5, 210, -84, 202, 0); box(g, wd, 7, 5, 210, 84, 202, 0);
@@ -2641,8 +2722,10 @@ export const ITEMS = [
       const wd = wood(p.wood);
       for (const y of [22, 110]) {
         box(g, wd, 105, 14, 205, 0, y, 0, { r: 2 });
-        box(g, solid(y > 50 ? '#e8f0f4' : '#f4ece0', 0.9), 96, 14, 192, 0, y + 12, 0, { r: 5 });
-        box(g, solid('#ffffff', 0.95), 50, 9, 30, 0, y + 25, -80, { r: 4 });
+        dressBed(g, 96, 192, y + 14, {
+          pillows: 1, puff: 0.82,
+          duvet: solid(y > 50 ? '#8fb0c8' : '#d8b59a', 0.85)
+        });
       }
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, wd, 8, 160, 8, sx * 48, 0, sz * 98);
       box(g, wd, 100, 12, 4, 0, 130, 100);
@@ -3223,19 +3306,34 @@ export const ITEMS = [
     }
   },
   {
-    id: 'trampoline', name: 'Trampoline', cat: 'outdoor', w: 300, d: 300, h: 180,
+    id: 'trampoline', name: 'Trampoline', cat: 'outdoor', w: 300, d: 300, h: 210,
     palettes: null, plan: { type: 'rings' },
     build: () => {
       const g = G();
-      // blue safety pad (full disc) sits lower so it only shows as a rim
-      cyl(g, solid('#3a6ea8', 0.8), 150, 7, 0, 82, 0, { seg: 30 });
-      // black jumping mat on top, slightly smaller — the visible black surface
-      cyl(g, solid('#15181c', 0.9), 138, 5, 0, 87, 0, { seg: 30 });
+      const R = 148;              // frame radius
+      const PAD = 82;             // pad/frame height
+      const NET_TOP = 200;        // top of the enclosure
+      // splayed galvanised legs (W-frame feet)
+      for (let i = 0; i < 4; i++) {
+        const a = (i + 0.5) / 4 * Math.PI * 2;
+        strut(g, metal('#8a8f95', 0.4), Math.cos(a) * R, PAD - 4, Math.sin(a) * R,
+          Math.cos(a) * (R + 22), 0, Math.sin(a) * (R + 22), 3);
+        strut(g, metal('#8a8f95', 0.4), Math.cos(a) * R, PAD - 4, Math.sin(a) * R,
+          Math.cos(a) * (R - 30), 0, Math.sin(a) * (R - 30), 3);
+      }
+      // spring frame band + blue safety pad + black jumping mat
+      cyl(g, metal('#9a9ea4', 0.4), R, 8, 0, PAD - 8, 0, { open: true, seg: 40 });
+      cyl(g, solid('#3a6ea8', 0.82), R, 8, 0, PAD, 0, { seg: 40 });
+      cyl(g, solid('#15181c', 0.92), R - 15, 5, 0, PAD + 5, 0, { seg: 40 });
+      // enclosure poles with foam sleeves + padded top ring + net mesh
       for (let i = 0; i < 6; i++) {
         const a = i / 6 * Math.PI * 2;
-        cyl(g, metal('#7a7d80'), 2.4, 86, Math.cos(a) * 130, 0, Math.sin(a) * 130);
-        cyl(g, metal('#3a3c3e'), 1.2, 90, Math.cos(a) * 138, 88, Math.sin(a) * 138);
+        const px = Math.cos(a) * (R - 3), pz = Math.sin(a) * (R - 3);
+        cyl(g, metal('#7a7d80', 0.4), 2.6, NET_TOP - PAD, px, PAD, pz);
+        cyl(g, solid('#2f6ea3', 0.6), 4.2, 64, px, PAD + 6, pz);   // foam sleeve
       }
+      cyl(g, solid('#2f6ea3', 0.7), R - 1, 8, 0, NET_TOP - 4, 0, { open: true, seg: 40 });
+      cyl(g, netMaterial(), R - 2, NET_TOP - PAD - 10, 0, PAD + 6, 0, { open: true, seg: 44 });
       return g;
     }
   },

@@ -333,7 +333,7 @@ export function box(parent, mat, w, h, d, x = 0, y = 0, z = 0, opts = {}) {
 
 /** Cylinder with base at y (vertical) — or centered on y when laid horizontal. */
 export function cyl(parent, mat, r, h, x = 0, y = 0, z = 0, opts = {}) {
-  const geo = new THREE.CylinderGeometry(opts.rTop ?? r, r, h, opts.seg ?? 24);
+  const geo = new THREE.CylinderGeometry(opts.rTop ?? r, r, h, opts.seg ?? 24, 1, opts.open || false);
   const mesh = new THREE.Mesh(geo, mat);
   const tilt = Math.max(Math.abs(opts.rx || 0), Math.abs(opts.rz || 0));
   const horizontal = Math.abs(tilt - Math.PI / 2) < 0.35;
@@ -409,6 +409,23 @@ export function legs4(parent, mat, w, d, h, r = 2.5, inset = 6, square = false) 
       else cyl(parent, mat, r, h, sx * px, 0, sz * pz);
     }
   }
+}
+
+/** Cylinder strut running between two 3D points — A-frames, angled rails,
+ *  ladder stringers, chains. `r` is the base radius; opts.rTop tapers it. */
+export function strut(parent, mat, ax, ay, az, bx, by, bz, r = 3, opts = {}) {
+  const a = new THREE.Vector3(ax, ay, az);
+  const b = new THREE.Vector3(bx, by, bz);
+  const dir = b.clone().sub(a);
+  const len = dir.length() || 0.0001;
+  const geo = new THREE.CylinderGeometry(opts.rTop ?? r, r, len, opts.seg ?? 12);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(a).add(b).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
 }
 
 /** Cabinet handle bar. */
@@ -615,6 +632,30 @@ export function buildFlag(parent, tex, w, h, x = 0, y = 0, z = 0, opts = {}) {
   mesh.castShadow = true;
   parent.add(mesh);
   return mesh;
+}
+
+/** Translucent safety-net material (mesh grid) — trampoline enclosures, sports
+ *  nets, batting cages. Unique per call (canvas texture), so tagged owned. */
+export function netMaterial(tint = '#eef3f7', repeatX = 20, repeatY = 5) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d');
+  x.clearRect(0, 0, 64, 64);
+  x.strokeStyle = tint;
+  x.lineWidth = 2.2;
+  for (let i = 0; i <= 64; i += 8) {
+    x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 64); x.stroke();
+    x.beginPath(); x.moveTo(0, i); x.lineTo(64, i); x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeatX, repeatY);
+  const m = new THREE.MeshStandardMaterial({
+    map: t, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide,
+    roughness: 0.9, depthWrite: false, opacity: 0.92
+  });
+  m.userData.owned = true; m.userData.ownedMap = true;
+  return m;
 }
 
 /** Organic foliage cluster for plants — lumpy dappled blobs, not plain balls. */
