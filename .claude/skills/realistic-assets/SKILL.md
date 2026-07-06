@@ -165,6 +165,44 @@ static 3D fine. Recipe:
 7. Ship in **small reviewed batches** (a pack or a category), bump the version,
    commit, deploy to dev, and show before/after screenshots.
 
+## Grounding & scale verification (catch floaters and wrong heights)
+
+"Looks good in a tight crop" is not enough — an asset can float, be the wrong
+size, or seat its usable surface at the wrong height and still fill a framed
+screenshot. Two checks catch this:
+
+**A. Automated bounding-box audit** (`scratchpad/bbox-audit.mjs` — build every
+item, compute `THREE.Box3().setFromObject(group)`, flag outliers). Requires
+`window.homestudio.THREE` + `.ITEMS` exposed. For every item assert:
+- **Grounded:** `box.min.y ≈ 0` for a floor item (no `mount`, `elevation`,
+  `path`, or roof `plan.type`). `min.y` well above 0 = it floats; well below 0 =
+  it's sunk. The #1 cause is a body `box(g,mat,w,h,d,x,y,z)` passed `y = h/2`
+  (or any offset) instead of `0` — `box` puts the BASE at `y`, so that lifts the
+  whole piece. Wall/ceiling mounts and terrain are expected to float — exclude them.
+- **Right size:** bbox height ≈ `def.h`, footprint ≈ `def.w × def.d`. A ratio far
+  from 1 means the geometry is mis-scaled or mis-oriented (e.g. a paddleboard
+  built standing vertical reads h≈200 vs def 20 — lay it flat).
+- Run it after any asset batch; it's cheap and catches a whole class of bugs the
+  eye misses. (Legit exceptions: water features whose cattails/rocks rise above
+  the water line, fire pits with flames, tall roofs — judge, don't blindly flatten.)
+
+**B. Functional-height check** (bbox can't catch this — the swing floated its
+seat at 100cm *inside* a correctly-sized 190cm frame). Render WITH the ground
+visible and confirm the item's **usable surfaces land at real heights**:
+
+| Surface | Height (cm) | Surface | Height (cm) |
+|---|---|---|---|
+| Chair / sofa / bench / swing seat | 42–46 | Dining table top | 74–76 |
+| Bar / kitchen counter | 90 (bar stool seat 65–75) | Coffee table | 40–45 |
+| Desk top | 74 | Bed mattress top | 55–60 |
+| Toilet seat | 40 | Tub rim | 55 |
+| Nightstand | 55–60 | Door handle | ~100 |
+| Countertop appliance | on the 90 counter | Kitchen wall cabinet base | ~135 |
+
+If a seat, top, or handle is materially off these, fix the internal Y values —
+even when the overall bbox is correct. Always sanity-check the piece against a
+mental image of a person using it.
+
 ## Hard constraints (do not regress)
 
 - **Procedural + lightweight.** No heavy glTF imports. A few dozen primitives per

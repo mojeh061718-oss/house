@@ -89,7 +89,9 @@ import('./core/autoroof.js').then(m => {
 });
 import('./core/textures.js').then(m => {
   window.homestudio.MATERIALS = m.MATERIALS;
+  window.homestudio.getTextureCanvases = m.getTextureCanvases;
 });
+import('three').then(m => { window.homestudio.THREE = m; });
 
 // PWA: register the service worker in production builds. The version in the
 // URL makes every release a "new" worker so the browser installs it and the
