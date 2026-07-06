@@ -107,6 +107,46 @@ user who reviews on the live/dev site. Work to these standards:
 Report findings, fix most-severe first, verify, then bump patch version, commit,
 push to **dev**, confirm the deploy is green.
 
+## 5. Requested future work — ASSET REALISM PASS (user priority)
+
+The user wants a dedicated agent (or a sequence of them) to **go through the
+catalog assets and make them dramatically more realistic**. Their words: some of
+the trees, animals, items etc. are "poorly drawn," and with real time invested
+they "can be extremely realistic." Treat this as a first-class quality project,
+not a quick pass.
+
+- **Where the assets live:** every item is built PROCEDURALLY in code (no binary
+  models). Builders/materials: `src/catalog/builders.js` (the `box/cyl/sphere/
+  prism/blob/foliage/wood/metal/glass/tex/...` DSL). Item definitions + their
+  `build(p)` functions: `src/catalog/items.js` and the packs in
+  `src/catalog/packs/*.js` (bathroom, kitchen, livingroom, lounge, decks, docks,
+  pools, poolside, water, farm, fencing, games, structures, decor, cabinets,
+  frames, utility). 2D plan symbols: `src/editor/plansymbols.js`. Photo textures:
+  `src/core/textures.js` (procedural generators + local CC0 JPGs in `public/tex/`).
+- **What to improve:** the worst offenders the user called out are **trees,
+  plants, and animals**, plus assorted **items** that read as crude. Add
+  geometry detail (layered blob canopies with trunk taper and branching; animals
+  with real silhouettes and limbs rather than boxy stand-ins), better materials
+  (bark/foliage variation, subsurface-ish leaf tones, fur/feather color ramps),
+  and use the v3.0 `envMapIntensity`/PBR tuning already in `builders.js`.
+- **HARD CONSTRAINTS — do not regress these:**
+  1. **Stay procedural + lightweight.** The app's identity is instant load,
+     fully offline, no big downloads. Do NOT bulk-import heavy glTF models. If
+     a few CC0 glTF props are ever added, gate them behind the offline system
+     and keep the procedural versions as the fast default.
+  2. **Watch the GPU/memory budget.** A past release crashed phones by leaking
+     textures; more geometry per item × hundreds of items can tank mobile FPS.
+     Reuse cached materials (never set `userData.owned` on a cached material),
+     lean on instancing for repeated foliage, and profile a dense scene on a
+     phone-sized viewport before shipping.
+  3. **Keep 2D plan symbols legible** — a photoreal 3D tree still needs a clean,
+     simple top-down symbol.
+- **Suggested approach:** do it pack-by-pack (or category-by-category) with
+  parallel subagents, each taking a few items, rebuilding their `build(p)`
+  functions and visually verifying each in the 3D viewer (drive the real app;
+  screenshot before/after). Ship in small, reviewed batches to dev, not one huge
+  diff. Bump versions per batch.
+
 ═══════════════════════════ OLDER HISTORY (pre-v3.0, partly stale) ═══════════════════════════
 
 For the next agent continuing this project in a fresh session. Read this
