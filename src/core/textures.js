@@ -75,34 +75,40 @@ function rgb(c) {
 // ---------------------------------------------------------------------------
 
 function genWoodPlanks(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   const rand = mulberry32(p.seed);
   const noise = makeNoise(p.seed + 7, 4, 4);
+  const grainN = makeNoise(p.seed + 31, 3, 3);
+  const poreN = makeNoise(p.seed + 53, 48, 2);
   const base = hexToRgb(p.base), dark = hexToRgb(p.dark), light = hexToRgb(p.light);
-  const plankW = SIZE / p.planks;
-  const img = ctx.createImageData(SIZE, SIZE);
-  const bimg = bctx.createImageData(SIZE, SIZE);
-  // per-plank data: tone offset + row (grain phase) + end joint position
+  const plankW = S / p.planks;
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  // per-plank data: tone offset, grain phase, streak frequency, butt-joint pos
   const planks = [];
   for (let i = 0; i < p.planks; i++) {
-    planks.push({ tone: (rand() - 0.5) * 0.5, phase: rand() * 10, joint: rand() });
+    planks.push({ tone: (rand() - 0.5) * 0.5, phase: rand() * 10, freq: 4 + rand() * 7, joint: rand() });
   }
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
       const pi = Math.min(p.planks - 1, Math.floor(x / plankW));
       const pl = planks[pi];
-      const lx = x - pi * plankW;
-      // wood grain: stretched noise along Y
-      const g = noise(x / SIZE * 2 + pl.phase, y / SIZE * 0.25 + pl.phase);
-      const streak = Math.pow(Math.abs(Math.sin((g * 6 + y / SIZE * 3 + pl.phase) * Math.PI)), 0.35);
-      let col = mix(mix(dark, base, streak), light, noise(x / SIZE * 8, y / SIZE * 8) * 0.35);
+      const u = x / S, v = y / S;
+      const lx = (x - pi * plankW) / plankW; // 0..1 across the board
+      // domain-warped cathedral grain, streak frequency varies per plank
+      const warp = noise(u * 2 + pl.phase, v * 0.28 + pl.phase);
+      const cath = grainN(lx * 1.4 + pl.phase, v * 0.45);
+      let streak = Math.abs(Math.sin((cath * 3 + warp * 1.6 + v * pl.freq + pl.phase) * Math.PI));
+      streak = Math.pow(streak, 0.4);
+      const pore = poreN(u * 3, v * 0.8) - 0.5; // fine open-grain pores
+      let col = mix(mix(dark, base, streak), light, noise(u * 8, v * 8) * 0.3);
       col = mix(col, pl.tone > 0 ? light : dark, Math.abs(pl.tone));
-      let h = 150 + streak * 60;
-      // plank gaps + butt joints
-      const gap = lx < 1.5 || lx > plankW - 1.5;
-      const jointY = ((y / SIZE + pl.joint) % 0.5) * SIZE;
-      const joint = jointY < 2;
-      if (gap || joint) { col = mix(col, [10, 8, 6], 0.75); h = 30; }
-      const idx = (y * SIZE + x) * 4;
+      // subtle rounded-board sheen: centre of each plank a touch brighter
+      const centre = 1 - Math.abs(lx - 0.5) * 2;
+      col = mix(col, light, centre * 0.06);
+      col = [col[0] - pore * 11, col[1] - pore * 9, col[2] - pore * 6];
+      const h = 138 + streak * 55 - Math.abs(pore) * 34 + centre * 8;
+      const idx = (y * S + x) * 4;
       img.data[idx] = col[0]; img.data[idx + 1] = col[1]; img.data[idx + 2] = col[2]; img.data[idx + 3] = 255;
       bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h; bimg.data[idx + 3] = 255;
     }
@@ -110,16 +116,36 @@ function genWoodPlanks(ctx, bctx, p) {
   ctx.putImageData(img, 0, 0);
   bctx.putImageData(bimg, 0, 0);
 
-  // knots: darker cores with growth rings, sunk slightly into the bump map
+  // recessed plank seams with a lit chamfer on one side (bevel/gap shadow)
+  const seamW = Math.max(1.5, S / 320);
+  for (let i = 0; i <= p.planks; i++) {
+    const x = i * plankW;
+    ctx.fillStyle = 'rgba(18,12,7,0.6)';
+    ctx.fillRect(x - seamW / 2, 0, seamW, S);
+    ctx.fillStyle = 'rgba(255,240,208,0.09)';
+    ctx.fillRect(x + seamW / 2, 0, seamW * 0.8, S);
+    bctx.fillStyle = 'rgb(22,22,22)';
+    bctx.fillRect(x - seamW / 2, 0, seamW, S);
+  }
+  // butt (end) joints, one per plank, recessed
+  for (let i = 0; i < p.planks; i++) {
+    const jy = (planks[i].joint) * S;
+    ctx.fillStyle = 'rgba(18,12,7,0.55)';
+    ctx.fillRect(i * plankW, jy - seamW / 2, plankW, seamW);
+    bctx.fillStyle = 'rgb(26,26,26)';
+    bctx.fillRect(i * plankW, jy - seamW / 2, plankW, seamW);
+  }
+
+  // knots: darker cores with concentric growth rings, sunk into the bump map
   for (let i = 0; i < p.planks; i++) {
     if (rand() < 0.5) continue;
     const knots = 1 + (rand() < 0.25 ? 1 : 0);
     for (let k = 0; k < knots; k++) {
       const kx = i * plankW + plankW * (0.22 + rand() * 0.56);
-      const ky = rand() * SIZE;
+      const ky = rand() * S;
       const kr = 3 + rand() * 5;
       const grd = ctx.createRadialGradient(kx, ky, 0.5, kx, ky, kr * 1.6);
-      grd.addColorStop(0, 'rgba(38,22,10,0.85)');
+      grd.addColorStop(0, 'rgba(38,22,10,0.88)');
       grd.addColorStop(0.45, 'rgba(62,38,20,0.5)');
       grd.addColorStop(0.75, 'rgba(96,64,36,0.22)');
       grd.addColorStop(1, 'rgba(0,0,0,0)');
@@ -127,12 +153,15 @@ function genWoodPlanks(ctx, bctx, p) {
       ctx.beginPath();
       ctx.ellipse(kx, ky, kr, kr * 1.7, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(48,30,16,0.35)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(kx, ky, kr * 0.6, kr * 1.1, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      bctx.fillStyle = 'rgba(0,0,0,0.35)';
+      // growth rings swirling around the knot
+      ctx.strokeStyle = 'rgba(48,30,16,0.3)';
+      for (let ring = 1; ring <= 3; ring++) {
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.ellipse(kx, ky, kr * (0.5 + ring * 0.55), kr * (0.9 + ring * 1.0), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      bctx.fillStyle = 'rgba(0,0,0,0.4)';
       bctx.beginPath();
       bctx.ellipse(kx, ky, kr, kr * 1.7, 0, 0, Math.PI * 2);
       bctx.fill();
@@ -141,13 +170,14 @@ function genWoodPlanks(ctx, bctx, p) {
 }
 
 function genHerringbone(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   const base = hexToRgb(p.base), dark = hexToRgb(p.dark), light = hexToRgb(p.light);
   const noise = makeNoise(p.seed, 6, 4);
-  ctx.fillStyle = rgb(dark);
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  bctx.fillStyle = 'rgb(30,30,30)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
-  const bw = SIZE / 8, bl = bw * 4; // block width / length
+  ctx.fillStyle = rgb(mix(dark, [0, 0, 0], 0.35)); // deep recessed gaps
+  ctx.fillRect(0, 0, S, S);
+  bctx.fillStyle = 'rgb(22,22,22)';
+  bctx.fillRect(0, 0, S, S);
+  const bw = S / 8, bl = bw * 4; // block width / length
   const rand = mulberry32(p.seed + 3);
   const drawBlock = (cx, cy, ang) => {
     for (const c of [ctx, bctx]) {
@@ -156,34 +186,43 @@ function genHerringbone(ctx, bctx, p) {
       c.rotate(ang);
       if (c === ctx) {
         const t = rand();
-        const col = mix(mix(dark, base, 0.4 + t * 0.6), light, rand() * 0.3);
-        const gradient = c.createLinearGradient(-bl / 2, 0, bl / 2, 0);
-        gradient.addColorStop(0, rgb(col));
-        gradient.addColorStop(0.5, rgb(mix(col, light, 0.18)));
-        gradient.addColorStop(1, rgb(mix(col, dark, 0.15)));
+        const col = mix(mix(dark, base, 0.35 + t * 0.65), light, rand() * 0.35);
+        // grain runs along the board length with a satin cross-sheen
+        const gradient = c.createLinearGradient(0, -bw / 2, 0, bw / 2);
+        gradient.addColorStop(0, rgb(mix(col, light, 0.16)));
+        gradient.addColorStop(0.45, rgb(col));
+        gradient.addColorStop(1, rgb(mix(col, dark, 0.22)));
         c.fillStyle = gradient;
       } else {
-        c.fillStyle = 'rgb(175,175,175)';
+        c.fillStyle = 'rgb(180,180,180)';
       }
-      c.fillRect(-bl / 2 + 1, -bw / 2 + 1, bl - 2, bw - 2);
+      c.fillRect(-bl / 2 + 1.2, -bw / 2 + 1.2, bl - 2.4, bw - 2.4);
       if (c === ctx) {
-        // grain streaks
-        c.strokeStyle = 'rgba(60,40,20,0.25)';
-        c.lineWidth = 1;
-        for (let s = 0; s < 5; s++) {
+        // lengthwise grain streaks
+        c.strokeStyle = 'rgba(58,38,20,0.22)';
+        c.lineWidth = 0.9;
+        for (let s = 0; s < 6; s++) {
           const yy = -bw / 2 + 2 + rand() * (bw - 4);
           c.beginPath();
           c.moveTo(-bl / 2 + 2, yy);
           c.bezierCurveTo(-bl / 4, yy + (rand() - 0.5) * 4, bl / 4, yy + (rand() - 0.5) * 4, bl / 2 - 2, yy);
           c.stroke();
         }
+        // lit top-left chamfer + shadowed bottom-right (bevel)
+        c.fillStyle = 'rgba(255,244,214,0.10)';
+        c.fillRect(-bl / 2 + 1.2, -bw / 2 + 1.2, bl - 2.4, 1.4);
+        c.fillStyle = 'rgba(0,0,0,0.16)';
+        c.fillRect(-bl / 2 + 1.2, bw / 2 - 2.6, bl - 2.4, 1.4);
+      } else {
+        c.fillStyle = 'rgb(120,120,120)';
+        c.fillRect(-bl / 2 + 1.2, bw / 2 - 2.6, bl - 2.4, 1.4);
       }
       c.restore();
     }
   };
   const step = bw * Math.SQRT2;
-  for (let row = -2; row < SIZE / step + 4; row++) {
-    for (let col = -2; col < SIZE / step + 4; col++) {
+  for (let row = -2; row < S / step + 4; row++) {
+    for (let col = -2; col < S / step + 4; col++) {
       const x = col * step * 2, y = row * step;
       drawBlock(x + step, y, Math.PI / 4);
       drawBlock(x + step * 2, y + step * 0, -Math.PI / 4);
@@ -191,13 +230,13 @@ function genHerringbone(ctx, bctx, p) {
       drawBlock(x + step, y + step, -Math.PI / 4);
     }
   }
-  // subtle overall variation
-  const img = ctx.getImageData(0, 0, SIZE, SIZE);
-  for (let y = 0; y < SIZE; y += 2) {
-    for (let x = 0; x < SIZE; x += 2) {
-      const n = (noise(x / SIZE, y / SIZE) - 0.5) * 20;
+  // subtle overall tonal drift
+  const img = ctx.getImageData(0, 0, S, S);
+  for (let y = 0; y < S; y += 2) {
+    for (let x = 0; x < S; x += 2) {
+      const n = (noise(x / S, y / S) - 0.5) * 20;
       for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-        const idx = ((y + dy) * SIZE + x + dx) * 4;
+        const idx = ((y + dy) * S + x + dx) * 4;
         img.data[idx] += n; img.data[idx + 1] += n; img.data[idx + 2] += n;
       }
     }
@@ -206,15 +245,16 @@ function genHerringbone(ctx, bctx, p) {
 }
 
 function genTiles(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   const n = p.count;
-  const tile = SIZE / n;
+  const tile = S / n;
   const rand = mulberry32(p.seed);
   const noise = makeNoise(p.seed + 11, 8, 3);
   const grout = hexToRgb(p.grout);
-  ctx.fillStyle = rgb(grout);
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  bctx.fillStyle = 'rgb(40,40,40)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillStyle = rgb(mix(grout, [0, 0, 0], 0.16));
+  ctx.fillRect(0, 0, S, S);
+  bctx.fillStyle = 'rgb(22,22,22)'; // deep recessed grout
+  bctx.fillRect(0, 0, S, S);
   const colors = p.colors.map(hexToRgb);
   for (let ty = 0; ty < n; ty++) {
     for (let tx = 0; tx < n; tx++) {
@@ -222,11 +262,14 @@ function genTiles(ctx, bctx, p) {
       const base = colors[alt % colors.length];
       const v = (rand() - 0.5) * (p.variation ?? 14);
       const col = [base[0] + v, base[1] + v, base[2] + v];
-      const x = tx * tile + p.gap, y = ty * tile + p.gap, s = tile - p.gap * 2;
+      // tiny per-tile size jitter (never eats into the grout line)
+      const jx = (rand() - 0.5) * tile * 0.025, jy = (rand() - 0.5) * tile * 0.025;
+      const x = tx * tile + p.gap + Math.max(0, jx), y = ty * tile + p.gap + Math.max(0, jy);
+      const s = tile - p.gap * 2 - Math.abs(jx) - Math.abs(jy);
       const grd = ctx.createLinearGradient(x, y, x + s, y + s);
-      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.10)));
+      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.12)));
       grd.addColorStop(0.5, rgb(col));
-      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.07)));
+      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.09)));
       ctx.fillStyle = grd;
       ctx.fillRect(x, y, s, s);
       if (p.marbled) {
@@ -249,38 +292,76 @@ function genTiles(ctx, bctx, p) {
         }
         ctx.restore();
       }
-      bctx.fillStyle = 'rgb(190,190,190)';
+      // soft glaze highlight in the upper-left (ceramic sheen)
+      const gl = ctx.createRadialGradient(x + s * 0.3, y + s * 0.26, 1, x + s * 0.32, y + s * 0.3, s * 0.75);
+      gl.addColorStop(0, 'rgba(255,255,255,0.20)');
+      gl.addColorStop(0.5, 'rgba(255,255,255,0.03)');
+      gl.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gl;
+      ctx.fillRect(x, y, s, s);
+      // bump: tile face raised, with a chamfered (darker) edge
+      bctx.fillStyle = 'rgb(210,210,210)';
       bctx.fillRect(x, y, s, s);
+      const bev = Math.max(1, s * 0.04);
+      bctx.strokeStyle = 'rgba(96,96,96,0.7)';
+      bctx.lineWidth = bev;
+      bctx.strokeRect(x + bev / 2, y + bev / 2, s - bev, s - bev);
     }
   }
-  // speckle
-  const img = ctx.getImageData(0, 0, SIZE, SIZE);
+  // fine glaze speckle
+  const img = ctx.getImageData(0, 0, S, S);
   for (let i = 0; i < img.data.length; i += 4) {
-    const px = (i / 4) % SIZE, py = Math.floor(i / 4 / SIZE);
-    const d = (noise(px / SIZE, py / SIZE) - 0.5) * (p.speckle ?? 8);
+    const px = (i / 4) % S, py = Math.floor(i / 4 / S);
+    const d = (noise(px / S, py / S) - 0.5) * (p.speckle ?? 8);
     img.data[i] += d; img.data[i + 1] += d; img.data[i + 2] += d;
   }
   ctx.putImageData(img, 0, 0);
 }
 
 function genMarble(ctx, bctx, p) {
-  const noise = makeNoise(p.seed, 4, 5);
-  const noise2 = makeNoise(p.seed + 99, 6, 4);
+  // Layered turbulent veining: a couple of bold major veins, a spray of fine
+  // capillaries, a soft colour-bleed halo, over a cloudy translucent base.
+  // All sine terms use integer frequencies so the tile stays seamless-ish.
+  const S = ctx.canvas.width;
+  const nWarp = makeNoise(p.seed, 3, 5);
+  const nWarp2 = makeNoise(p.seed + 41, 5, 4);
+  const nCloud = makeNoise(p.seed + 99, 4, 4);
+  const nCloud2 = makeNoise(p.seed + 71, 3, 4);
+  const nCap = makeNoise(p.seed + 137, 8, 3);
   const base = hexToRgb(p.base), vein = hexToRgb(p.vein), tint = hexToRgb(p.tint);
-  const img = ctx.createImageData(SIZE, SIZE);
-  const bimg = bctx.createImageData(SIZE, SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const u = x / SIZE, v = y / SIZE;
-      const warp = noise(u, v) * 3.5;
-      let s = Math.abs(Math.sin((u * 2.2 + v * 1.1 + warp) * Math.PI * 2));
-      s = Math.pow(1 - s, p.sharp ?? 9); // sharp veins
-      const cloud = noise2(u * 2, v * 2) * 0.4;
-      let col = mix(base, tint, cloud);
-      col = mix(col, vein, Math.min(1, s * (p.veinStrength ?? 0.9)));
-      const idx = (y * SIZE + x) * 4;
+  const drift = mix(base, [0, 0, 0], 0.10);
+  const bleed = mix(vein, tint, 0.5);
+  const sharp = p.sharp ?? 9;
+  const vs = p.veinStrength ?? 0.9;
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S;
+      const w1 = (nWarp(u, v) - 0.5) * 4.2;          // big organic wander
+      const w2 = (nWarp2(u * 1.0, v * 1.0) - 0.5) * 2.2;
+      // cloudy translucent base
+      const cloud = nCloud(u * 2, v * 2);
+      let col = mix(base, tint, cloud * 0.6);
+      col = mix(col, drift, Math.pow(nCloud2(u * 1, v * 1), 2) * 0.28);
+      // major veins (two directions): a sharp core riding a wider soft body
+      const d1 = 1 - Math.abs(Math.sin((u * 2 + v * 1 + w1) * Math.PI));
+      const d2 = 1 - Math.abs(Math.sin((u * 1 - v * 2 + w1 * 0.8 + 0.35) * Math.PI));
+      const core = Math.min(1, Math.pow(d1, sharp) + Math.pow(d2, sharp + 3) * 0.7);
+      const body = Math.min(1, Math.pow(d1, sharp * 0.4) * 0.6 + Math.pow(d2, sharp * 0.4) * 0.4);
+      // capillaries: fine hairlines, tightly gated so they only cluster near veins
+      const gate = Math.max(0, nCap(u * 3, v * 3) - 0.5) * 2;
+      let c1 = Math.pow(1 - Math.abs(Math.sin((u * 5 - v * 3 + w1 * 1.4 + w2) * Math.PI)), 26);
+      let c2 = Math.pow(1 - Math.abs(Math.sin((u * 3 + v * 6 + w2 * 2) * Math.PI)), 30);
+      const cap = Math.min(1, (c1 + c2) * gate);
+      // compose: soft body bleed, hairline capillaries, then the bold vein core
+      col = mix(col, bleed, body * 0.32 * vs);
+      col = mix(col, vein, Math.min(1, cap * 0.5) * vs);
+      col = mix(col, vein, core * vs);
+      const major = core;
+      const idx = (y * S + x) * 4;
       img.data[idx] = col[0]; img.data[idx + 1] = col[1]; img.data[idx + 2] = col[2]; img.data[idx + 3] = 255;
-      const h = 200 - s * 40;
+      const h = 192 - major * 26 - cap * 14 + (cloud - 0.5) * 18;
       bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h; bimg.data[idx + 3] = 255;
     }
   }
@@ -289,88 +370,148 @@ function genMarble(ctx, bctx, p) {
 }
 
 function genBrick(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   const rand = mulberry32(p.seed);
-  const rows = p.rows, bw = SIZE / p.cols, bh = SIZE / rows;
+  const rows = p.rows, bw = S / p.cols, bh = S / rows;
   const mortar = hexToRgb(p.mortar);
   ctx.fillStyle = rgb(mortar);
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  bctx.fillStyle = 'rgb(50,50,50)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillRect(0, 0, S, S);
+  bctx.fillStyle = 'rgb(30,30,30)'; // deeply recessed mortar joint
+  bctx.fillRect(0, 0, S, S);
   const colors = p.colors.map(hexToRgb);
   for (let r = 0; r < rows; r++) {
     const off = (r % 2) * bw / 2;
     for (let c = -1; c < p.cols + 1; c++) {
       const base = colors[Math.floor(rand() * colors.length)];
-      const v = (rand() - 0.5) * 24;
+      const v = (rand() - 0.5) * 28; // stronger per-brick tone spread
       const col = [base[0] + v, base[1] + v, base[2] + v];
       const x = c * bw + off + p.gap, y = r * bh + p.gap;
       const w = bw - p.gap * 2, h = bh - p.gap * 2;
       const grd = ctx.createLinearGradient(x, y, x, y + h);
-      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.08)));
-      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.12)));
+      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.10)));
+      grd.addColorStop(0.5, rgb(col));
+      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.16)));
       ctx.fillStyle = grd;
       ctx.fillRect(x, y, w, h);
+      // weathering blotches — soft light efflorescence + dark damp patches
+      const wr = mulberry32((r * 97 + c * 131 + p.seed) >>> 0);
+      for (let s = 0; s < 3; s++) {
+        const bx = x + wr() * w, by = y + wr() * h, br = 4 + wr() * 14;
+        const st = ctx.createRadialGradient(bx, by, 1, bx, by, br);
+        st.addColorStop(0, wr() < 0.5 ? 'rgba(0,0,0,0.10)' : 'rgba(255,250,240,0.07)');
+        st.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = st;
+        ctx.fillRect(bx - br, by - br, br * 2, br * 2);
+      }
       // pitting
       ctx.fillStyle = 'rgba(0,0,0,0.10)';
-      for (let s = 0; s < 14; s++) {
+      for (let s = 0; s < 16; s++) {
         ctx.fillRect(x + rand() * w, y + rand() * h, 1 + rand() * 2, 1 + rand() * 2);
       }
-      bctx.fillStyle = 'rgb(185,185,185)';
+      // lit top bevel
+      ctx.fillStyle = 'rgba(255,250,240,0.10)';
+      ctx.fillRect(x, y, w, Math.max(1, h * 0.07));
+      // bump: face proud, bottom edge stepped down toward the joint
+      bctx.fillStyle = 'rgb(180,180,180)';
       bctx.fillRect(x, y, w, h);
+      bctx.fillStyle = 'rgba(90,90,90,0.7)';
+      bctx.fillRect(x, y + h - Math.max(1, h * 0.14), w, Math.max(1, h * 0.14));
     }
   }
 }
 
 function genCarpet(ctx, bctx, p) {
-  const noise = makeNoise(p.seed, 32, 3);
-  const noise2 = makeNoise(p.seed + 5, 8, 3);
+  const S = ctx.canvas.width;
+  const rand = mulberry32(p.seed);
+  const fiber = makeNoise(p.seed, 48, 3);      // fine pile fibres
+  const micro = makeNoise(p.seed + 17, 128, 2); // lit fibre tips
+  const patch = makeNoise(p.seed + 5, 6, 3);   // broad tonal patchiness
   const base = hexToRgb(p.base), dark = hexToRgb(p.dark);
-  const img = ctx.createImageData(SIZE, SIZE);
-  const bimg = bctx.createImageData(SIZE, SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const fiber = noise(x / SIZE, y / SIZE);
-      const patch = noise2(x / SIZE, y / SIZE);
-      let col = mix(dark, base, 0.35 + fiber * 0.65);
-      col = mix(col, base, patch * 0.3);
-      const idx = (y * SIZE + x) * 4;
-      img.data[idx] = col[0]; img.data[idx + 1] = col[1]; img.data[idx + 2] = col[2]; img.data[idx + 3] = 255;
-      const h = 120 + fiber * 70;
+  const light = mix(base, [255, 255, 255], 0.28);
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S;
+      const f = fiber(u, v), m = micro(u, v), pt = patch(u, v);
+      let col = mix(dark, base, 0.4 + f * 0.6);
+      col = mix(col, light, Math.pow(m, 2) * 0.4);        // catching-light tips
+      col = mix(col, dark, Math.pow(1 - pt, 2) * 0.22);   // shaded low patches
+      const sheen = Math.sin(v * S * 0.5) * 2;            // faint directional nap
+      const idx = (y * S + x) * 4;
+      img.data[idx] = col[0] + sheen; img.data[idx + 1] = col[1] + sheen; img.data[idx + 2] = col[2] + sheen; img.data[idx + 3] = 255;
+      const h = 105 + f * 85 + m * 40;                    // pile height => real bump
       bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h; bimg.data[idx + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
   bctx.putImageData(bimg, 0, 0);
+  // cut-pile fleck pass: thousands of tiny upright nap strokes
+  ctx.lineCap = 'round';
+  const flecks = Math.round(S * S / 90);
+  for (let i = 0; i < flecks; i++) {
+    const x = rand() * S, y = rand() * S;
+    const c = rand() < 0.5 ? light : dark;
+    ctx.strokeStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${0.14 + rand() * 0.2})`;
+    ctx.lineWidth = 0.6 + rand() * 0.7;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (rand() - 0.5) * 2, y - 1 - rand() * 2);
+    ctx.stroke();
+  }
 }
 
 function genConcrete(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   const noise = makeNoise(p.seed, 6, 5);
   const noise2 = makeNoise(p.seed + 21, 24, 2);
+  const rand = mulberry32(p.seed + 3);
   const base = hexToRgb(p.base);
-  const img = ctx.createImageData(SIZE, SIZE);
-  const bimg = bctx.createImageData(SIZE, SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const large = (noise(x / SIZE, y / SIZE) - 0.5) * 34;
-      const fine = (noise2(x / SIZE, y / SIZE) - 0.5) * 16;
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S;
+      const large = (noise(u, v) - 0.5) * 30;
+      const fine = (noise2(u, v) - 0.5) * 14;
       const col = [base[0] + large + fine, base[1] + large + fine, base[2] + large + fine];
-      const idx = (y * SIZE + x) * 4;
+      const idx = (y * S + x) * 4;
       img.data[idx] = col[0]; img.data[idx + 1] = col[1]; img.data[idx + 2] = col[2]; img.data[idx + 3] = 255;
-      const h = 170 + large * 1.5;
+      const h = 165 + large * 1.3 + fine * 0.8;
       bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h; bimg.data[idx + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
   bctx.putImageData(bimg, 0, 0);
+  // broad soft stains — damp / cure marks that break the flat mottle
+  for (let i = 0; i < 10; i++) {
+    const x = rand() * S, y = rand() * S, r = S * (0.1 + rand() * 0.25);
+    const g = ctx.createRadialGradient(x, y, 1, x, y, r);
+    g.addColorStop(0, rand() < 0.6 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // fine aggregate pin-speckle (sand grains — light quartz + dark flecks)
+  const spk = Math.round(S * S / 40);
+  for (let i = 0; i < spk; i++) {
+    const x = rand() * S, y = rand() * S;
+    const lit = rand() < 0.5;
+    const t = lit ? 22 + rand() * 22 : -(16 + rand() * 20);
+    ctx.fillStyle = `rgba(${base[0] + t | 0},${base[1] + t | 0},${base[2] + t | 0},0.5)`;
+    ctx.fillRect(x, y, 1, 1);
+    const bv = lit ? 195 : 130;
+    bctx.fillStyle = `rgba(${bv},${bv},${bv},0.4)`;
+    bctx.fillRect(x, y, 1, 1);
+  }
   if (p.trowel) {
     ctx.save();
     ctx.globalAlpha = 0.05;
     ctx.strokeStyle = '#ffffff';
-    const rand = mulberry32(p.seed + 2);
     for (let i = 0; i < 24; i++) {
       ctx.lineWidth = 8 + rand() * 30;
       ctx.beginPath();
-      ctx.arc(rand() * SIZE, rand() * SIZE, 60 + rand() * 200, rand() * 7, rand() * 7 + 2);
+      ctx.arc(rand() * S, rand() * S, 60 + rand() * 200, rand() * 7, rand() * 7 + 2);
       ctx.stroke();
     }
     ctx.restore();
@@ -378,48 +519,77 @@ function genConcrete(ctx, bctx, p) {
 }
 
 function genPaint(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   const noise = makeNoise(p.seed ?? 40, 16, 3);
+  const fine = makeNoise((p.seed ?? 40) + 5, 96, 2); // roller orange-peel stipple
   const base = hexToRgb(p.base);
-  const img = ctx.createImageData(SIZE, SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const d = (noise(x / SIZE, y / SIZE) - 0.5) * 9;
-      const idx = (y * SIZE + x) * 4;
-      img.data[idx] = base[0] + d; img.data[idx + 1] = base[1] + d; img.data[idx + 2] = base[2] + d;
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S;
+      const d = (noise(u, v) - 0.5) * 8;
+      const stipple = (fine(u, v) - 0.5) * 5;
+      const idx = (y * S + x) * 4;
+      img.data[idx] = base[0] + d + stipple; img.data[idx + 1] = base[1] + d + stipple; img.data[idx + 2] = base[2] + d + stipple;
       img.data[idx + 3] = 255;
+      const h = 128 + stipple * 3 + (noise(u, v) - 0.5) * 8;
+      bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h; bimg.data[idx + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
-  bctx.fillStyle = 'rgb(128,128,128)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+  bctx.putImageData(bimg, 0, 0);
 }
 
 function genStripes(ctx, bctx, p) {
+  const S = ctx.canvas.width;
   genPaint(ctx, bctx, { base: p.base, seed: p.seed });
   const stripe = hexToRgb(p.stripe);
-  ctx.fillStyle = `rgba(${stripe[0]},${stripe[1]},${stripe[2]},0.85)`;
   const n = p.count ?? 8;
-  const w = SIZE / n;
+  const w = S / n;
   for (let i = 0; i < n; i += 2) {
-    ctx.fillRect(i * w, 0, w, SIZE);
+    // soft-shaded stripe (slightly darker at the edges) reads as printed paper
+    const g = ctx.createLinearGradient(i * w, 0, (i + 1) * w, 0);
+    g.addColorStop(0, `rgba(${stripe[0]},${stripe[1]},${stripe[2]},0.78)`);
+    g.addColorStop(0.5, `rgba(${stripe[0]},${stripe[1]},${stripe[2]},0.92)`);
+    g.addColorStop(1, `rgba(${stripe[0]},${stripe[1]},${stripe[2]},0.78)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(i * w, 0, w, S);
   }
 }
 
 function genFabric(ctx, bctx, p) {
+  // believable woven cloth: interlacing warp/weft threads with thread
+  // highlights and a matching weave bump so raking light catches the nubs
+  const S = ctx.canvas.width;
   const noise = makeNoise(p.seed, 20, 2);
+  const slub = makeNoise(p.seed + 13, 8, 2); // slub / broad tonal variation
   const base = hexToRgb(p.base);
-  const img = ctx.createImageData(SIZE, SIZE);
-  const bimg = bctx.createImageData(SIZE, SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const weave = (Math.sin(x * Math.PI / 2.5) * Math.sin(y * Math.PI / 2.5)) * 10;
-      const n = (noise(x / SIZE, y / SIZE) - 0.5) * 22;
-      const idx = (y * SIZE + x) * 4;
-      img.data[idx] = base[0] + weave + n;
-      img.data[idx + 1] = base[1] + weave + n;
-      img.data[idx + 2] = base[2] + weave + n;
-      img.data[idx + 3] = 255;
-      const h = 128 + weave * 3;
+  const hi = mix(base, [255, 255, 255], 0.22);
+  const lo = mix(base, [0, 0, 0], 0.30);
+  const thread = Math.max(2.2, S / 170); // thread pitch in px
+  const img = ctx.createImageData(S, S);
+  const bimg = bctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S;
+      // rounded thread cross-sections along each axis
+      const wx = Math.sin((x / thread) * Math.PI); // warp bump across x
+      const wy = Math.sin((y / thread) * Math.PI); // weft bump across y
+      // plain-weave interlace: alternate which thread rides on top
+      const cellX = Math.floor(x / thread), cellY = Math.floor(y / thread);
+      const warpUp = (cellX + cellY) % 2 === 0;
+      const over = warpUp ? Math.abs(wx) : Math.abs(wy);
+      const under = warpUp ? Math.abs(wy) : Math.abs(wx);
+      const lit = over * over;          // top thread catches light
+      const shade = (1 - under) * 0.5;  // gap between threads sits in shadow
+      let col = mix(lo, base, 0.55 + slub(u * 2, v * 2) * 0.25);
+      col = mix(col, hi, lit * 0.5);
+      col = mix(col, lo, shade * 0.4);
+      const n = (noise(u, v) - 0.5) * 10;
+      const idx = (y * S + x) * 4;
+      img.data[idx] = col[0] + n; img.data[idx + 1] = col[1] + n; img.data[idx + 2] = col[2] + n; img.data[idx + 3] = 255;
+      const h = 96 + over * 110 - under * 20;
       bimg.data[idx] = bimg.data[idx + 1] = bimg.data[idx + 2] = h; bimg.data[idx + 3] = 255;
     }
   }
@@ -497,131 +667,171 @@ function genGrass(ctx, bctx, p) {
 }
 
 function genSiding(ctx, bctx, p) {
-  // horizontal lap siding: each course shades darker toward its bottom edge
+  // horizontal lap siding: each course shades darker toward its bottom edge,
+  // with a hard drop-shadow line where the next board laps beneath it
+  const S = ctx.canvas.width;
   genPaint(ctx, bctx, { base: p.base, seed: p.seed });
   const rand = mulberry32(p.seed + 3);
   const courses = p.courses ?? 8;
-  const ch = SIZE / courses;
+  const ch = S / courses;
   const base = hexToRgb(p.base);
   for (let i = 0; i < courses; i++) {
     const y = i * ch;
+    const tone = (rand() - 0.5) * 0.06; // faint course-to-course tone variation
+    const bcol = mix(base, tone > 0 ? [255, 255, 255] : [0, 0, 0], Math.abs(tone));
     const grd = ctx.createLinearGradient(0, y, 0, y + ch);
-    grd.addColorStop(0, rgb(mix(base, [255, 255, 255], 0.10)));
-    grd.addColorStop(0.82, rgb(mix(base, [0, 0, 0], 0.04)));
-    grd.addColorStop(1, rgb(mix(base, [0, 0, 0], 0.30)));
+    grd.addColorStop(0, rgb(mix(bcol, [255, 255, 255], 0.11)));
+    grd.addColorStop(0.82, rgb(mix(bcol, [0, 0, 0], 0.04)));
+    grd.addColorStop(1, rgb(mix(bcol, [0, 0, 0], 0.34)));
     ctx.fillStyle = grd;
-    ctx.fillRect(0, y, SIZE, ch);
+    ctx.fillRect(0, y, S, ch);
     // faint wood streaks along each board
     ctx.globalAlpha = 0.05;
     ctx.fillStyle = '#000';
     for (let s = 0; s < 5; s++) {
-      ctx.fillRect(0, y + rand() * ch, SIZE, 1);
+      ctx.fillRect(0, y + rand() * ch, S, 1);
     }
     ctx.globalAlpha = 1;
+    // crisp shadow line at the lap
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(0, y + ch - Math.max(1, ch * 0.04), S, Math.max(1, ch * 0.04));
     const bg = bctx.createLinearGradient(0, y, 0, y + ch);
-    bg.addColorStop(0, 'rgb(185,185,185)');
+    bg.addColorStop(0, 'rgb(190,190,190)');
     bg.addColorStop(0.85, 'rgb(150,150,150)');
-    bg.addColorStop(1, 'rgb(40,40,40)');
+    bg.addColorStop(1, 'rgb(28,28,28)');
     bctx.fillStyle = bg;
-    bctx.fillRect(0, y, SIZE, ch);
+    bctx.fillRect(0, y, S, ch);
   }
 }
 
 function genBoardBatten(ctx, bctx, p) {
   // vertical board-and-batten: wide boards with raised battens over the seams
+  const S = ctx.canvas.width;
   genPaint(ctx, bctx, { base: p.base, seed: p.seed });
   const boards = p.boards ?? 5;
-  const bw = SIZE / boards;
+  const bw = S / boards;
   const base = hexToRgb(p.base);
+  const rand = mulberry32(p.seed + 4);
   bctx.fillStyle = 'rgb(150,150,150)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+  bctx.fillRect(0, 0, S, S);
+  // faint per-board tone variation across the field
+  for (let i = 0; i < boards; i++) {
+    const tone = (rand() - 0.5) * 0.05;
+    ctx.fillStyle = `rgba(${tone > 0 ? 255 : 0},${tone > 0 ? 255 : 0},${tone > 0 ? 255 : 0},${Math.abs(tone)})`;
+    ctx.fillRect(i * bw, 0, bw, S);
+  }
   for (let i = 0; i < boards; i++) {
     const x = i * bw;
-    // seam shading
-    ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.18));
-    ctx.fillRect(x - 2, 0, 4, SIZE);
-    // batten strip with side highlights
+    // recessed seam shadow between boards
+    ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.24));
+    ctx.fillRect(x - 2, 0, 4, S);
+    // raised batten strip with lit face + shaded sides
     const batW = bw * 0.16;
-    ctx.fillStyle = rgb(mix(base, [255, 255, 255], 0.07));
-    ctx.fillRect(x - batW / 2, 0, batW, SIZE);
-    ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.22));
-    ctx.fillRect(x - batW / 2, 0, 1.5, SIZE);
-    ctx.fillRect(x + batW / 2 - 1.5, 0, 1.5, SIZE);
-    bctx.fillStyle = 'rgb(215,215,215)';
-    bctx.fillRect(x - batW / 2, 0, batW, SIZE);
+    ctx.fillStyle = rgb(mix(base, [255, 255, 255], 0.09));
+    ctx.fillRect(x - batW / 2, 0, batW, S);
+    ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.26));
+    ctx.fillRect(x - batW / 2, 0, 1.5, S);
+    ctx.fillRect(x + batW / 2 - 1.5, 0, 1.5, S);
+    bctx.fillStyle = 'rgb(30,30,30)';
+    bctx.fillRect(x - 2, 0, 4, S);
+    bctx.fillStyle = 'rgb(222,222,222)';
+    bctx.fillRect(x - batW / 2, 0, batW, S);
   }
 }
 
 function genShingles(ctx, bctx, p) {
-  // staggered asphalt shingle courses with per-tab tone variation
+  // staggered asphalt shingle courses with per-tab tone variation, a strong
+  // butt-shadow where each course overhangs the one below, and granule speckle
+  const S = ctx.canvas.width;
   const rand = mulberry32(p.seed);
   const rows = p.rows ?? 10, tabs = p.tabs ?? 7;
-  const rh = SIZE / rows, tw = SIZE / tabs;
+  const rh = S / rows, tw = S / tabs;
   const base = hexToRgb(p.base);
   ctx.fillStyle = rgb(mix(base, [0, 0, 0], 0.45));
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  bctx.fillStyle = 'rgb(60,60,60)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillRect(0, 0, S, S);
+  bctx.fillStyle = 'rgb(50,50,50)';
+  bctx.fillRect(0, 0, S, S);
   for (let r = 0; r < rows; r++) {
     const off = (r % 2) * tw / 2;
     for (let t = -1; t < tabs + 1; t++) {
-      const v = (rand() - 0.5) * 30;
+      const v = (rand() - 0.5) * 32; // stronger per-tab colour spread
       const col = [base[0] + v, base[1] + v, base[2] + v];
       const x = t * tw + off + 1.5, y = r * rh;
       const grd = ctx.createLinearGradient(0, y, 0, y + rh);
-      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.05)));
-      grd.addColorStop(0.85, rgb(col));
-      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.4)));
+      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.06)));
+      grd.addColorStop(0.82, rgb(col));
+      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.45)));
       ctx.fillStyle = grd;
       ctx.fillRect(x, y, tw - 3, rh - 1.5);
-      // granule speckle
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      for (let s = 0; s < 26; s++) {
+      // keyway gap between tabs (dark slot)
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(x - 1.5, y, 1.6, rh - 1.5);
+      // granule speckle (light + dark grains)
+      for (let s = 0; s < 30; s++) {
+        const lit = rand() < 0.5;
+        ctx.fillStyle = lit ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.10)';
         ctx.fillRect(x + rand() * (tw - 3), y + rand() * rh, 1, 1);
       }
-      bctx.fillStyle = 'rgb(170,170,170)';
+      bctx.fillStyle = 'rgb(175,175,175)';
       bctx.fillRect(x, y, tw - 3, rh - 1.5);
     }
+    // drop-shadow cast by this course's butt edge onto the course below
+    const sy = (r + 1) * rh;
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    ctx.fillRect(0, sy - Math.max(1.5, rh * 0.09), S, Math.max(1.5, rh * 0.09));
+    bctx.fillStyle = 'rgb(30,30,30)';
+    bctx.fillRect(0, sy - Math.max(1.5, rh * 0.07), S, Math.max(1.5, rh * 0.07));
   }
 }
 
 function genStone(ctx, bctx, p) {
-  // irregular stacked stone veneer on a mortar bed
+  // irregular stacked stone veneer on a deeply-recessed mortar bed
+  const S = ctx.canvas.width;
   const rand = mulberry32(p.seed);
   const mortar = hexToRgb(p.mortar || '#8f887c');
-  ctx.fillStyle = rgb(mortar);
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  bctx.fillStyle = 'rgb(55,55,55)';
-  bctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillStyle = rgb(mix(mortar, [0, 0, 0], 0.12));
+  ctx.fillRect(0, 0, S, S);
+  bctx.fillStyle = 'rgb(34,34,34)';
+  bctx.fillRect(0, 0, S, S);
   const colors = (p.colors || ['#a89c88', '#918776', '#b5a996', '#7e7669']).map(hexToRgb);
   const rows = p.rows ?? 6;
-  const rh = SIZE / rows;
+  const rh = S / rows;
+  const sc = S / 512; // keep stone sizes proportional at any res
   for (let r = 0; r < rows; r++) {
-    let x = -rand() * 40;
-    while (x < SIZE) {
-      const w = 50 + rand() * 90;
+    let x = -rand() * 40 * sc;
+    while (x < S) {
+      const w = (50 + rand() * 90) * sc;
       const h = rh * (0.82 + rand() * 0.14);
       const y = r * rh + rh * 0.06;
       const base = colors[Math.floor(rand() * colors.length)];
-      const v = (rand() - 0.5) * 20;
-      const col = [base[0] + v, base[1] + v, base[2] + v];
+      const v = (rand() - 0.5) * 26; // stronger per-stone tone spread
+      const weather = rand() < 0.25 ? -10 : 0; // occasional darker weathered stone
+      const col = [base[0] + v + weather, base[1] + v + weather, base[2] + v + weather];
       const grd = ctx.createLinearGradient(x, y, x, y + h);
-      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.12)));
-      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.16)));
+      grd.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.14)));
+      grd.addColorStop(1, rgb(mix(col, [0, 0, 0], 0.20)));
       ctx.fillStyle = grd;
-      // rounded, slightly irregular block
-      const rr = 6 + rand() * 6;
+      const rr = (6 + rand() * 6) * sc;
       ctx.beginPath();
-      ctx.roundRect(x, y, w - 5, h, rr);
+      ctx.roundRect(x, y, w - 5 * sc, h, rr);
       ctx.fill();
+      // contact shadow under each stone (drops into the mortar)
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x, y + h - 2 * sc, w - 5 * sc, 2.5 * sc);
+      // lit top edge
+      ctx.fillStyle = 'rgba(255,250,240,0.12)';
+      ctx.fillRect(x + 2 * sc, y + 1 * sc, w - 9 * sc, 1.6 * sc);
+      // speckle / mineral flecks
       ctx.fillStyle = 'rgba(0,0,0,0.08)';
       for (let s = 0; s < 10; s++) {
         ctx.fillRect(x + rand() * w, y + rand() * h, 1.5, 1.5);
       }
       bctx.beginPath();
-      bctx.roundRect(x, y, w - 5, h, rr);
-      bctx.fillStyle = 'rgb(190,190,190)';
+      bctx.roundRect(x, y, w - 5 * sc, h, rr);
+      bctx.fillStyle = 'rgb(195,195,195)';
       bctx.fill();
+      bctx.fillStyle = 'rgba(80,80,80,0.7)';
+      bctx.fillRect(x, y + h - 2 * sc, w - 5 * sc, 2.5 * sc);
       x += w;
     }
   }
@@ -752,11 +962,11 @@ const GENERATORS = {
 
 export const MATERIALS = [
   // Wood floors
-  { id: 'oak', group: 'Wood', name: 'Oak', use: 'floor', gen: 'wood', scale: 240, rough: 0.62, params: { seed: 11, base: '#b58a5c', dark: '#8a6238', light: '#d9b384', planks: 6 } },
-  { id: 'walnut', group: 'Wood', name: 'Walnut', use: 'floor', gen: 'wood', scale: 240, rough: 0.55, params: { seed: 23, base: '#6e4a30', dark: '#452b18', light: '#96693f', planks: 6 } },
+  { id: 'oak', group: 'Wood', name: 'Oak', use: 'floor', gen: 'wood', scale: 240, rough: 0.62, res: 1024, params: { seed: 11, base: '#b58a5c', dark: '#8a6238', light: '#d9b384', planks: 6 } },
+  { id: 'walnut', group: 'Wood', name: 'Walnut', use: 'floor', gen: 'wood', scale: 240, rough: 0.55, res: 1024, params: { seed: 23, base: '#6e4a30', dark: '#452b18', light: '#96693f', planks: 6 } },
   { id: 'ash_gray', group: 'Wood', name: 'Ash Grey', use: 'floor', gen: 'wood', scale: 240, rough: 0.66, params: { seed: 31, base: '#a89a8a', dark: '#7d7264', light: '#cfc2b0', planks: 6 } },
   { id: 'honey_pine', group: 'Wood', name: 'Honey Pine', use: 'floor', gen: 'wood', scale: 240, rough: 0.6, params: { seed: 47, base: '#c99a5f', dark: '#9c7038', light: '#e8c288', planks: 8 } },
-  { id: 'parquet', group: 'Wood', name: 'Herringbone', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.5, params: { seed: 13, base: '#a97e4f', dark: '#7c5a33', light: '#cfa76f' } },
+  { id: 'parquet', group: 'Wood', name: 'Herringbone', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.5, res: 1024, params: { seed: 13, base: '#a97e4f', dark: '#7c5a33', light: '#cfa76f' } },
   { id: 'chevron_blond', group: 'Wood', name: 'Chevron Blond', use: 'floor', gen: 'herringbone', scale: 180, rough: 0.45, params: { seed: 17, base: '#c8a878', dark: '#a08252', light: '#e8cba0' } },
   { id: 'maple', group: 'Wood', name: 'Natural Maple', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 101, base: '#d9bc94', dark: '#b6976e', light: '#efd9b8', planks: 6 } },
   { id: 'cherry', group: 'Wood', name: 'Cherry', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 103, base: '#9c5a3c', dark: '#6e3a24', light: '#c07c56', planks: 6 } },
@@ -764,16 +974,16 @@ export const MATERIALS = [
   { id: 'espresso', group: 'Wood', name: 'Espresso', use: 'floor', gen: 'wood', scale: 240, rough: 0.45, params: { seed: 107, base: '#4a352a', dark: '#2e1f16', light: '#6a4f3e', planks: 6 } },
   { id: 'teak', group: 'Wood', name: 'Golden Teak', use: 'floor', gen: 'wood', scale: 240, rough: 0.5, params: { seed: 109, base: '#b08347', dark: '#825c2c', light: '#d8a968', planks: 7 } },
   { id: 'whitewash', group: 'Wood', name: 'Whitewashed', use: 'floor', gen: 'wood', scale: 240, rough: 0.6, params: { seed: 111, base: '#ddd2c2', dark: '#b3a894', light: '#f2ebdf', planks: 5 } },
-  { id: 'wide_oak', group: 'Wood', name: 'Wide Plank Oak', use: 'floor', gen: 'wood', scale: 300, rough: 0.55, params: { seed: 113, base: '#b08a5e', dark: '#84643e', light: '#d6b184', planks: 4 } },
+  { id: 'wide_oak', group: 'Wood', name: 'Wide Plank Oak', use: 'floor', gen: 'wood', scale: 300, rough: 0.55, res: 1024, params: { seed: 113, base: '#b08a5e', dark: '#84643e', light: '#d6b184', planks: 4 } },
   { id: 'barnwood', group: 'Wood', name: 'Barnwood', use: 'floor', gen: 'wood', scale: 300, rough: 0.8, params: { seed: 115, base: '#8a7a68', dark: '#5c5040', light: '#b0a28c', planks: 4 } },
   // Stone / tile floors
-  { id: 'tile_white', group: 'Stone & Tile', name: 'Porcelain White', use: 'floor', gen: 'tiles', scale: 120, rough: 0.25, params: { seed: 5, count: 2, gap: 3, grout: '#b9b6ae', colors: ['#e8e6e0'], variation: 8 } },
+  { id: 'tile_white', group: 'Stone & Tile', name: 'Porcelain White', use: 'floor', gen: 'tiles', scale: 120, rough: 0.25, res: 1024, params: { seed: 5, count: 2, gap: 3, grout: '#b9b6ae', colors: ['#e8e6e0'], variation: 8 } },
   { id: 'tile_gray', group: 'Stone & Tile', name: 'Slate Grey', use: 'floor', gen: 'tiles', scale: 120, rough: 0.4, params: { seed: 9, count: 2, gap: 3, grout: '#77746e', colors: ['#9a978f', '#8b8880'], variation: 12 } },
   { id: 'tile_beige', group: 'Stone & Tile', name: 'Travertine', use: 'floor', gen: 'tiles', scale: 120, rough: 0.45, params: { seed: 15, count: 2, gap: 3, grout: '#a99e8c', colors: ['#d6c9b2', '#cbbda4'], variation: 10 } },
   { id: 'tile_checker', group: 'Stone & Tile', name: 'Marble Checker', use: 'floor', gen: 'tiles', scale: 120, rough: 0.2, params: { seed: 19, count: 4, gap: 2, grout: '#888888', colors: ['#e9e7e3', '#3a3c40'], checker: true, marbled: true } },
-  { id: 'marble_white', group: 'Stone & Tile', name: 'Calacatta Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.15, params: { seed: 3, base: '#eceae6', tint: '#dcd8d2', vein: '#9aa0a8', sharp: 10, veinStrength: 0.8 } },
-  { id: 'marble_dark', group: 'Stone & Tile', name: 'Nero Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.18, params: { seed: 8, base: '#2b2d31', tint: '#3a3d43', vein: '#c9c4ba', sharp: 12, veinStrength: 0.85 } },
-  { id: 'concrete_floor', group: 'Stone & Tile', name: 'Polished Concrete', use: 'floor', gen: 'concrete', scale: 300, rough: 0.35, params: { seed: 27, base: '#a3a19c', trowel: true } },
+  { id: 'marble_white', group: 'Stone & Tile', name: 'Calacatta Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.15, res: 1024, params: { seed: 3, base: '#eceae6', tint: '#dcd8d2', vein: '#9aa0a8', sharp: 10, veinStrength: 0.8 } },
+  { id: 'marble_dark', group: 'Stone & Tile', name: 'Nero Marble', use: 'floor', gen: 'marble', scale: 260, rough: 0.18, res: 1024, params: { seed: 8, base: '#2b2d31', tint: '#3a3d43', vein: '#c9c4ba', sharp: 12, veinStrength: 0.85 } },
+  { id: 'concrete_floor', group: 'Stone & Tile', name: 'Polished Concrete', use: 'floor', gen: 'concrete', scale: 300, rough: 0.35, res: 1024, params: { seed: 27, base: '#a3a19c', trowel: true } },
   // Carpets
   { id: 'carpet_beige', group: 'Carpet', name: 'Wool Beige', use: 'floor', gen: 'carpet', scale: 100, rough: 0.95, params: { seed: 33, base: '#cdbfa5', dark: '#a3947a' } },
   { id: 'carpet_gray', group: 'Carpet', name: 'Loop Grey', use: 'floor', gen: 'carpet', scale: 100, rough: 0.95, params: { seed: 37, base: '#9c9ca0', dark: '#71716f' } },
