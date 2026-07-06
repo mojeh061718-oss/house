@@ -1582,19 +1582,19 @@ export const ITEMS = [
   },
   {
     id: 'path_sidewalk', name: 'Sidewalk', cat: 'outdoor', w: 240, d: 120, h: 5, noShadow: true,
-    palettes: null, plan: { type: 'path' }, path: { mat: 'pavement', width: 120 },
+    palettes: null, plan: { type: 'path' }, path: { mat: 'concrete_broom', width: 120 },
     build: () => {
       const g = G();
-      box(g, tex('pavement', 1.2, 0.6), 240, 5, 120, 0, 0, 0);
+      box(g, tex('concrete_broom', 1.6, 0.8), 240, 5, 120, 0, 0, 0);
       return g;
     }
   },
   {
     id: 'path_driveway', name: 'Driveway', cat: 'outdoor', w: 300, d: 280, h: 4, noShadow: true,
-    palettes: null, plan: { type: 'path' }, path: { mat: 'counter_dark', width: 280 },
+    palettes: null, plan: { type: 'path' }, path: { mat: 'asphalt', width: 280 },
     build: () => {
       const g = G();
-      box(g, tex('counter_dark', 1.5, 1.4), 300, 4, 280, 0, 0, 0);
+      box(g, tex('asphalt', 0.95, 0.9), 300, 4, 280, 0, 0, 0);
       return g;
     }
   },
@@ -2902,8 +2902,8 @@ export const ITEMS = [
     build: () => {
       const g = G();
       const wh = solid('#f4f2ee', 0.25);
-      sphere(g, wh, 84, 0, 42, 0, { sy: 0.62, seg: 26 });
-      const wt = sphere(g, water(), 76, 0, 47, 0, { sy: 0.12, seg: 24 });
+      sphere(g, wh, 84, 0, 30, 0, { sy: 0.36, seg: 26 });
+      const wt = sphere(g, water(), 76, 0, 50, 0, { sy: 0.12, seg: 24 });
       wt.receiveShadow = true;
       cyl(g, chrome(), 2.2, 60, 70, 0, -26);
       cyl(g, chrome(), 2, 24, 70, 58, -32, { rx: Math.PI / 2 });

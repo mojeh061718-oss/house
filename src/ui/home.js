@@ -106,16 +106,37 @@ export class Home {
     migrateLegacy();
   }
 
-  showSplash() {
+  /** Start the splash animation NOW. Called at boot, independent of storage,
+   *  so the build-the-house sequence begins the instant the web view is on
+   *  screen (an installed iOS PWA shows a native launch image first; the CSS
+   *  animations are held at frame 0 via `#splash:not(.play)` until this fires,
+   *  so none of the sequence is consumed behind that launch image). */
+  beginSplash() {
     const el = $('#splash');
-    el.classList.remove('hidden', 'fade-out');
-    // hold long enough for the build-the-house title sequence to finish
+    if (!el) return;
+    el.classList.remove('hidden', 'fade-out', 'play');
+    void el.offsetWidth;          // reflow so `.play` is a fresh animation start
+    el.classList.add('play');
+    this._splashStart = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now() : Date.now();
+  }
+
+  /** Fade the splash out and reveal the home screen, but only after the title
+   *  sequence has had its full time on screen (measured from beginSplash, so a
+   *  slow storage init can't shorten it, and a fast one can't drag it out). */
+  endSplash() {
+    const el = $('#splash');
+    if (!el) { this.show(); return; }
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const hold = reduce ? 2600 : 2850; // reduced-motion still draws the house
+    const now = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now() : Date.now();
+    const wait = Math.max(0, hold - (now - (this._splashStart ?? now)));
     setTimeout(() => {
       el.classList.add('fade-out');
       setTimeout(() => el.classList.add('hidden'), 520);
       this.show();
-    }, reduce ? 900 : 2850);
+    }, wait);
   }
 
   show() {

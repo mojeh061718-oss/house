@@ -10,7 +10,7 @@ import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
-import { fmtLen, fmtArea, fmtAngle } from '../core/units.js';
+import { fmtLen, fmtArea, fmtAngle, unitSystem } from '../core/units.js';
 import { snapPose, createPathItem, shapePolyline, anchorWallItem, reanchorWallItems } from '../core/placement.js';
 
 const GRID = 10;            // snap grid (cm)
@@ -1498,7 +1498,13 @@ export class Editor2D {
   drawMeasure(ctx) {
     const mz = this.measure;
     if (!mz?.pts?.length) return;
-    const pts = mz.cur ? [...mz.pts, mz.cur] : mz.pts;
+    // Only show the live "rubber-band" leg when the cursor has actually moved
+    // off the last vertex. On touch there's no hover between taps, so `cur`
+    // sits exactly on the last tapped point — appending it would draw a
+    // phantom zero-length leg labelled 0" 0°.
+    const lastPt = mz.pts[mz.pts.length - 1];
+    const showCur = mz.cur && (!lastPt || dist(lastPt.x, lastPt.y, mz.cur.x, mz.cur.y) > 1);
+    const pts = showCur ? [...mz.pts, mz.cur] : mz.pts;
     ctx.save();
     ctx.strokeStyle = '#e8873b'; ctx.fillStyle = '#e8873b'; ctx.lineWidth = 1.75;
     ctx.setLineDash([7, 4]);
@@ -1609,6 +1615,13 @@ export class Editor2D {
     } else if (sel?.kind === 'opening') {
       const o = store.opening(sel.id); const w = o && store.wall(o.wallId);
       if (!w) return null; pts.push(wallPoint(w, o.t));
+    } else if (sel?.kind === 'dim') {
+      // box the drawn dimension line (offset off the geometry) so the delete
+      // badge floats on the pill the user sees — the only touch delete path
+      const d = store.dim(sel.id); if (!d) return null;
+      const dx = d.bx - d.ax, dy = d.by - d.ay, len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len, off = d.off ?? 40;
+      pts.push({ x: d.ax + nx * off, y: d.ay + ny * off }, { x: d.bx + nx * off, y: d.by + ny * off });
     } else return null;
     if (!pts.length) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -2157,10 +2170,12 @@ export class Editor2D {
   drawRulers(ctx, W, H) {
     const view = this.view;
     const px = 1 / view.scale;
-    // whole-feet label spacing, ticks kept ~60px apart on screen
-    const FT = 30.48;
-    const steps = [1, 2, 5, 10, 20, 50, 100, 200].map(f => f * FT);
-    const step = steps.find(s => s * view.scale >= 56) ?? 500 * FT;
+    const metric = unitSystem() === 'metric';
+    // label spacing in the active unit; ticks kept ~56px apart on screen
+    const UNIT = metric ? 100 : 30.48; // one metre or one foot, in cm
+    const mults = metric ? [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100] : [1, 2, 5, 10, 20, 50, 100, 200];
+    const steps = mults.map(f => f * UNIT);
+    const step = steps.find(s => s * view.scale >= 56) ?? steps[steps.length - 1];
     const left = view.x - (W / 2) * px, right = view.x + (W / 2) * px;
     const top = view.y - (H / 2) * px, bottom = view.y + (H / 2) * px;
     // measure from the plan's top-left corner so the numbers read as
@@ -2174,8 +2189,10 @@ export class Editor2D {
         oy = Math.min(oy, w.ay, w.by);
       }
     }
-    // labels land on whole feet (5', 10', …) measured from the house corner
-    const label = v => `${Math.round(v / FT)}'`;
+    // labels measured from the house corner: whole feet (5', 10', …) or metres
+    const label = metric
+      ? v => `${+(v / 100).toFixed(2)} m`
+      : v => `${Math.round(v / 30.48)}'`;
 
     ctx.fillStyle = 'rgba(238,240,242,0.9)';
     ctx.fillRect(0, 0, W, 18);
@@ -2213,7 +2230,9 @@ export class Editor2D {
 
     // scale chip: how big one grid square currently is
     const gstep = view.scale > 0.5 ? 20 : view.scale > 0.18 ? 100 : 500;
-    const sq = gstep === 20 ? '8 in' : gstep === 100 ? '3.3 ft' : '16.4 ft';
+    const sq = metric
+      ? (gstep === 20 ? '20 cm' : gstep === 100 ? '1 m' : '5 m')
+      : (gstep === 20 ? '8 in' : gstep === 100 ? '3.3 ft' : '16.4 ft');
     const text = `1 square = ${sq}`;
     ctx.font = '600 10.5px system-ui, sans-serif';
     const tw = ctx.measureText(text).width;

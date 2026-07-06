@@ -323,12 +323,14 @@ export const LOUNGE_ITEMS = [
         box(g, wd, 8, 10, 96, s * 90, 178, 0);
       }
       box(g, wd, 200, 10, 10, 0, 182, 0, { r: 3 });          // top beam
-      for (const s of [-1, 1]) { cyl(g, ch, 1, 76, s * 58, 106, 26); cyl(g, ch, 1, 76, s * 58, 106, -26); }
-      box(g, wd, 130, 6, 60, 0, 100, 0, { r: 3 });           // seat
-      box(g, wd, 130, 50, 6, 0, 106, -27, { r: 3, rx: -0.12 }); // back
-      for (const s of [-1, 1]) box(g, wd, 6, 26, 60, s * 62, 106, 0, { r: 3 }); // arms
-      box(g, fab, 120, 10, 54, 0, 106, 2, { r: 6 });         // seat cushion
-      box(g, fab, 120, 40, 10, 0, 112, -24, { r: 6, rx: -0.12 }); // back cushion
+      // hanging bench at chair height (~46cm) — chains run the beam down to it
+      const SEAT = 46;
+      for (const s of [-1, 1]) for (const z of [26, -26]) cyl(g, ch, 1, 182 - (SEAT + 4), s * 58, SEAT + 4, z);
+      box(g, wd, 130, 6, 60, 0, SEAT, 0, { r: 3 });          // seat
+      box(g, wd, 130, 52, 6, 0, SEAT + 6, -27, { r: 3, rx: -0.12 }); // back
+      for (const s of [-1, 1]) box(g, wd, 6, 26, 60, s * 62, SEAT + 6, 0, { r: 3 }); // arms
+      box(g, fab, 120, 10, 54, 0, SEAT + 6, 2, { r: 6 });    // seat cushion
+      box(g, fab, 120, 40, 10, 0, SEAT + 12, -24, { r: 6, rx: -0.12 }); // back cushion
       return g;
     }
   },

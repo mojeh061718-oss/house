@@ -42,9 +42,11 @@ const ui = new UI(store, editor, viewer, async () => {
 // warn (never silently delete) if a save is ever rejected for lack of space
 setStorageFullHandler(() => ui.toast('Storage is full — back up & remove old projects'));
 
-// load durable storage (IndexedDB, migrating any old localStorage data) before
-// the home screen reads projects, then reveal the splash
-initStorage().finally(() => home.showSplash());
+// Start the splash animation immediately (not gated on storage), then load
+// durable storage in parallel; once it's ready — and the splash has had its
+// full time on screen — fade to the home screen.
+home.beginSplash();
+initStorage().finally(() => home.endSplash());
 
 // keep our projects out of eviction; iOS grants this to installed home-screen
 // apps. Retry on the first interaction, which some browsers require.
@@ -87,7 +89,9 @@ import('./core/autoroof.js').then(m => {
 });
 import('./core/textures.js').then(m => {
   window.homestudio.MATERIALS = m.MATERIALS;
+  window.homestudio.getTextureCanvases = m.getTextureCanvases;
 });
+import('three').then(m => { window.homestudio.THREE = m; });
 
 // PWA: register the service worker in production builds. The version in the
 // URL makes every release a "new" worker so the browser installs it and the
