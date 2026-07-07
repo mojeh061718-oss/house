@@ -13,12 +13,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Honeycutt"/>
-  <script type="module" crossorigin src="./assets/index-B7g19Clp.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-Bj9wQnes.css">
+  <script type="module" crossorigin src="./assets/index-BwVFs4ZI.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BDKivIMT.css">
 </head>
 <body>
-  <div id="app">
-    <div id="splash">
+  <div id="splash">
       <div class="splash-bg" aria-hidden="true">
         <svg class="splash-hex" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
           <polygon class="hex h1" points="60,20 95,40 95,80 60,100 25,80 25,40"/>
@@ -67,6 +66,27 @@
         <span class="splash-ver">Version 3.0</span>
       </div>
     </div>
+    <script>
+      // Splash timing + failsafe. The animations auto-play from CSS (no JS
+      // needed), so mark when the page started so the app can hold the splash
+      // for its full run measured from here, not from whenever the module boots.
+      window.__splashT0 = Date.now();
+      // If the home screen never appears, the app module failed to boot (e.g. a
+      // stale cached index.html pointing at a JS bundle a newer deploy already
+      // purged → 404). Surface a reload button instead of a dead splash.
+      setTimeout(function () {
+        var home = document.getElementById('home');
+        if ((home && !home.classList.contains('hidden')) || document.getElementById('splash-recover')) return;
+        var s = document.getElementById('splash');
+        if (!s) return;
+        var d = document.createElement('div');
+        d.id = 'splash-recover';
+        d.style.cssText = 'position:absolute;left:0;right:0;bottom:5%;text-align:center;z-index:3;font:600 13px system-ui,sans-serif';
+        d.innerHTML = '<button onclick="location.reload(true)" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:10px 22px;font:inherit">Tap to reload</button>';
+        s.appendChild(d);
+      }, 9000);
+    </script>
+  <div id="app">
     <div id="home" class="hidden"></div>
     <div id="studio" class="hidden">
       <header id="topbar"></header>
