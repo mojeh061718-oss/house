@@ -10,6 +10,12 @@ import pkg from '../package.json';
 
 initOrientation();
 
+// show the current version on the logo screen as early as possible
+{
+  const verEl = document.getElementById('splashVer');
+  if (verEl) verEl.textContent = 'v' + pkg.version;
+}
+
 const store = new Store();
 const editor = new Editor2D(document.getElementById('plan'), store);
 const viewer = new Viewer3D(document.getElementById('view3d'), store);

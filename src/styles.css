@@ -89,133 +89,50 @@ canvas { display: block; }
 }
 #splash.fade-out { opacity: 0; pointer-events: none; }
 
-/* The splash animations AUTO-PLAY (plain CSS, from first paint) rather than
-   being held paused until JS toggles a `.play` class. The pause→resume gate
-   was fragile on iOS — a paused animation resumed by a class change could jump
-   straight to its end state (logo "pops in" with no draw), and if JS never ran
-   the splash sat blank. Auto-playing is predictable and needs no JS. */
-
-/* drifting honeycomb — a faint nod to "Honeycutt" */
-.splash-bg { position: absolute; inset: 0; pointer-events: none; }
-.splash-hex { position: absolute; inset: -8% ; width: 116%; height: 116%; opacity: 0.5; }
-.splash-hex .hex {
-  fill: none; stroke: #4a6ea8; stroke-width: 1.1; opacity: 0;
-  animation: hex-float 9s ease-in-out infinite;
+/* A simple, always-visible logo shown while the app loads, then it fades to the
+   home screen. No draw animation — that was fragile on iOS (it could leave the
+   screen blank or pop straight to the end). Just a static logo + a small spinner. */
+.splash-inner { text-align: center; padding: 0 24px; }
+.splash-logo {
+  width: min(46vw, 188px);
+  height: auto;
+  display: block;
+  margin: 0 auto 22px;
+  filter: drop-shadow(0 6px 22px rgba(120, 170, 255, 0.16));
 }
-.splash-hex .h1 { animation-delay: 0.1s; }
-.splash-hex .h2 { animation-delay: 1.3s; }
-.splash-hex .h3 { animation-delay: 0.7s; }
-.splash-hex .h4 { animation-delay: 2.0s; }
-@keyframes hex-float {
-  0% { opacity: 0; transform: translateY(10px); }
-  30% { opacity: 0.28; }
-  60% { opacity: 0.16; }
-  100% { opacity: 0; transform: translateY(-14px); }
-}
-
-.splash-stage {
-  position: relative;
-  width: min(74vw, 340px);
-  /* NB: no drop-shadow filter on this element. It wraps the animating house
-     SVG, and on iOS Safari a filter on the ancestor rasterises the subtree
-     once and never repaints — freezing the stroke-draw so the house never
-     animates in. Depth comes from the warm glow instead. */
-  animation: stage-settle 1s cubic-bezier(.2,.7,.2,1) both;
-}
-@keyframes stage-settle {
-  from { transform: translateY(10px); opacity: 0; }
-  to { transform: none; opacity: 1; }
-}
-.splash-glow {
-  position: absolute; left: 50%; top: 46%; width: 74%; aspect-ratio: 1;
-  transform: translate(-50%, -50%) scale(0.6); border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,196,110,0.5) 0%, rgba(255,168,80,0.18) 34%, transparent 66%);
-  opacity: 0; filter: blur(6px);
-  animation: glow-bloom 1.7s ease-out 1.05s forwards;
-}
-@keyframes glow-bloom {
-  0% { opacity: 0; transform: translate(-50%,-50%) scale(0.55); }
-  55% { opacity: 1; }
-  100% { opacity: 0.82; transform: translate(-50%,-50%) scale(1.05); }
-}
-
-.splash-house { position: relative; width: 100%; display: block; overflow: visible; }
-.sh-draw {
-  fill: none;
-  stroke: #9cc0ff;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  /* NB: no drop-shadow filter here — on iOS an animated filter on a stroke can
-     suppress the dash-draw animation entirely. The glow lives on the stage. */
-}
-@keyframes sh-draw { to { stroke-dashoffset: 0; } }
-.sh-walls { animation: sh-draw 0.85s ease-out 0.25s forwards; }
-.sh-roof  { animation: sh-draw 0.8s ease-out 0.45s forwards; stroke: #b9d2ff; }
-.sh-door  { animation: sh-draw 0.45s ease-out 1.05s forwards; }
-.sh-win   { animation: sh-draw 0.5s ease-out 1.1s forwards; }
-.sh-win2  { animation-delay: 1.22s; }
-
-/* warm glass fills after the frames are drawn */
-.sh-glass { fill: #ffcf85; opacity: 0; }
-.sh-glass  { animation: glass-on 0.7s ease-out 1.55s forwards; }
-.sh-glass2 { animation-delay: 1.68s; }
-@keyframes glass-on { from { opacity: 0; } to { opacity: 0.92; } }
-.sh-lightwash { opacity: 0; transform-origin: center; animation: wash-on 1.2s ease-out 1.5s forwards; }
-@keyframes wash-on { from { opacity: 0; } to { opacity: 1; } }
-
-/* CAD dimension line — the "precision" signature */
-.sh-dimline { stroke: #e6b45c; stroke-width: 1.6; animation: sh-draw 0.6s ease-out 1.2s forwards; }
-.sh-tick, .sh-arrow { stroke: #e6b45c; stroke-width: 1.6; stroke-linecap: round; fill: none; opacity: 0; animation: tick-on 0.4s ease-out 1.62s forwards; }
-@keyframes tick-on { to { opacity: 0.95; } }
-
-.splash-word { position: absolute; left: 0; right: 0; bottom: 12%; text-align: center; }
 #splash h1 {
-  font-size: clamp(21px, 6.4vw, 30px);
+  font-size: clamp(20px, 6vw, 30px);
   font-weight: 400;
   letter-spacing: 0.3px;
   color: #eef2f8;
-  opacity: 0; transform: translateY(12px);
-  animation: word-rise 0.8s cubic-bezier(.2,.7,.2,1) 1.15s forwards;
 }
 #splash h1 b { font-weight: 800; color: #f0c274; }
-.splash-rule {
-  display: block; height: 2px; width: 0; margin: 12px auto 0;
-  background: linear-gradient(90deg, transparent, #e6b45c, transparent);
-  animation: rule-draw 0.8s ease-out 1.55s forwards;
+
+.splash-spinner {
+  width: 26px; height: 26px; margin: 26px auto 0;
+  border: 2.5px solid rgba(156, 192, 255, 0.22);
+  border-top-color: #9cc0ff;
+  border-radius: 50%;
+  animation: splash-spin 0.8s linear infinite;
 }
-@keyframes rule-draw { to { width: min(58%, 240px); } }
-#splash p {
-  margin-top: 12px;
-  color: #9fb0c8;
-  font-size: clamp(10px, 3vw, 13px);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  opacity: 0;
-  animation: fade-up 0.7s ease-out 1.75s forwards;
-}
+@keyframes splash-spin { to { transform: rotate(360deg); } }
+
 .splash-ver {
-  display: inline-block; margin-top: 14px;
-  font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase;
-  color: #6f819c;
-  padding: 3px 10px; border: 1px solid rgba(230,180,92,0.4); border-radius: 20px;
-  opacity: 0; animation: fade-up 0.7s ease-out 1.95s forwards;
+  position: absolute;
+  left: 0; right: 0;
+  bottom: max(22px, env(safe-area-inset-bottom, 22px));
+  text-align: center;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  color: #7f92ad;
 }
-@keyframes word-rise { to { opacity: 1; transform: none; } }
-@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* home header reuses the old title sizing */
 .home-head h1 { font-size: 26px; font-weight: 400; letter-spacing: 0.4px; }
 .home-head h1 b { font-weight: 800; color: var(--accent); }
 
-/* Reduced-motion: the house still draws in (line-drawing isn't vestibular
-   motion, and it's the brand moment the user asked for) — we only drop the
-   looping honeycomb drift and the stage's slide-up. */
+/* Reduced-motion: slow the spinner rather than freeze it. */
 @media (prefers-reduced-motion: reduce) {
-  .splash-hex .hex { animation: none !important; opacity: 0.16; }
-  .splash-stage { animation: none !important; opacity: 1; transform: none; }
+  .splash-spinner { animation-duration: 1.6s; }
 }
 
 /* ============================= Home ============================= */
