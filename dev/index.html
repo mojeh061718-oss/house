@@ -13,8 +13,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Honeycutt"/>
-  <script type="module" crossorigin src="./assets/index-B_Gpi_SZ.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BRPp8O5f.css">
+  <script type="module" crossorigin src="./assets/index-BwVFs4ZI.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BDKivIMT.css">
 </head>
 <body>
   <div id="splash">
@@ -67,34 +67,24 @@
       </div>
     </div>
     <script>
-      // Splash failsafe. The splash content is held invisible (house un-drawn,
-      // text at opacity 0) by `#splash:not(.play)` until the app module runs
-      // home.beginSplash(). If that module is slow — or fails to load at all
-      // (e.g. a stale cached index.html points at a JS bundle a newer deploy
-      // already purged → 404) — the splash would sit BLANK forever. This tiny
-      // inline script runs at parse time, independent of the module, and starts
-      // the animation if nothing else has, so the splash is never blank. If the
-      // app never boots, it also surfaces a reload prompt instead of a dead screen.
-      (function () {
-        var started = false;
-        setTimeout(function () {
-          var s = document.getElementById('splash');
-          if (s && !s.classList.contains('play')) { s.classList.add('play'); started = true; }
-        }, 700);
-        // if the home screen never appears, the module didn't boot — offer a reload
-        setTimeout(function () {
-          var home = document.getElementById('home');
-          var booted = home && !home.classList.contains('hidden');
-          if (booted || document.getElementById('splash-recover')) return;
-          var s = document.getElementById('splash');
-          if (!s) return;
-          var d = document.createElement('div');
-          d.id = 'splash-recover';
-          d.style.cssText = 'position:absolute;left:0;right:0;bottom:6%;text-align:center;z-index:2;font:600 13px system-ui,sans-serif;color:#cfe0ff';
-          d.innerHTML = '<button onclick="location.reload(true)" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:9px 20px;font:inherit">Tap to reload</button>';
-          s.appendChild(d);
-        }, 9000);
-      })();
+      // Splash timing + failsafe. The animations auto-play from CSS (no JS
+      // needed), so mark when the page started so the app can hold the splash
+      // for its full run measured from here, not from whenever the module boots.
+      window.__splashT0 = Date.now();
+      // If the home screen never appears, the app module failed to boot (e.g. a
+      // stale cached index.html pointing at a JS bundle a newer deploy already
+      // purged → 404). Surface a reload button instead of a dead splash.
+      setTimeout(function () {
+        var home = document.getElementById('home');
+        if ((home && !home.classList.contains('hidden')) || document.getElementById('splash-recover')) return;
+        var s = document.getElementById('splash');
+        if (!s) return;
+        var d = document.createElement('div');
+        d.id = 'splash-recover';
+        d.style.cssText = 'position:absolute;left:0;right:0;bottom:5%;text-align:center;z-index:3;font:600 13px system-ui,sans-serif';
+        d.innerHTML = '<button onclick="location.reload(true)" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:10px 22px;font:inherit">Tap to reload</button>';
+        s.appendChild(d);
+      }, 9000);
     </script>
   <div id="app">
     <div id="home" class="hidden"></div>
