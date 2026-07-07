@@ -29,7 +29,10 @@ html.force-landscape {
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* base page colour matches the splash's darkest blue so a fixed splash that
+   doesn't quite cover an iOS dynamic-viewport strip never shows a two-tone
+   split behind it */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; background: #0c0f16; }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -86,19 +89,11 @@ canvas { display: block; }
 }
 #splash.fade-out { opacity: 0; pointer-events: none; }
 
-/* Hold every splash animation at frame 0 until JS adds `.play` (in beginSplash,
-   at boot). On an installed iOS PWA a native launch image paints first, so
-   auto-playing at parse time risks the whole sequence being consumed behind it
-   before the user ever sees it — this guarantees it starts when the web view
-   is actually on screen. */
-#splash:not(.play) .splash-stage,
-#splash:not(.play) .splash-glow,
-#splash:not(.play) .splash-hex .hex,
-#splash:not(.play) [class*="sh-"],
-#splash:not(.play) h1,
-#splash:not(.play) .splash-rule,
-#splash:not(.play) p,
-#splash:not(.play) .splash-ver { animation-play-state: paused !important; }
+/* The splash animations AUTO-PLAY (plain CSS, from first paint) rather than
+   being held paused until JS toggles a `.play` class. The pause→resume gate
+   was fragile on iOS — a paused animation resumed by a class change could jump
+   straight to its end state (logo "pops in" with no draw), and if JS never ran
+   the splash sat blank. Auto-playing is predictable and needs no JS. */
 
 /* drifting honeycomb — a faint nod to "Honeycutt" */
 .splash-bg { position: absolute; inset: 0; pointer-events: none; }

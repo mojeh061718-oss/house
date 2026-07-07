@@ -114,11 +114,11 @@ export class Home {
   beginSplash() {
     const el = $('#splash');
     if (!el) return;
-    el.classList.remove('hidden', 'fade-out', 'play');
-    void el.offsetWidth;          // reflow so `.play` is a fresh animation start
-    el.classList.add('play');
-    this._splashStart = (typeof performance !== 'undefined' && performance.now)
-      ? performance.now() : Date.now();
+    el.classList.remove('hidden', 'fade-out');
+    // animations auto-play from CSS (no `.play` gate) — nothing to trigger here.
+    // Timing is anchored to the parse-time marker so the hold covers the full
+    // run even when the module boots a little late.
+    this._splashT0 = window.__splashT0 ?? Date.now();
   }
 
   /** Fade the splash out and reveal the home screen, but only after the title
@@ -129,9 +129,8 @@ export class Home {
     if (!el) { this.show(); return; }
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const hold = reduce ? 2600 : 2850; // reduced-motion still draws the house
-    const now = (typeof performance !== 'undefined' && performance.now)
-      ? performance.now() : Date.now();
-    const wait = Math.max(0, hold - (now - (this._splashStart ?? now)));
+    const t0 = this._splashT0 ?? window.__splashT0 ?? Date.now();
+    const wait = Math.max(0, hold - (Date.now() - t0));
     setTimeout(() => {
       el.classList.add('fade-out');
       setTimeout(() => el.classList.add('hidden'), 520);

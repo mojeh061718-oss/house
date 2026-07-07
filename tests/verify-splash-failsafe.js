@@ -15,8 +15,14 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
     const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, serviceWorkers: 'block' });
     const page = await ctx.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForTimeout(1200);
-    const played = await page.evaluate(() => document.getElementById('splash')?.classList.contains('play'));
+    // animation auto-plays from CSS: the house paths should be mid/partly drawn
+    await page.waitForTimeout(900);
+    const drawing = await page.evaluate(() => {
+      const p = document.querySelector('.sh-walls');
+      if (!p) return false;
+      const off = parseFloat(getComputedStyle(p).strokeDashoffset);
+      return off < 0.999;   // < 1 means the draw animation has progressed
+    });
     await page.waitForFunction(() => {
       const h = document.getElementById('home');
       return h && !h.classList.contains('hidden');
@@ -25,7 +31,7 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
       const h = document.getElementById('home');
       return h && !h.classList.contains('hidden');
     });
-    console.log('normal: play=' + played + ' homeShown=' + homeShown);
+    console.log('normal: houseDrawing=' + drawing + ' homeShown=' + homeShown);
     await ctx.close();
   }
 
@@ -35,13 +41,17 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
     const page = await ctx.newPage();
     await page.route(/index-.*\.js/, r => r.abort());   // kill the app module
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await page.waitForTimeout(1200);
-    const played = await page.evaluate(() => document.getElementById('splash')?.classList.contains('play'));
+    await page.waitForTimeout(900);
+    const drawing = await page.evaluate(() => {
+      const p = document.querySelector('.sh-walls');
+      if (!p) return false;
+      return parseFloat(getComputedStyle(p).strokeDashoffset) < 0.999;  // animates even w/o the module
+    });
     await page.waitForTimeout(9000);
     const recover = await page.evaluate(() => !!document.getElementById('splash-recover'));
-    console.log('blocked: play=' + played + ' recoverButton=' + recover);
-    console.log((played && recover) ? 'PASS: failsafe animates + offers reload when module dies'
-                                    : 'FAIL: failsafe did not engage');
+    console.log('blocked: houseDrawing=' + drawing + ' recoverButton=' + recover);
+    console.log((drawing && recover) ? 'PASS: splash animates without JS + offers reload when module dies'
+                                     : 'FAIL: failsafe did not engage');
     await ctx.close();
   }
   await b.close();
