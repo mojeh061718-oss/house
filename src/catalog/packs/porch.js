@@ -32,24 +32,25 @@ const seatMat = (p) => (p.kind === 'wood' ? wood(p.frame, 0.55) : solid(p.frame,
 /** Carriage-lantern body (shared by the wall + pendant lanterns). Builds a
  *  four-pane lantern with a pagoda cap, candle + flame, centered on x/z,
  *  glass box W wide, H tall, its BASE plate at y. Returns top-of-cap y. */
-function lanternBody(g, p, W, H, y) {
+function lanternBody(g, p, W, H, y, zc = 0) {
   const fr = metal(p.body, 0.5);
   const half = W / 2;
-  cyl(g, fr, half + 2.5, 2.2, 0, y, 0, { seg: 4 });                    // base plate
+  const plate = cyl(g, fr, half + 2.5, 2.2, 0, y, zc, { seg: 4 });     // base plate
+  plate.rotation.y = Math.PI / 4;
   for (const sx of [-1, 1]) for (const sz of [-1, 1])
-    box(g, fr, 1.7, H, 1.7, sx * half, y + 2, sz * half);              // corner posts
+    box(g, fr, 1.7, H, 1.7, sx * half, y + 2, zc + sz * half);         // corner posts
   for (const s of [-1, 1]) {
-    box(g, glass(), W - 2, H - 1, 0.5, 0, y + 2.5, s * half);          // front/back panes
-    box(g, glass(), 0.5, H - 1, W - 2, s * half, y + 2.5, 0);          // side panes
+    box(g, glass(), W - 2, H - 1, 0.5, 0, y + 2.5, zc + s * half);     // front/back panes
+    box(g, glass(), 0.5, H - 1, W - 2, s * half, y + 2.5, zc);         // side panes
   }
   const capY = y + H + 2;
-  const cap = cyl(g, fr, half + 4, 6.5, 0, capY, 0, { rTop: 2.2, seg: 4 }); // pagoda cap
+  const cap = cyl(g, fr, half + 4, 6.5, 0, capY, zc, { rTop: 2.2, seg: 4 }); // pagoda cap
   cap.rotation.y = Math.PI / 4;
-  cyl(g, fr, 1.1, 3, 0, capY + 6.5, 0);                                // finial stem
-  sphere(g, fr, 1.7, 0, capY + 10.4, 0, { seg: 12 });                  // finial ball
+  cyl(g, fr, 1.1, 3, 0, capY + 6.5, zc);                               // finial stem
+  sphere(g, fr, 1.7, 0, capY + 10.4, zc, { seg: 12 });                 // finial ball
   // candle + warm flame
-  cyl(g, glow('#f3e9d4', 0.55, 0.6), W * 0.16, H * 0.5, 0, y + 2.4, 0, { seg: 12 });
-  sphere(g, glow('#ffc46a', 2.3, 0.3), W * 0.11, y + 2.4 + H * 0.58, 0, { sy: 1.5, seg: 10 });
+  cyl(g, glow('#f3e9d4', 0.55, 0.6), W * 0.16, H * 0.5, 0, y + 2.4, zc, { seg: 12 });
+  sphere(g, glow('#ffc46a', 2.3, 0.3), W * 0.11, 0, y + 2.4 + H * 0.58, zc, { sy: 1.5, seg: 10 });
   return capY + 12;
 }
 
@@ -87,8 +88,9 @@ export const PORCH_ITEMS = [
     build: (p) => {
       const g = G();
       const pt = solid(p.paint, 0.55);
-      const stone = tex('stone_veneer', 1, 1);
-      box(g, stone, 50, 80, 50, 0, 0, 0, { r: 1 });                   // stacked-stone pier
+      const stone = tex('stone_veneer', 0.5, 0.5);                    // few big stones per face
+      box(g, solid('#b5afa2', 0.9), 54, 5, 54, 0, 0, 0, { r: 1 });    // cast base course
+      box(g, stone, 50, 76, 50, 0, 4, 0, { r: 1 });                   // stacked-stone pier
       box(g, solid('#c6c0b2', 0.85), 56, 6, 56, 0, 80, 0, { r: 1.5 }); // cast cap w/ drip edge
       box(g, pt, 37, 4, 37, 0, 86, 0, { r: 1 });                      // column base trim
       // tapered square shaft — 4-sided cyl, re-normalized flat for crisp facets
@@ -163,7 +165,7 @@ export const PORCH_ITEMS = [
       const g = G();
       let treadM, riserM, sideM;
       if (p.kind === 'brick') {
-        treadM = tex('brick_red', 3, 0.5); riserM = tex('brick_red', 3, 0.5); sideM = tex('brick_red', 1, 0.5);
+        treadM = tex('brick_red', 2, 0.5); riserM = tex('brick_red', 2, 0.5); sideM = tex('brick_red', 0.5, 0.5);
       } else if (p.kind === 'concrete') {
         treadM = solid('#b8b4aa', 0.9); riserM = solid('#a9a59b', 0.9); sideM = solid('#9d998f', 0.9);
       } else {
@@ -196,24 +198,24 @@ export const PORCH_ITEMS = [
       for (const s of [-1, 1]) box(g, fr, 178, 11, 5, 0, 195, s * 7, { r: 1 });
       for (const sx of [-1, 1]) for (const sz of [-1, 1])             // knee braces
         strut(g, fr, sx * 80, 158, sz * 26, sx * 80, 188, sz * 45, 2.6);
-      // chains — two per side, splaying front/back from the header
+      // chains — two per side, splaying from the header down to the armrests
       for (const s of [-1, 1]) {
-        strut(g, ch, s * 50, 198, 6, s * 50, 68, 25, 0.9);
-        strut(g, ch, s * 50, 198, -6, s * 50, 74, -25, 0.9);
+        strut(g, ch, s * 52, 198, 6, s * 56, 77, 19, 0.9);
+        strut(g, ch, s * 52, 198, -6, s * 56, 77, -23, 0.9);
       }
       // slatted bench hung at seat height
       for (const z of [-24, 24]) box(g, fr, 118, 5, 5, 0, 43, z, { r: 1 });   // seat rails
       for (let i = 0; i < 5; i++) box(g, fr, 118, 2.6, 7.6, 0, 48, -18 + i * 9, { r: 0.8 });
-      box(g, fr, 122, 4, 4, 0, 52, -27, { r: 1 });                    // back bottom rail
+      box(g, fr, 122, 4, 4, 0, 46, -26.5, { r: 1 });                  // back bottom rail
       for (let i = 0; i < 7; i++)                                     // back slats
-        box(g, fr, 5.5, 34, 2.4, -39 + i * 13, 55, -29.5, { r: 0.8, rx: -0.16 });
-      box(g, fr, 124, 6, 4.5, 0, 88, -34.5, { r: 1.2, rx: -0.16 });   // crest rail
+        box(g, fr, 5.5, 42, 2.4, -39 + i * 13, 48, -28, { r: 0.8, rx: -0.16 });
+      box(g, fr, 124, 6, 4.5, 0, 89, -34.8, { r: 1.2, rx: -0.16 });   // crest rail
       for (const s of [-1, 1]) {
-        box(g, fr, 5, 24, 5, s * 54, 50, 20, { r: 1 });               // arm posts
-        box(g, fr, 6, 3, 50, s * 54, 74, -3, { r: 1 });               // arms
+        box(g, fr, 5, 26, 5, s * 56, 48, 19, { r: 1 });               // arm posts
+        box(g, fr, 6, 3, 52, s * 56, 74, -3, { r: 1 });               // arms
       }
-      box(g, fab, 112, 8, 44, 0, 50, 0, { r: 5 });                    // seat cushion
-      box(g, fab, 108, 30, 8, 0, 58, -24, { r: 5, rx: -0.16 });       // back cushion
+      box(g, fab, 110, 8, 42, 0, 50, 1, { r: 5 });                    // seat cushion
+      box(g, fab, 104, 26, 7, 0, 58, -23.5, { r: 5, rx: -0.16 });     // back cushion
       return g;
     }
   },
@@ -279,10 +281,10 @@ export const PORCH_ITEMS = [
         strut(g, link, s * 60, 5, z * 22, s * 60, 30, z * 13, 1.2);
       box(g, fr, 130, 4.5, 56, 0, 30, 1, { r: 2 });                   // seat platform
       for (let i = 0; i < 5; i++) box(g, fr, 126, 2.4, 8.4, 0, 34.5, -19 + i * 11, { r: 0.8 });
-      box(g, fr, 128, 4, 3.5, 0, 37, -25, { r: 1 });                  // back bottom rail
+      box(g, fr, 128, 4, 3.5, 0, 38.3, -23.9, { r: 1, rx: -0.18 });   // back bottom rail
       for (let i = 0; i < 8; i++)                                     // back slats
         box(g, fr, 5, 40, 2.4, -45.5 + i * 13, 40, -27.5, { r: 0.8, rx: -0.18 });
-      box(g, fr, 134, 6, 4.5, 0, 80, -35, { r: 1.4, rx: -0.18 });     // crest rail
+      box(g, fr, 134, 6, 4.5, 0, 77.4, -31.6, { r: 1.4, rx: -0.18 }); // crest rail
       for (const s of [-1, 1]) {
         box(g, fr, 4.5, 26, 4.5, s * 63, 32, 20, { r: 1 });           // arm posts
         box(g, fr, 7, 3.5, 54, s * 64, 58, -4, { r: 1.4 });           // arms
@@ -369,18 +371,19 @@ export const PORCH_ITEMS = [
   },
   // ---- 12. Carriage wall lantern -------------------------------------------------
   {
-    id: 'porch_wall_lantern', name: 'Wall Lantern', cat: 'porch', w: 24, d: 30, h: 52,
+    id: 'porch_wall_lantern', name: 'Wall Lantern', cat: 'porch', w: 27, d: 30, h: 52,
     mount: 'wall', elevation: 165, palettes: LANTERN, plan: { type: 'wallDecor' },
     light: { y: 26, color: '#ffd9a0', intensity: 1.0, distance: 440 },
     build: (p) => {
       const g = G();
       const fr = metal(p.body, 0.5);
-      box(g, fr, 11, 34, 2.4, 0, 4, 1.2, { r: 1 });                   // wall backplate
-      for (const y of [7, 34.5]) sphere(g, fr, 1.2, 0, y, 2.2, { seg: 10 }); // screw caps
-      strut(g, fr, 0, 8, 2.2, 0, 13.5, 15, 1.4);                      // lower scroll arm
-      segment(g, fr, [0, 13.5, 15], [0, 10.5, 18.5], 1.2, 0.9, 8);    // scroll tail
-      lanternBody(g, p, 16, 22, 12);                                  // lantern on the arm
-      strut(g, fr, 0, 36, 2.2, 0, 42, 15, 1.1);                       // upper support arm
+      box(g, fr, 12, 36, 2.4, 0, 3, 1.2, { r: 1 });                   // wall backplate
+      sphere(g, fr, 2, 0, 41, 1.2, { seg: 12 });                      // backplate cap ball
+      for (const y of [6, 36]) sphere(g, fr, 1.2, 0, y, 2.6, { seg: 10 }); // screw caps
+      strut(g, fr, 0, 7, 2.2, 0, 12, 14, 1.4);                        // lower scroll arm
+      segment(g, fr, [0, 12, 14], [0, 8.5, 17.5], 1.2, 0.8, 8);       // scroll tail
+      lanternBody(g, p, 16, 22, 12, 14);                              // lantern held off the wall
+      strut(g, fr, 0, 34, 2.2, 0, 39, 9.5, 1.1);                      // upper support arm
       return g;
     }
   },
@@ -399,6 +402,7 @@ export const PORCH_ITEMS = [
       const t = textMaterial('WELCOME', {
         w: 512, h: 256, bg: p.bg, fg: p.fg, size: 88, weight: 700, border: p.fg
       });
+      t.roughness = 0.97; t.metalness = 0;                            // coir, not brass
       box(g, t, 70, 0.5, 40, 0, 2.2, 0);                              // woven lettering face
       return g;
     }
@@ -423,11 +427,12 @@ export const PORCH_ITEMS = [
         cyl(g, potM, 8, 17, x, 10.5, 0, { rTop: 16.2, seg: 24 });     // flared bowl
         torus(g, potM, 16.4, 2.1, x, 28, 0, { seg: 30, tubeSeg: 12 }); // rolled rim
         cyl(g, solid('#41372b', 0.98), 14.4, 2, x, 27, 0, { seg: 20 }); // soil
-        // layered boxwood ball
-        blob(g, '#33531f', '#6d9c40', 14.5, x, 43, 0, { seed: 11 + i });
-        blob(g, '#3a5c24', '#7cab4c', 9, x - s * 6, 54, 4, { seed: 23 + i });
-        blob(g, '#33531f', '#6d9c40', 8, x + s * 7, 52, -5, { seed: 37 + i });
-        blob(g, '#3a5c24', '#7cab4c', 6.5, x, 60, -1, { seed: 51 + i });
+        // layered boxwood ball — tight fine-grained clumps, not loose broccoli
+        blob(g, '#33531f', '#6d9c40', 15, x, 45, 0, { seed: 11 + i, amp: 0.045 });
+        blob(g, '#3a5c24', '#7cab4c', 10, x - s * 5, 56, 3.5, { seed: 23 + i, amp: 0.05 });
+        blob(g, '#33531f', '#6d9c40', 9, x + s * 6, 54, -4.5, { seed: 37 + i, amp: 0.05 });
+        blob(g, '#3f6428', '#86b455', 7, x + s * 2, 63, -1, { seed: 51 + i, amp: 0.055 });
+        blob(g, '#2f4d1d', '#639238', 6.5, x - s * 3, 37, 8, { seed: 67 + i, amp: 0.055 });
         i += 100;
       }
       return g;
@@ -491,15 +496,28 @@ export const PORCH_ITEMS = [
       }
       torus(g, ch, 14.8, 0.7, 0, -36.5, 0, { seg: 28, tubeSeg: 8 });  // basket rim wire
       cyl(g, solid('#7a5a38', 0.95), 9.5, 12, 0, -49, 0, { rTop: 14.6, seg: 20 }); // coco liner
-      // lush crown + drooping frond skirt
-      blob(g, '#2f5423', '#67a03c', 13, 0, -33, 0, { seed: 7, sy: 0.8 });
-      blob(g, '#376028', '#74ad46', 8.5, 6, -30, -6, { seed: 19, sy: 0.75 });
-      blob(g, '#376028', '#74ad46', 8, -7, -31, 6, { seed: 31, sy: 0.75 });
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2 + 0.2;
-        blob(g, '#2a4c1e', '#5d9436', 6.2,
-          Math.cos(a) * 16.5, -44 - (i % 3) * 5, Math.sin(a) * 16.5,
-          { seed: 43 + i, sy: 1.9 });
+      // lush crown mounded over the rim
+      blob(g, '#3a6626', '#7cb548', 12.5, 0, -33.5, 0, { seed: 7, sy: 0.75, amp: 0.06 });
+      blob(g, '#437330', '#8cc258', 8, 7, -31.5, -6, { seed: 19, sy: 0.7, amp: 0.065 });
+      blob(g, '#437330', '#8cc258', 7.5, -7.5, -32, 6.5, { seed: 31, sy: 0.7, amp: 0.065 });
+      // arching fronds spilling past the basket, tipped lighter
+      let sd = 9;
+      const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+      const frond = solid('#5d9438', 0.9);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2 + 0.25;
+        const dx = Math.cos(a), dz = Math.sin(a);
+        const r1 = 15 + rnd() * 4, r2 = r1 + 3 + rnd() * 3;
+        const y1 = -35 - rnd() * 3, y2 = y1 - 16 - rnd() * 7;
+        segment(g, frond, [dx * 12, -34, dz * 12], [dx * r1, y1 - 5, dz * r1], 2.2, 1.5, 7);
+        segment(g, frond, [dx * r1, y1 - 5, dz * r1], [dx * r2, y2 - 6, dz * r2], 1.5, 0.35, 7);
+      }
+      // drooping leaf mass under the rim
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.7;
+        blob(g, '#31541f', '#6aa03e', 5.6,
+          Math.cos(a) * 14.5, -45 - (i % 3) * 4.5, Math.sin(a) * 14.5,
+          { seed: 43 + i, sy: 1.9, amp: 0.07 });
       }
       return g;
     }
@@ -524,7 +542,7 @@ export const PORCH_ITEMS = [
         segment(g, fr, [fx, 0, fz], [fx * 0.55, 49, fz * 0.55], 2.2, 1.7, 12);
         sphere(g, fr, 2.2, fx, 1.6, fz, { seg: 10 });                 // foot pads
       }
-      cyl(g, fr, 12.5, 2, 0, 17, 0, { seg: 24 });                     // lower shelf
+      cyl(g, fr, 15, 2, 0, 20, 0, { seg: 24 });                       // lower shelf tied to legs
       // lemonade pitcher
       const lemonade = solid('#e9c33f', 0.35);
       cyl(g, glass(), 6, 15, -7, 52.2, -3, { rTop: 4.8, seg: 20 });
