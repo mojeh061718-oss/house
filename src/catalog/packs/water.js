@@ -49,7 +49,7 @@ function bowl(g, stoneHex, rBot, rTop, h, y, waterR, waterY) {
 export const WATER_ITEMS = [
   // 1. Koi pond — rock edge, lily pads, koi, reeds
   {
-    id: 'pond_koi', name: 'Koi Pond', cat: 'outdoor', w: 240, d: 180, h: 14, noShadow: true,
+    id: 'pond_koi', name: 'Koi Pond', cat: 'outdoor', w: 240, d: 180, h: 72, noShadow: true,
     palettes: null, plan: { type: 'pond' },
     build: () => {
       const g = buildPond(240, 180);
@@ -76,7 +76,7 @@ export const WATER_ITEMS = [
 
   // 2. Lily pond — dense pads and blossoms
   {
-    id: 'pond_lily', name: 'Lily Pond', cat: 'outdoor', w: 210, d: 160, h: 12, noShadow: true,
+    id: 'pond_lily', name: 'Lily Pond', cat: 'outdoor', w: 210, d: 160, h: 32, noShadow: true,
     palettes: null, plan: { type: 'pond' },
     build: () => {
       const g = buildPond(210, 160);
@@ -91,7 +91,7 @@ export const WATER_ITEMS = [
 
   // 3. Natural pond with cattails
   {
-    id: 'pond_natural', name: 'Natural Pond', cat: 'outdoor', w: 300, d: 220, h: 14, noShadow: true,
+    id: 'pond_natural', name: 'Natural Pond', cat: 'outdoor', w: 300, d: 220, h: 76, noShadow: true,
     palettes: null, plan: { type: 'pond' },
     build: () => {
       const g = buildPond(300, 220);
@@ -136,7 +136,7 @@ export const WATER_ITEMS = [
 
   // 5. Garden stream segment — narrow rocky watercourse
   {
-    id: 'pond_stream', name: 'Garden Stream', cat: 'outdoor', w: 300, d: 90, h: 12, noShadow: true,
+    id: 'pond_stream', name: 'Garden Stream', cat: 'outdoor', w: 300, d: 90, h: 28, noShadow: true,
     palettes: null, plan: { type: 'pond' },
     build: () => {
       const g = G();
