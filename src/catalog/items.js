@@ -4,7 +4,7 @@
 import {
   G, box, cyl, sphere, legs4, strut, segment, torus, handleBar, knob, shade, wavyPanel, prism, pyramid,
   solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond,
-  buildTallGrass, flagTexture, buildFlag, glow, netMaterial
+  buildTallGrass, flagTexture, buildFlag, glow, netMaterial, lathe, cushion, drape, sweep
 } from './builders.js';
 import { EXTRA_ITEMS } from './extras.js';
 
@@ -121,26 +121,43 @@ function sofaBuilder(seats, W, D, H) {
     // plinth + legs
     legs4(g, solid('#4a4038', 0.6), W - 8, D - 8, 6, 2.2, 5);
     box(g, fab, W, baseH, D, 0, 6, 0, { r: 4 });
-    // arms
-    box(g, fab, armW, H - 24, D, -(W / 2 - armW / 2), 6, 0, { r: 6 });
-    box(g, fab, armW, H - 24, D, W / 2 - armW / 2, 6, 0, { r: 6 });
-    // back
+    // arms: upholstered slab topped with a soft rolled bolster
+    for (const s of [-1, 1]) {
+      const ax = s * (W / 2 - armW / 2);
+      box(g, fab, armW, H - 32, D, ax, 6, 0, { r: 6 });
+      cyl(g, fab, armW / 2 - 0.5, D - 6, ax, H - 26, 0, { rx: Math.PI / 2, seg: 18 });
+    }
+    // back frame
     box(g, fab, innerW, H - 6 - baseH, 22, 0, baseH, -(D / 2 - 11), { r: 6 });
-    // cushions
+    // soft cushions: dimpled seats, slightly overstuffed backs leaning in
     const cw = innerW / seats;
     for (let i = 0; i < seats; i++) {
       const x = -innerW / 2 + cw / 2 + i * cw;
-      box(g, fab, cw - 4, 14, seatD - 20, x, baseH + 4, 6, { r: 5 });
-      box(g, fab, cw - 6, H - baseH - 26, 14, x, baseH + 16, -(D / 2 - 26), { r: 5, rx: -0.12 });
+      cushion(g, fab, cw - 8, 16, seatD - 12, x, baseH - 2, 9, { puff: 0.13, dimple: 0.55 });
+      cushion(g, fab, cw - 5, H - baseH - 28, 17, x, baseH + 14, -(D / 2 - 23),
+        { puff: 0.11, dimple: 0.1, rx: -0.1 });
+    }
+    if (seats >= 2) {
+      // intrigue: a throw pillow tossed at an angle into one corner
+      cushion(g, solid('#b06a4a', 0.85), 36, 30, 12, -innerW / 2 + 20, baseH + 13, -(D / 2 - 34),
+        { puff: 0.25, dimple: 0.04, rx: -0.16, ry: 0.4 });
+    } else {
+      // intrigue: a folded blanket draped over the arm roll
+      const bl = solid('#9b8468', 0.92);
+      const ax = W / 2 - armW / 2;
+      cushion(g, bl, 21, 6, 30, ax, H - 22, 8, { puff: 0.3, dimple: 0.45 });
+      box(g, bl, 2.5, 24, 28, ax + armW / 2 + 3.6, H - 40, 8, { r: 1, rz: 0.05 });
+      box(g, bl, 2.5, 14, 26, ax - armW / 2 - 3.4, H - 32, 8, { r: 1, rz: -0.07 });
     }
     return g;
   };
 }
 
 /**
- * Dress a bed: plush mattress, a rumpled duvet built from overlapping soft
- * "rolls" (real fold relief, cheaply), a turned-down top-sheet cuff, plump
- * pillows and an optional folded throw at the foot. Head is at -Z, foot +Z.
+ * Dress a bed with soft-body geometry: a low-puff cushion() mattress, a duvet
+ * as a larger low cushion overhanging the sides, a turned-down top-sheet
+ * cuff, plump angled pillows and a folded throw strip across the foot.
+ * Head is at -Z, foot +Z.
  *   g       group to add to
  *   mw, md  mattress width (x) and depth (z)
  *   topY    y of the bed platform the mattress rests on
@@ -151,36 +168,41 @@ function dressBed(g, mw, md, topY, opts = {}) {
   const puff = opts.puff ?? 1;
   const duvet = opts.duvet || solid('#e9e4d8', 0.85);
   const linen = solid('#f7f4ec', 0.88);   // crisp top sheet / cuff
-  const mattH = 15 * puff;
+  const mattH = 16 * puff;
   const mTop = topY + mattH;
-  // plush mattress
-  box(g, solid('#f4f1ea', 0.9), mw, mattH, md, 0, topY, 0, { r: 7 });
-  // duvet zone: from just past the pillows to the foot
-  const zFoot = md / 2 - 6;
+  // firm low-puff mattress (soft edges, no slab)
+  cushion(g, solid('#f4f1ea', 0.9), mw, mattH, md, 0, topY, 0, { puff: 0.07, dimple: 0.05 });
+  // duvet: one soft low cushion overhanging the mattress sides, running from
+  // just past the pillows to the foot
+  const zFoot = md / 2 - 4;
   const zHead = -md / 2 + Math.min(md * 0.26, 52);
   const duvD = Math.max(30, zFoot - zHead);
-  const rolls = Math.max(4, Math.round(duvD / 32));
-  const seg = duvD / rolls;
-  for (let i = 0; i < rolls; i++) {
-    const z = zHead + (i + 0.5) * seg;
-    const hh = (11 + (i % 2 ? 3 : 1)) * puff;    // alternate puffiness → rumples
-    box(g, duvet, mw * 0.99, hh, seg + 5, 0, mTop - 1.5, z,
-      { r: Math.min(hh / 2, seg * 0.6, 6) });
-  }
-  // turned-down top-sheet cuff over the duvet's head edge
-  box(g, linen, mw * 0.99, 7 * puff, 20, 0, mTop + 2.5 * puff, zHead + 4, { r: 3 });
-  // plump pillows resting against the head, leaning back
+  cushion(g, duvet, mw + 8, 9 * puff, duvD, 0, mTop - 3 * puff, (zHead + zFoot) / 2,
+    { puff: 0.12, dimple: 0.2 });
+  // turned-down top-sheet cuff wrapping the duvet's head edge
+  cushion(g, linen, mw + 9, 5 * puff, 20, 0, mTop + 3.2 * puff, zHead + 6,
+    { puff: 0.18, dimple: 0.08 });
+  // plump pillows leaning back against the head at slight angles
   const pillow = solid('#fbfaf6', 0.92);
-  const pw = pillows > 1 ? mw * 0.42 : mw * 0.6;
-  const xs = pillows > 1 ? [-mw * 0.24, mw * 0.24] : [0];
+  const pw = pillows > 1 ? mw * 0.4 : mw * 0.56;
+  const xs = pillows > 1 ? [-mw * 0.235, mw * 0.235] : [0];
   for (let i = 0; i < xs.length; i++) {
-    const py = mTop + 8 * puff;
-    box(g, pillow, pw, 17 * puff, 40, xs[i], py, -md / 2 + 30,
-      { r: Math.min(9 * puff, pw * 0.4), rx: -0.22, ry: (i - 0.5) * 0.08 });
+    cushion(g, pillow, pw, 15 * puff, 36, xs[i], mTop - 1, -md / 2 + 21,
+      { puff: 0.3, dimple: 0.08, rx: -0.3, ry: (i - (xs.length - 1) / 2) * 0.12 });
   }
-  // optional folded throw across the foot
-  if (opts.throw) {
-    box(g, solid(opts.throw, 0.8), mw * 0.92, 11 * puff, 34, 0, mTop + 3, zFoot - 20, { r: 4 });
+  // a smaller accent pillow tossed at an angle in front (wide beds only)
+  if (pillows > 1) {
+    cushion(g, solid('#c8b18c', 0.85), mw * 0.28, 12 * puff, 24, mw * 0.06, mTop + 1, -md / 2 + 42,
+      { puff: 0.35, dimple: 0.05, rx: -0.22, ry: -0.3 });
+  }
+  // folded throw strip across the foot (two offset layers read as the fold)
+  const throwHex = opts.throw ?? '#8d7a63';
+  if (throwHex) {
+    const tm = solid(throwHex, 0.85);
+    cushion(g, tm, mw * 0.74, 6 * puff, 40, -mw * 0.05, mTop + 4.5 * puff, zFoot - 24,
+      { puff: 0.2, dimple: 0.3, ry: 0.05 });
+    cushion(g, tm, mw * 0.6, 4.5 * puff, 26, -mw * 0.03, mTop + 9 * puff, zFoot - 26,
+      { puff: 0.25, dimple: 0.25, ry: -0.04 });
   }
 }
 
@@ -295,6 +317,9 @@ export const ITEMS = [
       box(g, m, 200, 1.5, 140, 0, 0, 0);
       box(g, tex(p.fabric, 0.4, 0.4), 200, 1.2, 8, 0, 0.2, -66);
       box(g, tex(p.fabric, 0.4, 0.4), 200, 1.2, 8, 0, 0.2, 66);
+      // intrigue: the near corner curls up off the floor
+      box(g, tex(p.fabric, 0.35, 0.35), 26, 1.3, 26, 84, 4.6, 54,
+        { r: 0.5, ry: Math.PI / 4, rx: -0.21, rz: 0.21 });
       return g;
     }
   },
@@ -313,9 +338,18 @@ export const ITEMS = [
     light: { y: 135, color: '#ffd9a0', intensity: 0.9, distance: 450 },
     build: () => {
       const g = G();
-      cyl(g, solid(dark, 0.4), 14, 2.5, 0, 0, 0);
-      cyl(g, metal('#6e6a64', 0.4), 1.4, 130, 0, 2, 0);
-      shade(g, '#e8dcc4', 19, 15, 28, 0, 128, 0);
+      // turned base + stem in one smooth profile: domed foot, slim column
+      // with a mid collar, swelling to the shade fitting
+      lathe(g, metal('#6e6a64', 0.4), [
+        [13.5, 0], [14, 0.8], [13, 2], [9, 3.2], [4.5, 4.2], [2.6, 6],
+        [1.5, 10], [1.4, 62], [2.4, 65], [2.6, 68], [1.4, 71],
+        [1.4, 124], [2, 127], [2.2, 129]
+      ], 0, 0, 0, { seg: 28 });
+      shade(g, '#e8dcc4', 19, 15, 28, 0, 126, 0);
+      // warm bulb glowing inside + a brass pull chain off the shade rim
+      sphere(g, glow('#ffe6b8', 1.1, 0.4, '#ffd9a0'), 4, 0, 138, 0);
+      cyl(g, chrome(), 0.3, 12, 14, 115, 0);
+      sphere(g, chrome(), 1, 14, 114.6, 0);
       return g;
     }
   },
@@ -659,8 +693,19 @@ export const ITEMS = [
     palettes: WOODS, plan: { type: 'table' },
     build: (p) => {
       const g = G();
+      const leg = wood(p.wood, 0.5);
       box(g, wood(p.wood, 0.45), 182, 5, 92, 0, 71, 0, { r: 1.2 });
-      legs4(g, wood(p.wood, 0.5), 168, 80, 71, 3.2, 8, true);
+      // aprons tie the legs under the top
+      box(g, leg, 152, 10, 6, 0, 62, 34);
+      box(g, leg, 152, 10, 6, 0, 62, -34);
+      box(g, leg, 6, 10, 62, -76, 62, 0);
+      box(g, leg, 6, 10, 62, 76, 62, 0);
+      // turned legs: square-ish top block, vase turning, tapered foot
+      const prof = [[4.4, 0], [3, 1.6], [2.7, 8], [3.5, 26], [4.2, 34], [4.4, 38],
+        [3.5, 42], [3.1, 46], [4.6, 51], [4.6, 71]];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        lathe(g, leg, prof, sx * 76, 0, sz * 34, { seg: 20 });
+      }
       return g;
     }
   },
@@ -758,10 +803,20 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#b8977c', 0.75), 16, 30, 0, 0, 0, { rTop: 19 });
-      cyl(g, solid('#4a3a2c', 0.95), 14, 3, 0, 30, 0);
-      cyl(g, solid('#5c4632', 0.9), 2.2, 60, 0, 32, 0);
+      // turned terracotta pot: footed base, bellied body, rolled lip with a
+      // real inner wall; soil sits recessed below the rim
+      lathe(g, solid('#b8977c', 0.7), [
+        [12, 0], [14.5, 1], [17.5, 8], [19, 16], [19.2, 22], [18.4, 26.5],
+        [19.6, 28], [19.6, 30], [17.6, 30], [17.2, 26]
+      ], 0, 0, 0, { seg: 32 });
+      cyl(g, solid('#4a3a2c', 0.95), 17.3, 2, 0, 26.2, 0, { seg: 24 });
+      // leaning, tapering trunk with a side branch feeding the crown
+      const bark = solid('#5c4632', 0.9);
+      segment(g, bark, [0, 26.5, 0], [2.5, 96, 1.5], 2.6, 1.6, 10);
+      segment(g, bark, [1.4, 68, 0.8], [-9, 98, -5], 1.4, 0.9, 8);
       foliage(g, '#4a6e3a', '#5d8348', 0, 108, 0, 30, 12, 11);
+      // a dropped leaf resting on the soil
+      sphere(g, solid('#8a8040', 0.7), 3.5, 8, 28.6, 4, { sy: 0.14, sx: 1.4, seg: 10 });
       return g;
     }
   },
@@ -770,9 +825,18 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#c9c0ae', 0.7), 8.5, 14, 0, 0, 0, { rTop: 10.5 });
-      cyl(g, solid('#4a3a2c', 0.95), 7.5, 2, 0, 14, 0);
+      // turned ceramic pot: belly, pinched neck, flared lip, inner wall
+      lathe(g, solid('#c9c0ae', 0.65), [
+        [6, 0], [7.5, 0.6], [9.6, 6], [10.4, 11], [9.6, 14.2],
+        [10.8, 15.6], [10.8, 17], [9.4, 17], [9.2, 14]
+      ], 0, 0, 0, { seg: 28 });
+      cyl(g, solid('#4a3a2c', 0.95), 9.3, 1.6, 0, 13.6, 0, { seg: 20 });
       foliage(g, '#55763f', '#68894e', 0, 30, 0, 13, 8, 23);
+      // intrigue: one trailing stem spilling over the rim and down the pot
+      segment(g, solid('#55763f', 0.7), [3, 14.6, 2.5], [8.2, 13.2, 6.6], 0.5, 0.45, 6);
+      segment(g, solid('#55763f', 0.7), [8.2, 13.2, 6.6], [11, 8, 8.8], 0.45, 0.35, 6);
+      sphere(g, solid('#68894e', 0.6), 1.9, 11.2, 7.4, 9, { sy: 0.4, seg: 8 });
+      sphere(g, solid('#61824a', 0.6), 1.5, 9.8, 11, 7.9, { sy: 0.4, seg: 8 });
       return g;
     }
   },
@@ -828,14 +892,28 @@ export const ITEMS = [
     palettes: FABRICS, plan: { type: 'wallDecor' },
     build: (p) => {
       const g = G();
-      cyl(g, metal('#8a8478', 0.4), 1.6, 164, 0, 240, 0, { rz: Math.PI / 2 });
-      sphere(g, metal('#8a8478', 0.4), 3, -82, 240, 0);
-      sphere(g, metal('#8a8478', 0.4), 3, 82, 240, 0);
+      const rodMat = metal('#8a8478', 0.4);
+      cyl(g, rodMat, 1.6, 164, 0, 240, 0, { rz: Math.PI / 2 });
+      // turned finials capping the rod ends
+      for (const s of [-1, 1]) {
+        const f = lathe(g, rodMat,
+          [[1.7, 0], [3.2, 1.5], [3.6, 3.5], [2.2, 5.5], [0.9, 7], [1.6, 8.6], [0.1, 10]],
+          s * 82, 240, 0, { seg: 20 });
+        f.rotation.z = -s * Math.PI / 2;
+      }
+      // two falling-cloth panels; a mirrored back face gives the cloth body
       const fab = tex(p.fabric, 2, 3);
-      const left = wavyPanel(g, fab, 62, 236, 5, 10);
-      left.position.set(-46, 0, 0);
-      const right = wavyPanel(g, fab, 62, 236, 5, 10);
-      right.position.set(46, 0, 0);
+      for (const s of [-1, 1]) {
+        const seed = s > 0 ? 5 : 11;
+        drape(g, fab, 64, 235, s * 46, 238, 0, { sag: 3, wave: 5.5, folds: 7, seed });
+        drape(g, fab, 64, 235, s * 46, 238, -0.9,
+          { sag: 3, wave: 5.5, folds: 7, seed: -seed, ry: Math.PI });
+        // rings gathering the panel onto the rod
+        for (let i = -2; i <= 2; i++) {
+          torus(g, rodMat, 2.4, 0.4, s * 46 + i * 13, 240, 0,
+            { rx: 0, ry: Math.PI / 2, seg: 22, tubeSeg: 8 });
+        }
+      }
       return g;
     }
   },
@@ -3101,6 +3179,12 @@ export const ITEMS = [
         box(g, wd, 14, 8, 90, s * 105, 0, 0, { r: 2 });
       }
       box(g, wd, 200, 8, 10, 0, 24, 0);
+      // intrigue: a linen runner laid across the width, ends draping over
+      // both long edges as falling cloth
+      const run = solid('#ded5c2', 0.9);
+      box(g, run, 38, 1.2, 102, 0, 77.9, 0, { r: 0.5 });
+      drape(g, run, 38, 20, 0, 79, 50.9, { sag: 2, wave: 3.5, folds: 3, seed: 4 });
+      drape(g, run, 38, 20, 0, 79, -50.9, { sag: 2, wave: 3.5, folds: 3, seed: -4, ry: Math.PI });
       return g;
     }
   },
@@ -3242,9 +3326,21 @@ export const ITEMS = [
     palettes: null, plan: { type: 'rugRound' },
     build: () => {
       const g = G();
-      cyl(g, solid('#3a3c3e', 0.5), 14, 5, -45, 0, 0, { seg: 18 });
-      cyl(g, metal('#9a9da0'), 1.8, 175, -52, 0, 0, { rz: -0.55 });
-      shade(g, '#f0e8d8', 15, 9, 20, 40, 152, 0);
+      // weighted turned base
+      lathe(g, solid('#3a3c3e', 0.5),
+        [[13.5, 0], [14, 1], [12.5, 3], [8, 4.5], [4.8, 5.5], [3.2, 7.5]],
+        -45, 0, 0, { seg: 28 });
+      // one smooth sweeping arc up and over to the shade
+      sweep(g, metal('#9a9da0', 0.35), [
+        [-45, 6, 0], [-46, 70, 0], [-40, 130, 0], [-16, 168, 0],
+        [16, 174, 0], [38, 166, 0], [44, 158, 0]
+      ], 1.8, { seg: 40 });
+      cyl(g, metal('#9a9da0', 0.35), 2.6, 4, 44, 154, 0);
+      shade(g, '#f0e8d8', 15, 9, 20, 44, 136, 0);
+      // intrigue: floor cord snaking to a step dimmer switch
+      const cord = solid('#2c2c2e', 0.5);
+      sweep(g, cord, [[-45, 1, 6], [-32, 0.8, 13], [-14, 0.8, 16], [2, 0.8, 12]], 0.7, { seg: 16 });
+      box(g, cord, 7, 2.6, 4.5, 7, 0, 11, { r: 1, ry: 0.4 });
       return g;
     },
     light: { y: 160, color: '#ffe9c0', intensity: 0.9, distance: 420 }
@@ -3281,8 +3377,14 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#b8825a', 0.85), 18, 26, 0, 0, 0, { rTop: 15, seg: 16 });
-      cyl(g, solid('#4a3626', 0.95), 14, 3, 0, 26, 0, { seg: 16 });
+      // turned clay pot with belly, waist and rolled rim; soil recessed
+      lathe(g, solid('#b8825a', 0.8), [
+        [13, 0], [15.5, 0.8], [17.8, 7], [18.6, 14], [18, 20], [17, 24.5],
+        [18.2, 26], [18.2, 28], [16.4, 28], [16, 24]
+      ], 0, 0, 0, { seg: 32 });
+      cyl(g, solid('#4a3626', 0.95), 16.1, 2, 0, 24.2, 0, { seg: 24 });
+      // an aerial root arching back into the soil (monstera signature)
+      segment(g, solid('#8a6f52', 0.85), [1.5, 36, 1], [7, 25.4, 4.5], 0.8, 0.55, 6);
       let sd3 = 17;
       const rnd = () => { sd3 = (sd3 * 1664525 + 1013904223) >>> 0; return sd3 / 4294967296; };
       const stemMat = solid('#456f30', 0.7);
@@ -3292,7 +3394,7 @@ export const ITEMS = [
         const reach = 16 + rnd() * 12;                  // leaf center distance
         const top = 76 + rnd() * 48;                    // leaf height
         // arched petiole: rises from the soil, bows outward to the leaf
-        segment(g, stemMat, [dx * 3, 27, dz * 3], [dx * reach * 0.55, top * 0.72, dz * reach * 0.55], 1.6, 1.3, 8);
+        segment(g, stemMat, [dx * 3, 25.5, dz * 3], [dx * reach * 0.55, top * 0.72, dz * reach * 0.55], 1.6, 1.3, 8);
         segment(g, stemMat, [dx * reach * 0.55, top * 0.72, dz * reach * 0.55], [dx * reach, top - 3, dz * reach], 1.3, 0.9, 8);
         // split leaf: two glossy side lobes + a drooping tip lobe, with the
         // gaps between them reading as the monstera's cuts
