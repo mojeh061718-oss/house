@@ -394,8 +394,9 @@ export const STRUCTURES_ITEMS = [
         for (let y = 20; y < 200; y += 24) box(g, wd, 5, 5, 52, sx * 64, y, 0);
       }
       for (let z = -20; z <= 20; z += 20) box(g, wd, 132, 5, 5, 0, 205, z);
-      // climbing vine
-      for (const sx of [-1, 1]) foliage(g, '#3f5f26', '#7da845', sx * 64, 150, 26, 30, 12, sx * 30 + 60);
+      // climbing vine — kept tight to the posts so the arch stays inside its
+      // declared 140×60 footprint
+      for (const sx of [-1, 1]) foliage(g, '#3f5f26', '#7da845', sx * 60, 150, 12, 18, 10, sx * 30 + 60);
       return g;
     }
   },

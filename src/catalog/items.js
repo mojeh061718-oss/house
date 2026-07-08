@@ -891,9 +891,12 @@ export const ITEMS = [
           Math.cos(a) * (rAt - 0.4), y, Math.sin(a) * (rAt - 0.4), { r: 1 });
         m.rotation.y = -a + Math.PI / 2;
       }
-      // light, airy crown
-      foliage(g, '#5d8a3a', '#a4c46a', 0, 330, 0, 88, 12, 23);
-      blob(g, '#557f33', '#9aba60', 36, 62, 255, 15, { seed: 51, sy: 1.1 });
+      // light, airy crown: overlapping tufts up the leader
+      blob(g, '#557f33', '#9aba60', 58, 0, 330, 0, { seed: 50, sy: 1.05 });
+      blob(g, '#4f7830', '#93b45a', 42, 44, 292, 18, { seed: 51, sy: 0.95 });
+      blob(g, '#527c31', '#a0be62', 40, -40, 286, -16, { seed: 52, sy: 0.92 });
+      blob(g, '#5d8a3a', '#a9c86e', 32, 8, 388, 2, { seed: 53, sy: 1.05 });
+      blob(g, '#557f33', '#9cbc5e', 26, -26, 352, 22, { seed: 54, sy: 0.9 });
       return g;
     }
   },
@@ -902,16 +905,17 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#5c4a36', 0.95), 12, 130, 0, 0, 0, { rTop: 8 });
-      // fluffy boughs: squashed dark-green blobs tapering upward
+      cyl(g, solid('#4e3d2c', 0.95), 13, 130, 0, 0, 0, { rTop: 9 });
+      // fluffy boughs: stacked lumpy tiers that OVERLAP so the spire reads as
+      // one continuous tree (the old spacing left the top tiers floating)
       const tiers = [
-        [86, 100, 0.5], [72, 165, 0.52], [58, 230, 0.55],
-        [44, 292, 0.58], [30, 350, 0.62], [18, 400, 0.7]
+        [86, 100, 0.5], [72, 160, 0.54], [58, 215, 0.58], [46, 268, 0.62],
+        [35, 314, 0.68], [25, 352, 0.78], [16, 384, 1.0]
       ];
       tiers.forEach(([r, y, sy], i) => {
-        blob(g, '#24421f', '#4a7534', r, 0, y, 0, { seed: 61 + i * 3, sy });
+        blob(g, '#24421f', '#4a7534', r, (i % 2 ? 3 : -3), y, (i % 3 - 1) * 3, { seed: 61 + i * 3, sy });
       });
-      blob(g, '#2a4a24', '#548038', 12, 0, 440, 0, { seed: 80, sy: 1.3 });
+      blob(g, '#2a4a24', '#548038', 10, 0, 412, 0, { seed: 80, sy: 1.3 });
       return g;
     }
   },
@@ -1039,7 +1043,7 @@ export const ITEMS = [
       box(g, trim, 166, 10, 424, 0, 16, 0, { r: 4, seg: 2 });        // rocker/underbody
       box(g, paint, 174, 56, 450, 0, 22, 0, { r: 15, seg: 4 });      // lower body
       box(g, paint, 156, 58, 232, 0, 70, 24, { r: 19, seg: 4 });     // greenhouse/cabin
-      box(g, darkGlass, 159, 28, 238, 0, 84, 24, { r: 13, seg: 3 }); // wraparound glass band (proud of the cabin)
+      box(g, darkGlass, 159, 42, 238, 0, 78, 24, { r: 14, seg: 3 }); // wraparound glass band (proud of the cabin)
       // face: grille + slim headlights + lower intake
       box(g, trim, 92, 14, 4, 0, 47, -224, { r: 2 });
       box(g, trim, 130, 9, 4, 0, 27, -224, { r: 2 });
@@ -1580,10 +1584,12 @@ export const ITEMS = [
       // backboard + hoop + net
       box(g, solid('#e8eaec', 0.4), 110, 68, 4, 0, 245, -8);
       box(g, solid('#c8412e', 0.5), 44, 30, 4.5, 0, 252, -7.8);
-      cyl(g, solid('#d3591f', 0.4), 23, 2.5, 0, 248, -32, { seg: 20 });
+      // true ring rim on a short bracket, with a tapering net below
+      box(g, solid('#d3591f', 0.4), 10, 3, 8, 0, 246.5, -13);
+      torus(g, solid('#d3591f', 0.4), 21, 1.7, 0, 246.5, -32, { seg: 30, tubeSeg: 10 });
       // netMaterial is unique per call — mutating a cached solid() here used to
       // corrupt every other item sharing that material
-      cyl(g, netMaterial('#eceff2', 8, 3), 22, 34, 0, 214, -32, { rTop: 22, seg: 20, open: true });
+      cyl(g, netMaterial('#eceff2', 9, 4), 13, 30, 0, 216, -32, { rTop: 20, seg: 16, open: true });
       return g;
     }
   },
@@ -2215,7 +2221,7 @@ export const ITEMS = [
       box(g, paint, 186, 60, 540, 0, 26, 0, { r: 12, seg: 4 });       // lower body
       box(g, paint, 178, 34, 155, 0, 84, -190, { r: 10, seg: 3 });    // hood (lower than cab)
       box(g, paint, 180, 76, 182, 0, 84, -34, { r: 15, seg: 4 });     // cab
-      box(g, darkGlass, 183, 30, 187, 0, 114, -34, { r: 11, seg: 3 }); // glass band (proud of the cab)
+      box(g, darkGlass, 183, 36, 187, 0, 112, -34, { r: 12, seg: 3 }); // glass band (proud of the cab)
       // open cargo bed
       box(g, solid('#2b2d31', 0.75), 164, 6, 205, 0, 86, 162);
       box(g, paint, 10, 40, 212, -88, 84, 162, { r: 3 });
@@ -3546,33 +3552,60 @@ export const ITEMS = [
           [px(t0), py(t0), 0], [px(t1), py(t1), 0], r0, r1, 10);
       }
       const CX = px(1), CY = py(1) + 2;      // crown center
-      sphere(g, solid('#5f4a34', 0.9), 8, CX, CY - 4, 0, { sy: 1.1 });
-      blob(g, '#2a5a2c', '#4f8a38', 15, CX, CY + 7, 0, { seed: 55, sy: 0.55 }); // crown heart
-      // 9 fronds: arched rachis (two tapered segments bending down) carrying
-      // feathered leaflet blobs stretched along the rib
-      for (let i = 0; i < 9; i++) {
-        const a = (i / 9) * Math.PI * 2 + 0.35;
+      // fibrous collar where the fronds sheath the trunk top
+      cyl(g, solid('#6d5238', 0.95), 10.5, 14, CX, CY - 12, 0, { rTop: 7 });
+      sphere(g, solid('#5f4a34', 0.9), 8, CX, CY - 2, 0, { sy: 1.1 });
+      // 10 fronds, TRUE pinnate construction: an arched tapering rachis with
+      // individual leaflets swept forward and drooping harder toward the tip.
+      // (The viewer merges same-material meshes, so ~19 primitives per frond
+      // still costs ~2 draw calls for the whole crown.)
+      const rib = solid('#5a7a34', 0.8);
+      const leafTones = [solid('#2f6b31', 0.72), solid('#3c7d33', 0.72), solid('#356f2c', 0.72)];
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 + 0.35 + (i % 2) * 0.11;
         const dx = Math.cos(a), dz = Math.sin(a);
-        const v = (i % 3) * 9 + (i % 2) * 5;                 // per-frond droop
-        const rib = solid('#4f6b2c', 0.8);
-        segment(g, rib, [CX + dx * 4, CY + 5, dz * 4],
-          [CX + dx * 56, CY + 25 - v, dz * 56], 2.3, 1.4, 8);
-        segment(g, rib, [CX + dx * 56, CY + 25 - v, dz * 56],
-          [CX + dx * 112, CY - 12 - v * 1.7, dz * 112], 1.4, 0.5, 8);
-        const b1 = blob(g, '#24512a', '#4f8f38', 13, CX + dx * 52, CY + 20 - v, dz * 52,
-          { seed: 60 + i, sy: 0.24, detail: 2, amp: 0.12 });
-        b1.scale.x = 2.8; b1.scale.z = 0.85;
-        b1.rotation.y = -a; b1.rotation.z = -0.32 - v * 0.012;
-        const b2 = blob(g, '#20482a', '#468234', 10, CX + dx * 94, CY + 1 - v * 1.5, dz * 94,
-          { seed: 80 + i, sy: 0.2, detail: 2, amp: 0.12 });
-        b2.scale.x = 2.5; b2.scale.z = 0.66;
-        b2.rotation.y = -a; b2.rotation.z = -0.62 - v * 0.014;
+        const pxr = -dz, pzr = dx;                       // horizontal perpendicular
+        const v = 6 + (i % 3) * 8 + (i % 2) * 5;         // per-frond droop
+        const R = (t) => 6 + 106 * t;                    // radial reach along the frond
+        const Y = (t) => CY + 6 + 30 * t - (36 + v) * t * t; // rises, then bows down
+        const leaf = leafTones[i % 3];
+        // rachis follows the same arc in 3 tapering pieces
+        let prev = [CX + dx * R(0), Y(0), dz * R(0)];
+        for (const t of [0.35, 0.7, 1]) {
+          const nxt = [CX + dx * R(t), Y(t), dz * R(t)];
+          segment(g, rib, prev, nxt, 2.4 * (1 - t * 0.75) + 0.4, 2.4 * (1 - t * 0.8) + 0.25, 7);
+          prev = nxt;
+        }
+        // leaflet pairs: long near the base, short at the tip, drooping more
+        // as they go out; swept slightly forward along the rachis
+        for (let k = 0; k < 10; k++) {
+          const t = 0.1 + (k / 9) * 0.85;
+          const bx = CX + dx * R(t), by = Y(t), bz = dz * R(t);
+          const len = 40 * (1 - 0.52 * t) + 6;
+          const droop = len * (0.28 + 0.55 * t);
+          for (const sgn of [1, -1]) {
+            const hx = dx * 0.42 + pxr * sgn * 0.9, hz = dz * 0.42 + pzr * sgn * 0.9;
+            const hl = Math.hypot(hx, hz);
+            segment(g, leaf,
+              [bx, by + 0.5, bz],
+              [bx + (hx / hl) * len * 0.95, by - droop, bz + (hz / hl) * len * 0.95],
+              1.8, 0.15, 5);
+          }
+        }
+        // tip blade finishes the frond
+        segment(g, leaf, prev, [prev[0] + dx * 16, prev[1] - 10, prev[2] + dz * 16], 0.8, 0.1, 5);
+      }
+      // a couple of dead fronds hanging under the crown (real palms keep a skirt)
+      for (const [aa, dl] of [[1.1, 34], [3.9, 28]]) {
+        const ddx = Math.cos(aa), ddz = Math.sin(aa);
+        segment(g, solid('#8a7248', 0.95), [CX + ddx * 8, CY - 8, ddz * 8],
+          [CX + ddx * 26, CY - 8 - dl, ddz * 26], 1.6, 0.3, 6);
       }
       // coconut cluster tucked under the crown
       const nut = solid('#6a4f36', 0.85);
-      sphere(g, nut, 7.5, CX - 9, CY - 12, 5);
-      sphere(g, nut, 6.5, CX + 8, CY - 14, -7);
-      sphere(g, nut, 6, CX + 1, CY - 16, 9);
+      sphere(g, nut, 7.5, CX - 9, CY - 10, 5);
+      sphere(g, nut, 6.5, CX + 8, CY - 12, -7);
+      sphere(g, nut, 6, CX + 1, CY - 14, 9);
       return g;
     }
   },
