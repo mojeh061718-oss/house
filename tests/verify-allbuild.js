@@ -22,7 +22,11 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
 
   const res = await page.evaluate(() => {
     const hs = window.homestudio, THREE = hs.THREE;
-    const out = { total: 0, throws: [], heavy: [], maxMeshes: 0 };
+    const out = { total: 0, throws: [], heavy: [], maxMeshes: 0, sizeLies: [] };
+    // Known intentional overhangs (canopies, eaves, blades) may exceed the
+    // declared footprint a little; flag anything clearly out of contract.
+    const TOL = 1.45;     // built size may be up to 45% over the declared w/d/h
+    const MINR = 0.35;    // ...and no smaller than 35% of it (buried/vestigial builds)
     for (const def of hs.ITEMS) {
       const pals = def.palettes || [null];
       for (let pi = 0; pi < pals.length; pi++) {
@@ -33,6 +37,20 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
           g.traverse(o => { if (o.isMesh) meshes++; });
           if (pi === 0) out.heavy.push({ id: def.id, meshes });
           out.maxMeshes = Math.max(out.maxMeshes, meshes);
+          // bbox-vs-def contract: the built model must roughly match its
+          // declared footprint — the plan symbol, selection box and wall
+          // snapping all trust def.w/d/h (a kayak once built 3.5× its width)
+          if (pi === 0 && !def.path && !def.areaDraw && !def.buildSized) {
+            const bb = new THREE.Box3().setFromObject(g);
+            const s = bb.getSize(new THREE.Vector3());
+            const checks = [['w', s.x, def.w], ['h', s.y, def.h], ['d', s.z, def.d]];
+            for (const [axis, built, decl] of checks) {
+              if (!decl || decl < 12) continue; // tiny/undeclared axes are noise
+              if (built > decl * TOL || built < decl * MINR) {
+                out.sizeLies.push(`${def.id}: built ${axis}=${Math.round(built)} vs declared ${decl}`);
+              }
+            }
+          }
           g.traverse(o => o.geometry?.dispose?.());
         } catch (e) {
           out.throws.push(def.id + ' [pal ' + pi + ']: ' + e.message);
@@ -47,7 +65,12 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
   console.log('throws:', res.throws.length ? JSON.stringify(res.throws, null, 2) : 'none');
   console.log('max meshes in one item:', res.maxMeshes);
   console.log('heaviest:', JSON.stringify(res.heavy));
+  console.log('size contract violations (' + res.sizeLies.length + '):');
+  for (const l of res.sizeLies) console.log('  ' + l);
   if (errs.length) console.log('PAGE ERRORS:', errs.join('\n'));
-  console.log(res.throws.length || errs.length ? 'FAIL' : 'PASS');
+  // size lies are reported but only enforced with STRICT_SIZE=1 — the backlog
+  // is being burned down item-by-item in the asset realism pass
+  const sizeFail = process.env.STRICT_SIZE === '1' && res.sizeLies.length > 0;
+  console.log(res.throws.length || errs.length || sizeFail ? 'FAIL' : 'PASS');
   await b.close();
 })();

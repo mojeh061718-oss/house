@@ -24,29 +24,56 @@ const EXEC = process.env.CHROMIUM ||
 const CHANNEL_TOL = 26;
 const PIXEL_PCT_TOL = 1.0;
 
+/** The first-run offline prompt can pop over the studio at slightly different
+ *  times per run — poll it away before interacting. */
+async function dismissPrompts(p) {
+  for (let i = 0; i < 8; i++) {
+    const hit = await p.evaluate(() => {
+      const c = [...document.querySelectorAll('.modal-scrim button')]
+        .find(b => /cancel|later|not now/i.test(b.textContent || ''));
+      if (c) { c.click(); return true; }
+      return false;
+    });
+    if (hit) { await p.waitForTimeout(300); return; }
+    await p.waitForTimeout(400);
+  }
+}
+
 const SHOTS = [
-  { name: 'home', run: async (p) => { /* home screen after splash */ } },
+  { name: 'home', run: async (p) => {
+      // wait until the splash is fully faded away, not just until home exists —
+      // catching the crossfade mid-flight made this shot flaky
+      await p.waitForFunction(() => {
+        const s = document.getElementById('splash');
+        const h = document.getElementById('home');
+        const gone = !s || getComputedStyle(s).display === 'none' || parseFloat(getComputedStyle(s).opacity) === 0;
+        return gone && h && !h.classList.contains('hidden');
+      }, { timeout: 20000 }).catch(() => {});
+      await p.waitForTimeout(800);
+  } },
   {
     name: 'mansion-2d',
     run: async (p) => {
       await p.click('#homeMansion');
       await p.waitForTimeout(2600);
+      await dismissPrompts(p);
     }
   },
   {
     name: 'mansion-3d-day',
     run: async (p) => {
+      await dismissPrompts(p);
       await p.click('[data-view="3d"]');
       await p.waitForTimeout(3800);
       await p.evaluate(() => homestudio.viewer.applyTimeOfDay(12));
-      await p.waitForTimeout(600);
+      await p.waitForTimeout(2000); // let lighting/camera fully settle (day keyframe)
     }
   },
   {
     name: 'mansion-3d-night',
     run: async (p) => {
       await p.evaluate(() => homestudio.viewer.applyTimeOfDay(22));
-      await p.waitForTimeout(600);
+      await p.waitForTimeout(2000);
     }
   }
 ];
@@ -70,19 +97,30 @@ function diffPngs(aBuf, bBuf) {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({
     executablePath: EXEC,
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--no-sandbox']
+    // --no-proxy-server: the CI/agent containers route loopback through an
+    // HTTP proxy, which stalls compositing and times out screenshots
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--no-sandbox', '--no-proxy-server']
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.on('pageerror', e => { console.error('PAGEERROR:', e.message); process.exitCode = 1; });
   await page.goto(URL_BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(() => localStorage.clear());
+  // projects live in IndexedDB (localStorage is only a fallback) — clear BOTH,
+  // or the previous run's saved template shows on home and shifts every pixel
+  await page.evaluate(() => {
+    localStorage.clear();
+    return new Promise((res) => {
+      const r = indexedDB.deleteDatabase('honeycutt');
+      r.onsuccess = r.onerror = r.onblocked = () => res();
+      setTimeout(res, 2000);
+    });
+  });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600); // splash → home
 
   let failures = 0;
   for (const shot of SHOTS) {
     await shot.run(page);
-    const buf = await page.screenshot();
+    const buf = await page.screenshot({ timeout: 120000 }); // SwiftShader under load is slow
     const basePath = path.join(BASE, shot.name + '.png');
     if (UPDATE || !fs.existsSync(basePath)) {
       fs.writeFileSync(basePath, buf);

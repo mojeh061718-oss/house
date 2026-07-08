@@ -1,7 +1,7 @@
 // Studio UI shell: slim top bar, left tool rail, catalog & properties
 // drawers, floating action cluster, hint pill. Landscape-first, touch-first.
 import { ICONS, icon } from './icons.js';
-import { thumbnail } from './thumbs.js';
+import { thumbnail, onThumbsRefresh } from './thumbs.js';
 import pkg from '../../package.json';
 import { CATEGORIES, ITEMS, ITEM_MAP } from '../catalog/items.js';
 import { MATERIALS, getMaterialPreview, watchTextures, ensureTexture } from '../core/textures.js';
@@ -53,6 +53,18 @@ export class UI {
       if (this.selectionLocked()) this.toast('Locked — tap the padlock to unlock');
     };
     this.editor.onWeld = () => this.toast('Shared walls merged into one');
+
+    // when photo textures finish loading, re-render the catalog cards that
+    // were snapshotted against the flat placeholder
+    onThumbsRefresh(() => {
+      const imgs = document.querySelectorAll('#catGrid img[data-def-id]');
+      if (!imgs.length) return;
+      this._thumbQueue = this._thumbQueue || [];
+      for (const img of imgs) {
+        if (img.src.startsWith('data:')) { img.dataset.stale = '1'; this._thumbQueue.push(img); }
+      }
+      this.drainThumbs();
+    });
 
     // compact chrome on short screens (phones, incl. the rotated-portrait
     // mode where CSS media queries see the wrong axis)
@@ -118,7 +130,7 @@ export class UI {
     const bar = $('#topbar');
     bar.innerHTML = `
       <button class="tb-btn" id="btnHome" title="Back to projects">${ICONS.logo}</button>
-      <input id="projectName" class="project-name" value="${store.project.name || 'Untitled'}" spellcheck="false" aria-label="Project name"/>
+      <input id="projectName" class="project-name" value="${escapeHtml(store.project.name || 'Untitled')}" spellcheck="false" aria-label="Project name"/>
       <button class="tb-btn" id="btnUndo" title="Undo">${ICONS.undo}</button>
       <button class="tb-btn" id="btnRedo" title="Redo">${ICONS.redo}</button>
       <span class="save-state saved" id="saveState" title="Your work is saved automatically">${ICONS.check}<span class="save-lbl">Saved</span></span>
@@ -942,9 +954,10 @@ export class UI {
         if (sub) sub.textContent = 'Done — the app now works fully offline';
         this.toast('Saved for offline use ✓');
       } else {
-        // couldn't persist (no service worker) — be honest, don't claim offline
-        if (sub) sub.textContent = 'Loaded for now — full offline needs a supported browser';
-        this.toast('Loaded for this session');
+        // couldn't fully persist (no service worker, or some files failed on a
+        // flaky connection) — be honest, don't claim offline; retry stays offered
+        if (sub) sub.textContent = 'Not fully saved — try again on a better connection';
+        this.toast('Offline save incomplete — try again later');
       }
       await new Promise(r => setTimeout(r, 750));
       return persisted;
@@ -1003,27 +1016,30 @@ export class UI {
     inp.click();
   }
 
-  /** Is the current selection a locked item (or all-locked group)? */
+  /** Is the current selection a locked piece (or all-locked group)? */
   selectionLocked() {
     const store = this.store;
     const sel = store.selection;
     if (sel?.kind === 'item') return !!store.item(sel.id)?.locked;
+    if (sel?.kind === 'wall') return !!store.wall(sel.id)?.locked;
+    if (sel?.kind === 'opening') return !!store.opening(sel.id)?.locked;
     if (sel?.kind === 'multi') return sel.ids.every(id => store.item(id)?.locked);
     return false;
   }
 
-  /** Toggle the padlock on the selected item or group. */
+  /** Toggle the padlock on the selected item, wall, opening or group. */
   toggleLock() {
     const store = this.store;
     const sel = store.selection;
-    if (sel?.kind === 'item') {
-      const it = store.item(sel.id);
-      if (!it) return;
+    if (sel?.kind === 'item' || sel?.kind === 'wall' || sel?.kind === 'opening') {
+      const el = sel.kind === 'item' ? store.item(sel.id)
+        : sel.kind === 'wall' ? store.wall(sel.id) : store.opening(sel.id);
+      if (!el) return;
       store.checkpoint();
-      it.locked = !it.locked;
+      el.locked = !el.locked;
       store.commit(false);
       this.syncFabs();
-      this.toast(it.locked ? 'Locked in place' : 'Unlocked');
+      this.toast(el.locked ? 'Locked in place' : 'Unlocked');
     } else if (sel?.kind === 'multi') {
       const items = sel.ids.map(id => store.item(id)).filter(Boolean);
       if (!items.length) return;
@@ -1139,9 +1155,11 @@ export class UI {
       const def = it && ITEM_MAP.get(it.defId);
       photoBtn.style.display = def?.photo ? '' : 'none';
     }
-    // padlock: items & groups only; icon mirrors the current state
+    // padlock: items, groups, walls and openings; icon mirrors the state.
+    // Walls/openings must be unlockable here — "Lock everything" locks them
+    // and this padlock is the only way promised to free them.
     const lockBtn = $('#selLock');
-    const lockable = isItem || sel?.kind === 'multi';
+    const lockable = isItem || sel?.kind === 'multi' || sel?.kind === 'wall' || sel?.kind === 'opening';
     lockBtn.style.display = lockable ? '' : 'none';
     if (lockable) {
       const locked = this.selectionLocked();
@@ -1354,8 +1372,9 @@ export class UI {
       let n = 0;
       while (this._thumbQueue && this._thumbQueue.length && n < 4) {
         const img = this._thumbQueue.shift();
-        if (img.isConnected && img.dataset.defId && !img.src.startsWith('data:')) {
-          try { img.src = thumbnail(img.dataset.defId); } catch {}
+        const stale = img.dataset.stale === '1';
+        if (img.isConnected && img.dataset.defId && (stale || !img.src.startsWith('data:'))) {
+          try { img.src = thumbnail(img.dataset.defId); delete img.dataset.stale; } catch {}
         }
         n++;
       }
@@ -1509,7 +1528,7 @@ export class UI {
     this._propsKind = this.selKind();
     const head = (title) => `
       <div class="panel-head">
-        <span>${title}</span>
+        <span>${escapeHtml(title)}</span>
         <button class="tb-btn" data-close="props">${ICONS.close}</button>
       </div>`;
 
@@ -1638,7 +1657,7 @@ export class UI {
         si.onkeydown = (e) => { if (e.key === 'Enter') si.blur(); };
       }
       $('#pDup').onclick = () => this.duplicateSelection();
-      $('#pDel').onclick = () => store.deleteSelection();
+      $('#pDel').onclick = () => { if (!store.deleteSelection() && this.selectionLocked()) this.toast('Locked — tap the padlock to unlock'); };
     } else if (sel.kind === 'multi') {
       const n = sel.ids.length;
       panel.innerHTML = `${head(`${n} item${n === 1 ? '' : 's'} selected`)}
@@ -1651,7 +1670,7 @@ export class UI {
           </div>
         </div>`;
       $('#pDup').onclick = () => this.duplicateSelection();
-      $('#pDel').onclick = () => store.deleteSelection();
+      $('#pDel').onclick = () => { if (!store.deleteSelection() && this.selectionLocked()) this.toast('Locked — tap the padlock to unlock'); };
     } else if (sel.kind === 'wall') {
       const w = store.wall(sel.id);
       if (!w) { store.select(null); return; }
@@ -1707,7 +1726,7 @@ export class UI {
         this.toast('Whole exterior updated');
         this.renderProps();
       };
-      $('#pDel').onclick = () => store.deleteSelection();
+      $('#pDel').onclick = () => { if (!store.deleteSelection() && this.selectionLocked()) this.toast('Locked — tap the padlock to unlock'); };
     } else if (sel.kind === 'opening') {
       const o = store.opening(sel.id);
       if (!o) { store.select(null); return; }
@@ -1759,7 +1778,7 @@ export class UI {
       if (hasFlip) $('#pFlip').onclick = () => structural(() => o.flip = !o.flip);
       if (hasSwing) $('#pSwing').onclick = () => structural(() => o.swing = !o.swing);
       $('#pDup').onclick = () => this.duplicateSelection();
-      $('#pDel').onclick = () => store.deleteSelection();
+      $('#pDel').onclick = () => { if (!store.deleteSelection() && this.selectionLocked()) this.toast('Locked — tap the padlock to unlock'); };
     } else if (sel.kind === 'room') {
       const room = store.room(sel.id);
       if (!room) { store.select(null); return; }
@@ -1772,7 +1791,7 @@ export class UI {
       panel.innerHTML = `${head(style.name || 'Room')}
         <div class="props-body">
           <label class="field"><span>Room name</span>
-            <input id="roomName" value="${style.name || ''}" placeholder="e.g. Living room"/>
+            <input id="roomName" value="${escapeHtml(style.name || '')}" placeholder="e.g. Living room"/>
           </label>
           ${rect ? `<div class="props-grid2">
             ${this.lenRow('pRW', 'Width', rect.maxX - rect.minX)}
@@ -2173,6 +2192,9 @@ export class UI {
       };
       text = hints[store.tool] || '';
     }
+    // no hint for this tool → hide the pill entirely (an empty pill used to
+    // render as a floating dark blob whenever Measure/Dimension was armed)
+    if (!text) { pill.classList.add('hidden'); clearTimeout(this._hintTimer); return; }
     pill.textContent = text;
     pill.classList.remove('hidden', 'fade');
     clearTimeout(this._hintTimer);

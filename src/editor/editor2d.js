@@ -44,7 +44,7 @@ export class Editor2D {
     canvas.addEventListener('pointerdown', e => this.onDown(e));
     canvas.addEventListener('pointermove', e => this.onMove(e));
     canvas.addEventListener('pointerup', e => this.onUp(e));
-    canvas.addEventListener('pointercancel', e => this.onUp(e));
+    canvas.addEventListener('pointercancel', e => this.onCancel(e));
     canvas.addEventListener('wheel', e => this.onWheel(e), { passive: false });
     canvas.addEventListener('dblclick', e => e.preventDefault());
     canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -194,13 +194,13 @@ export class Editor2D {
       let guide = null;
       if (horiz) {
         ay = opts.ref.y;
-        for (const w of p.walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+        for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
           if (Math.abs(ax - ex) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) { ax = ex; guide = { x: ex, y: ey }; }
         }
         if (!guide) ax = Math.round(ax / GRID) * GRID;
       } else if (vert) {
         ax = opts.ref.x;
-        for (const w of p.walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+        for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
           if (Math.abs(ay - ey) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) { ay = ey; guide = { x: ex, y: ey }; }
         }
         if (!guide) ay = Math.round(ay / GRID) * GRID;
@@ -218,7 +218,7 @@ export class Editor2D {
     let gx = Math.round(x / GRID) * GRID;
     let gy = Math.round(y / GRID) * GRID;
     let guide = null;
-    for (const w of p.walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
+    for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
       if (Math.abs(x - ex) < tol) { gx = ex; guide = { x: ex, y: ey }; }
       if (Math.abs(y - ey) < tol) { gy = ey; guide = guide || { x: ex, y: ey }; }
     }
@@ -1021,6 +1021,7 @@ export class Editor2D {
         const o = store.opening(m.id);
         const wall = o && store.wall(o.wallId);
         if (!wall) break;
+        m.moved = true;
         const len = wallLength(wall);
         // the grabbed jamb follows the pointer along the wall; the other stays
         const r = pointSegDist(w.x, w.y, wall.ax, wall.ay, wall.bx, wall.by);
@@ -1099,6 +1100,7 @@ export class Editor2D {
       case 'rotateItem': {
         const it = store.item(m.id);
         if (!it) break;
+        m.moved = true;
         let ang = Math.atan2(w.y - it.y, w.x - it.x) + Math.PI / 2;
         const stepped = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12);
         it.rotation = Math.abs(ang - stepped) < 0.06 ? stepped : ang;
@@ -1108,6 +1110,7 @@ export class Editor2D {
       case 'resizeItem': {
         const it = store.item(m.id);
         if (!it) break;
+        m.moved = true;
         const cos = Math.cos(-it.rotation), sin = Math.sin(-it.rotation);
         const dx = w.x - it.x, dy = w.y - it.y;
         const lx = Math.abs(dx * cos - dy * sin), ly = Math.abs(dx * sin + dy * cos);
@@ -1153,6 +1156,7 @@ export class Editor2D {
       case 'dragEndpoint': {
         const wall = store.wall(m.id);
         if (!wall) break;
+        m.moved = true;
         const other = m.end === 'a' ? { x: wall.bx, y: wall.by } : { x: wall.ax, y: wall.ay };
         const pt = this.snapPoint(w.x, w.y, { ref: other, excludeWall: m.id });
         wall[m.end + 'x'] = pt.x; wall[m.end + 'y'] = pt.y;
@@ -1197,6 +1201,23 @@ export class Editor2D {
     const dx = b.x - a.x, dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
     return ((cx - a.x) * (-dy) + (cy - a.y) * dx) / len;
+  }
+
+  /** An OS-cancelled gesture (edge swipe, notification pull, palm rejection)
+   *  must never COMMIT: draw previews are discarded, and drags that mutate
+   *  live (item/wall/handle drags, which checkpoint on pointerdown) roll back
+   *  to that checkpoint. Routing this to onUp used to drop half-drawn walls
+   *  and patios wherever the preview happened to be. */
+  onCancel(e) {
+    this.pointers.delete(e.pointerId);
+    if (this.pointers.size < 2) this.pinch = null;
+    const m = this.mode;
+    const MUTATING = ['dragItem', 'dragOpening', 'dragWall', 'dragEndpoint', 'dragMulti',
+      'dragRoom', 'resizeOpening', 'resizeItem', 'rotateItem'];
+    if (MUTATING.includes(m.name)) this.store.revertToCheckpoint();
+    if (m.name !== 'idle' && m.name !== 'none') this.mode = { name: 'idle' };
+    this._snap = null;
+    this.requestRender();
   }
 
   onUp(e) {
@@ -1316,8 +1337,10 @@ export class Editor2D {
       this.requestRender();
       return;
     }
-    if (['dragItem', 'dragOpening', 'dragWall', 'dragMulti'].includes(m.name) && m.moved === false) {
-      // click without movement — the checkpoint taken on pointerdown is redundant
+    if (['dragItem', 'dragOpening', 'dragWall', 'dragMulti', 'dragEndpoint',
+      'resizeOpening', 'rotateItem', 'resizeItem'].includes(m.name) && !m.moved) {
+      // tap without movement — the checkpoint taken on pointerdown is redundant
+      // (leaving it made Undo "do nothing" and wiped the redo stack)
       store.undoStack.pop();
       store.emit('history');
     }

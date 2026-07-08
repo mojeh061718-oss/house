@@ -56,7 +56,9 @@ export async function installLibrary(onProgress) {
       const onMsg = (e) => {
         const m = e.data || {};
         if (m.type === 'LIBRARY_PROGRESS') onProgress?.(m.done, m.total || total);
-        if (m.type === 'LIBRARY_DONE') { onProgress?.(m.total || total, m.total || total); finish(true); }
+        // only a COMPLETE download counts as installed — some files failing
+        // (flaky cellular) must leave the flag unset so a retry is offered
+        if (m.type === 'LIBRARY_DONE') { onProgress?.(m.total || total, m.total || total); finish(!(m.failed > 0)); }
       };
       navigator.serviceWorker.addEventListener('message', onMsg);
       sw.postMessage({ type: 'CACHE_LIBRARY', urls });

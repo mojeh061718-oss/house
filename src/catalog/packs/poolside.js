@@ -1,6 +1,6 @@
 // Poolside gear & pool floats — playful outdoor pack.
 // Built only from primitive helpers; no external assets, no THREE import.
-import { G, box, cyl, sphere, pyramid, legs4, shade, solid, wood, metal, chrome, glass, glow } from '../builders.js';
+import { G, box, cyl, sphere, pyramid, legs4, shade, solid, wood, metal, chrome, glass, glow, netMaterial } from '../builders.js';
 
 // small deterministic RNG factory for scattered detail (sprinkles, etc.)
 const rng = (seed) => {
@@ -409,9 +409,7 @@ export const POOLSIDE_ITEMS = [
       }
       box(g, solid('#2f6ea3', 0.6), 452, 8, 3, 0, 100, 0);            // top tape band
       box(g, solid('#2f6ea3', 0.6), 452, 6, 3, 0, 40, 0);            // bottom tape band
-      const net = solid('#f0f2f4', 0.9);
-      net.transparent = true; net.opacity = 0.5;
-      box(g, net, 452, 56, 1.5, 0, 44, 0).material.wireframe = true;  // mesh
+      box(g, netMaterial('#f0f2f4', 40, 5), 452, 56, 1.5, 0, 44, 0);  // mesh net
       return g;
     }
   },

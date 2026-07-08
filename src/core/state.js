@@ -175,6 +175,16 @@ export class Store {
     this.emit('history');
   }
 
+  /** Roll the live project back to the last checkpoint and drop that
+   *  checkpoint — for gestures the OS cancelled mid-drag (edge swipe,
+   *  notification pull). Leaves no undo or redo residue. */
+  revertToCheckpoint() {
+    if (!this.undoStack.length) return;
+    this.project = hydrateProject(JSON.parse(this.undoStack.pop()));
+    this.commit(false);
+    this.emit('history');
+  }
+
   redo() {
     if (!this.redoStack.length) return;
     this.undoStack.push(JSON.stringify(serializeProject(this.project)));
@@ -354,9 +364,11 @@ export class Store {
       const ids = new Set(sel.ids);
       if (!p.items.some(i => ids.has(i.id) && !i.locked)) return false;
     } else if (sel.kind === 'opening') {
-      if (!this.opening(sel.id)) return false;
+      const o = this.opening(sel.id);
+      if (!o || o.locked) return false;
     } else if (sel.kind === 'wall') {
-      if (!this.wall(sel.id)) return false;
+      const w = this.wall(sel.id);
+      if (!w || w.locked) return false;
     } else if (sel.kind === 'room') {
       if (!room) return false;
     } else if (sel.kind === 'dim') {
@@ -390,7 +402,8 @@ export class Store {
       const shared = id => others.some(r => r.wallIds.has(id));
       let ids = [...room.wallIds].filter(id => !shared(id));
       if (!ids.length) ids = [...room.wallIds];
-      const idSet = new Set(ids);
+      // locked walls survive a room delete, like locked items do
+      const idSet = new Set(ids.filter(id => !this.wall(id)?.locked));
       cut(p.walls, w => idSet.has(w.id));
       cut(p.openings, o => idSet.has(o.wallId));
       // furniture inside goes too; roof-level pieces (roofs, dormers,
@@ -406,9 +419,16 @@ export class Store {
 
   // ---- persistence ---------------------------------------------------------
 
-  /** Any edits since the project was last saved (or opened)? */
+  /** Any edits since the project was last saved (or opened)? Which floor is
+   *  active is a view preference, not an edit — without normalizing it, just
+   *  browsing to Floor 1 triggered a spurious "Save changes?" on exit. */
   isDirty() {
-    return JSON.stringify(serializeProject(this.project)) !== this._savedJson;
+    if (this._savedJson == null) return true;
+    const a = serializeProject(this.project);
+    let b;
+    try { b = JSON.parse(this._savedJson); } catch { return true; }
+    a.activeLevel = 0; b.activeLevel = 0;
+    return JSON.stringify(a) !== JSON.stringify(b);
   }
 
   /** Edits go to a crash-recovery draft, not the saved project. */

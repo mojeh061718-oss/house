@@ -50,18 +50,44 @@
       window.__splashT0 = Date.now();
       // If the home screen never appears, the app module failed to boot (e.g. a
       // stale cached index.html pointing at a JS bundle a newer deploy already
-      // purged → 404). Surface a reload button instead of a dead splash.
-      setTimeout(function () {
-        var home = document.getElementById('home');
-        if ((home && !home.classList.contains('hidden')) || document.getElementById('splash-recover')) return;
-        var s = document.getElementById('splash');
-        if (!s) return;
-        var d = document.createElement('div');
-        d.id = 'splash-recover';
-        d.style.cssText = 'position:absolute;left:0;right:0;bottom:5%;text-align:center;z-index:3;font:600 13px system-ui,sans-serif';
-        d.innerHTML = '<button onclick="location.reload(true)" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:10px 22px;font:inherit">Tap to reload</button>';
-        s.appendChild(d);
-      }, 9000);
+      // purged → 404). Two-stage failsafe: a gentle "Still loading…" note, then
+      // a reload button. BOTH retract the moment the app actually boots — on a
+      // slow first load the app can finish after the failsafe fires, and the
+      // user must never see a reload button over a working app.
+      (function () {
+        var booted = function () {
+          var home = document.getElementById('home');
+          return home && !home.classList.contains('hidden');
+        };
+        var note = null, btn = null;
+        var retract = setInterval(function () {
+          if (!booted()) return;
+          if (note) note.remove();
+          if (btn) btn.remove();
+          clearInterval(retract);
+        }, 400);
+        setTimeout(function () {
+          if (booted()) return;
+          var s = document.getElementById('splash');
+          if (!s) return;
+          note = document.createElement('div');
+          note.id = 'splash-slow';
+          note.style.cssText = 'position:absolute;left:0;right:0;bottom:12%;text-align:center;z-index:3;color:#8fa3c0;font:500 13px system-ui,sans-serif';
+          note.textContent = 'Still loading…';
+          s.appendChild(note);
+        }, 4000);
+        setTimeout(function () {
+          if (booted()) return;
+          var s = document.getElementById('splash');
+          if (!s) return;
+          if (note) note.remove();
+          btn = document.createElement('div');
+          btn.id = 'splash-recover';
+          btn.style.cssText = 'position:absolute;left:0;right:0;bottom:8%;text-align:center;z-index:3;font:600 13px system-ui,sans-serif';
+          btn.innerHTML = '<button onclick="location.reload()" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:10px 22px;font:inherit">Tap to reload</button>';
+          s.appendChild(btn);
+        }, 7000);
+      })();
     </script>
   <div id="app">
     <div id="home" class="hidden"></div>

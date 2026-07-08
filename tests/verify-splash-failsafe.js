@@ -1,6 +1,8 @@
-// 1) normal boot: splash plays and the home screen appears.
+// 1) normal boot: the static splash logo is visible, home appears, and the
+//    failsafe reload button is NEVER left showing over a working app (it must
+//    retract even if it fired during a slow boot).
 // 2) simulate the module failing to load (version skew): the failsafe must
-//    still start the splash animation and surface a reload button.
+//    surface a reload button on the still-visible splash.
 import { chromium } from 'playwright-core';
 const EXEC = process.env.CHROMIUM ||
   '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell';
@@ -9,29 +11,33 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
 (async () => {
   const b = await chromium.launch({ executablePath: EXEC,
     args: ['--use-gl=angle','--use-angle=swiftshader','--no-sandbox'] });
+  let fail = false;
 
   // --- normal boot ---
   {
     const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, serviceWorkers: 'block' });
     const page = await ctx.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    // animation auto-plays from CSS: the house paths should be mid/partly drawn
-    await page.waitForTimeout(900);
-    const drawing = await page.evaluate(() => {
-      const p = document.querySelector('.sh-walls');
-      if (!p) return false;
-      const off = parseFloat(getComputedStyle(p).strokeDashoffset);
-      return off < 0.999;   // < 1 means the draw animation has progressed
+    const logoShown = await page.evaluate(() => {
+      const l = document.querySelector('.splash-logo');
+      return !!l && l.getBoundingClientRect().width > 40;
     });
     await page.waitForFunction(() => {
       const h = document.getElementById('home');
       return h && !h.classList.contains('hidden');
-    }, { timeout: 8000 }).catch(() => {});
+    }, { timeout: 15000 }).catch(() => {});
     const homeShown = await page.evaluate(() => {
       const h = document.getElementById('home');
       return h && !h.classList.contains('hidden');
     });
-    console.log('normal: houseDrawing=' + drawing + ' homeShown=' + homeShown);
+    // wait past both failsafe stages, then confirm neither is left on screen
+    await page.waitForTimeout(8000);
+    const leftovers = await page.evaluate(() => ({
+      recover: !!document.getElementById('splash-recover'),
+      slow: !!document.getElementById('splash-slow'),
+    }));
+    console.log(`normal: logo=${logoShown} home=${homeShown} leftoverReload=${leftovers.recover} leftoverSlow=${leftovers.slow}`);
+    if (!logoShown || !homeShown || leftovers.recover || leftovers.slow) fail = true;
     await ctx.close();
   }
 
@@ -41,18 +47,15 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
     const page = await ctx.newPage();
     await page.route(/index-.*\.js/, r => r.abort());   // kill the app module
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await page.waitForTimeout(900);
-    const drawing = await page.evaluate(() => {
-      const p = document.querySelector('.sh-walls');
-      if (!p) return false;
-      return parseFloat(getComputedStyle(p).strokeDashoffset) < 0.999;  // animates even w/o the module
-    });
-    await page.waitForTimeout(9000);
+    await page.waitForTimeout(5000);
+    const slow = await page.evaluate(() => !!document.getElementById('splash-slow'));
+    await page.waitForTimeout(3500);
     const recover = await page.evaluate(() => !!document.getElementById('splash-recover'));
-    console.log('blocked: houseDrawing=' + drawing + ' recoverButton=' + recover);
-    console.log((drawing && recover) ? 'PASS: splash animates without JS + offers reload when module dies'
-                                     : 'FAIL: failsafe did not engage');
+    console.log(`blocked: stillLoadingNote=${slow} recoverButton=${recover}`);
+    if (!recover) fail = true;
     await ctx.close();
   }
+  console.log(fail ? 'FAIL' : 'PASS: splash shows, failsafe fires when dead, retracts when alive');
   await b.close();
+  process.exit(fail ? 1 : 0);
 })();

@@ -275,7 +275,7 @@ export const UTILITY_ITEMS = [
       box(g, cab, 150, 5, 42, 0, 46, 0, { r: 1 });
       // lower shoe cubbies (open boxes under the bench)
       for (let i = -1; i <= 1; i++) {
-        box(g, solid('#00000022', 1), 40, 38, 34, i * 49, 24, 2);   // cubby shadow box
+        box(g, solid('#17191c', 0.95), 40, 38, 34, i * 49, 24, 2);   // cubby shadow box
         box(g, cab, 40, 2, 34, i * 49, 24, 2);                       // divider shelf
       }
       // coat hooks at seat-back height
@@ -332,7 +332,7 @@ export const UTILITY_ITEMS = [
       const cab = wood(p.wood, 0.5);
       box(g, cab, 110, 40, 38, 0, 0, 0, { r: 1 });
       box(g, solid('#d8ccb8', 0.8), 110, 6, 38, 0, 40, 0, { r: 2 }); // cushion top
-      for (let i = -1; i <= 1; i++) box(g, solid('#00000022', 1), 32, 30, 32, i * 36, 5, 2); // open cubbies
+      for (let i = -1; i <= 1; i++) box(g, solid('#17191c', 0.95), 32, 30, 32, i * 36, 5, 2); // open cubbies
       return g;
     }
   },

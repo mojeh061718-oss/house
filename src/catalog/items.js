@@ -247,8 +247,7 @@ export const ITEMS = [
     build: () => {
       const g = G();
       box(g, solid('#1c1d1f', 0.4), 124, 70, 4, 0, 1, -1.5);
-      const screen = solid('#0e1620', 0.05);
-      screen.emissive?.set?.('#16324a');
+      const screen = glow('#0e1620', 0.55, 0.05, '#16324a');
       box(g, screen, 116, 63, 1, 0, 4.5, 0.6);
       box(g, metal('#3f4246', 0.4), 20, 30, 3, 0, 20, -3.4);
       return g;
@@ -328,9 +327,7 @@ export const ITEMS = [
       box(g, solid('#e6e0d4', 0.6), 148, 8, 46, 0, 104, 0, { r: 1.5 });
       box(g, solid('#1a1817', 0.9), 76, 60, 6, 0, 14, 17.4);
       box(g, solid('#2a2320', 0.9), 68, 52, 24, 0, 16, 4);
-      const fire = solid('#ff8c30', 0.6);
-      fire.emissive.set('#ff6a10');
-      fire.emissiveIntensity = 1.4;
+      const fire = glow('#ff8c30', 1.4, 0.6, '#ff6a10');
       cyl(g, solid('#4a3626', 0.95), 4.5, 40, -12, 20, 8, { rz: Math.PI / 2.3 });
       cyl(g, solid('#54402e', 0.95), 4, 40, 8, 20, 6, { rz: Math.PI / 1.8 });
       sphere(g, fire, 9, 0, 30, 6, { sy: 1.6, seg: 10 });
@@ -767,9 +764,7 @@ export const ITEMS = [
       const g = G();
       // built hanging from y=0 downward; viewer positions at ceiling
       cyl(g, metal('#b8bcc0', 0.4), 6, 2, 0, -2, 0);
-      const globeMat = solid('#f4ead6', 0.6);
-      globeMat.emissive?.set?.('#f4e2bc');
-      if (globeMat.emissiveIntensity !== undefined) globeMat.emissiveIntensity = 0.75;
+      const globeMat = glow('#f4ead6', 0.75, 0.6, '#f4e2bc');
       sphere(g, globeMat, 15, 0, -10, 0, { sy: 0.62 });
       return g;
     }
@@ -783,9 +778,7 @@ export const ITEMS = [
       cyl(g, metal('#4a4c50', 0.4), 5, 2, 0, -2, 0);
       cyl(g, solid('#2c2c2e', 0.5), 0.4, 62, 0, -64, 0);
       shade(g, '#3f4246', 15, 6, 22, 0, -86, 0);
-      const bulb = solid('#ffe8c0', 0.4);
-      bulb.emissive?.set?.('#ffd9a0');
-      if (bulb.emissiveIntensity !== undefined) bulb.emissiveIntensity = 1.2;
+      const bulb = glow('#ffe8c0', 1.2, 0.4, '#ffd9a0');
       sphere(g, bulb, 4.5, 0, -82, 0);
       return g;
     }
@@ -1034,9 +1027,7 @@ export const ITEMS = [
       cyl(g, iron, 14, 6, 0, 0, 0);
       cyl(g, iron, 4.5, 265, 0, 4, 0, { rTop: 3 });
       cyl(g, iron, 7, 4, 0, 268, 0);
-      const glassMat = solid('#ffe9c4', 0.4);
-      glassMat.emissive.set('#ffd9a0');
-      glassMat.emissiveIntensity = 0.9;
+      const glassMat = glow('#ffe9c4', 0.9, 0.4, '#ffd9a0');
       cyl(g, glassMat, 9, 18, 0, 272, 0, { rTop: 6, seg: 6 });
       cyl(g, iron, 11, 4, 0, 290, 0, { rTop: 2, seg: 6 });
       return g;
@@ -1372,12 +1363,12 @@ export const ITEMS = [
       box(g, solid('#1e2126', 0.5), 2.5, 214, 4, 0, 2, 79.6);
       // call panel with lit buttons
       box(g, brushed, 13, 26, 2.5, 68, 118, 85.5);
-      const up = solid('#ffd9a0', 0.4); up.emissive.set('#ffb84d'); up.emissiveIntensity = 0.9;
-      const dn = solid('#cfe4ff', 0.4); dn.emissive.set('#7db8ff'); dn.emissiveIntensity = 0.6;
+      const up = glow('#ffd9a0', 0.9, 0.4, '#ffb84d');
+      const dn = glow('#cfe4ff', 0.6, 0.4, '#7db8ff');
       sphere(g, up, 2.2, 68, 133, 87);
       sphere(g, dn, 2.2, 68, 124, 87);
       // floor indicator strip
-      const ind = solid('#2a2d33', 0.4); ind.emissive.set('#ff7828'); ind.emissiveIntensity = 0.5;
+      const ind = glow('#2a2d33', 0.5, 0.4, '#ff7828');
       box(g, ind, 40, 7, 2, 0, 236, 85.5);
       return g;
     }
@@ -1461,8 +1452,8 @@ export const ITEMS = [
       const log = wood('#4a3a28', 0.9);
       cyl(g, log, 6, 52, 0, 16, 0, { rz: Math.PI / 2, ry: 0.5 });
       cyl(g, log, 6, 52, 0, 16, 0, { rz: Math.PI / 2, ry: -0.6 });
-      const ember = solid('#ff6a20', 0.6); ember.emissive.set('#ff5a10'); ember.emissiveIntensity = 1.4;
-      const flame = solid('#ffb347', 0.5); flame.emissive.set('#ff9430'); flame.emissiveIntensity = 1.8;
+      const ember = glow('#ff6a20', 1.4, 0.6, '#ff5a10');
+      const flame = glow('#ffb347', 1.8, 0.5, '#ff9430');
       sphere(g, ember, 9, 4, 14, 2, { sy: 0.5, seg: 10 });
       cyl(g, flame, 8, 22, 0, 18, 0, { rTop: 1.5, seg: 8 });
       cyl(g, flame, 5, 15, 9, 17, -6, { rTop: 1, seg: 8 });
@@ -1548,9 +1539,9 @@ export const ITEMS = [
       box(g, solid('#e8eaec', 0.4), 110, 68, 4, 0, 245, -8);
       box(g, solid('#c8412e', 0.5), 44, 30, 4.5, 0, 252, -7.8);
       cyl(g, solid('#d3591f', 0.4), 23, 2.5, 0, 248, -32, { seg: 20 });
-      const net = solid('#eceff2', 0.9);
-      net.transparent = true; net.opacity = 0.55;
-      cyl(g, net, 22, 34, 0, 214, -32, { rTop: 22, seg: 10 }).material.wireframe = true;
+      // netMaterial is unique per call — mutating a cached solid() here used to
+      // corrupt every other item sharing that material
+      cyl(g, netMaterial('#eceff2', 8, 3), 22, 34, 0, 214, -32, { rTop: 22, seg: 20, open: true });
       return g;
     }
   },
@@ -2024,9 +2015,7 @@ export const ITEMS = [
         blade.rotation.y = -a;
         blade.rotation.z = 0.06;
       }
-      const globe = solid('#f4ead6', 0.6);
-      globe.emissive.set('#f4e2bc');
-      globe.emissiveIntensity = 0.7;
+      const globe = glow('#f4ead6', 0.7, 0.6, '#f4e2bc');
       sphere(g, globe, 9, 0, -30, 0, { sy: 0.7 });
       return g;
     }
@@ -2151,9 +2140,7 @@ export const ITEMS = [
       // uprights + console
       for (const sx of [-1, 1]) box(g, body, 6, 120, 8, sx * 34, 10, -70, { rx: 0.22 });
       box(g, body, 76, 8, 5, 0, 126, -94, { rx: 0.3 });
-      const screen = solid('#1a2632', 0.3);
-      screen.emissive.set('#2e5a7c');
-      screen.emissiveIntensity = 0.5;
+      const screen = glow('#1a2632', 0.5, 0.3, '#2e5a7c');
       box(g, screen, 40, 24, 4, 0, 128, -90, { rx: -0.35 });
       return g;
     }

@@ -88,9 +88,9 @@ export function solid(hex, rough = 0.8, metal = 0) {
 
 /** Self-lit (emissive) material for lamps, bulbs, flames — NOT cached, so
  *  setting its glow never mutates a shared material. */
-export function glow(hex, intensity = 1, rough = 0.4) {
+export function glow(hex, intensity = 1, rough = 0.4, emissiveHex = hex) {
   const m = new THREE.MeshStandardMaterial({
-    color: hex, roughness: rough, emissive: hex, emissiveIntensity: intensity
+    color: hex, roughness: rough, emissive: emissiveHex, emissiveIntensity: intensity
   });
   m.userData.owned = true; // not cached — safe (and necessary) to dispose on rebuild
   return m;

@@ -379,18 +379,8 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       outline(2);
       break;
     }
-    case 'pond': {
-      ctx.fillStyle = '#a8cede';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, hw - 4, hd - 4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.strokeStyle = '#6d98ac';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, hw * 0.55, hd * 0.5, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      break;
-    }
+    // (the organic-shoreline 'pond' symbol lives further down — a plain-ellipse
+    // duplicate here used to shadow it, so ponds never got the nice symbol)
     case 'pool': {
       outline(4);
       ctx.fillStyle = '#a8cede';
