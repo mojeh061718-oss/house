@@ -13,8 +13,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Honeycutt"/>
-  <script type="module" crossorigin src="./assets/index-BQ5Ihku9.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CO5aSPNK.css">
+  <script type="module" crossorigin src="./assets/index-DNIKIXRv.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/three-BtCAaDxU.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-zndC5g_A.css">
 </head>
 <body>
   <div id="splash">
@@ -30,14 +31,14 @@
               <stop offset="1" stop-color="#ffb35c" stop-opacity="0"/>
             </radialGradient>
           </defs>
-          <rect x="92" y="100" width="116" height="70" rx="2" fill="url(#warm)" stroke="none"/>
-          <path stroke="#b9d2ff" d="M74 106 L150 60 L226 106"/>
-          <path d="M92 170 L92 100 M208 170 L208 100 M88 170 L212 170"/>
-          <path d="M134 170 L134 132 L166 132 L166 170"/>
-          <rect x="104" y="116" width="20" height="20" rx="1.5" fill="#ffcf85" stroke="none"/>
-          <rect x="176" y="116" width="20" height="20" rx="1.5" fill="#ffcf85" stroke="none"/>
-          <rect x="104" y="116" width="20" height="20" rx="1.5"/>
-          <rect x="176" y="116" width="20" height="20" rx="1.5"/>
+          <rect class="sp-glow" x="92" y="100" width="116" height="70" rx="2" fill="url(#warm)" stroke="none"/>
+          <path class="sp-roof" pathLength="1" stroke="#b9d2ff" d="M74 106 L150 60 L226 106"/>
+          <path class="sp-body" pathLength="1" d="M92 170 L92 100 M208 170 L208 100 M88 170 L212 170"/>
+          <path class="sp-door" pathLength="1" d="M134 170 L134 132 L166 132 L166 170"/>
+          <rect class="sp-win" x="104" y="116" width="20" height="20" rx="1.5" fill="#ffcf85" stroke="none"/>
+          <rect class="sp-win" x="176" y="116" width="20" height="20" rx="1.5" fill="#ffcf85" stroke="none"/>
+          <rect class="sp-winframe" x="104" y="116" width="20" height="20" rx="1.5"/>
+          <rect class="sp-winframe" x="176" y="116" width="20" height="20" rx="1.5"/>
         </svg>
         <h1>Honeycutt <b>Home&nbsp;Studio</b></h1>
         <div class="splash-spinner" aria-hidden="true"></div>
@@ -49,20 +50,56 @@
       // needed), so mark when the page started so the app can hold the splash
       // for its full run measured from here, not from whenever the module boots.
       window.__splashT0 = Date.now();
+      // Enhancement-only motion: the logo is ALWAYS visible from frame zero;
+      // adding .play (after first paint) lets CSS animate the draw-in for
+      // users without reduced-motion. If this script or CSS fails, the static
+      // logo simply stays — visibility never depends on the animation.
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          var s = document.getElementById('splash');
+          if (s) s.classList.add('play');
+        });
+      });
       // If the home screen never appears, the app module failed to boot (e.g. a
       // stale cached index.html pointing at a JS bundle a newer deploy already
-      // purged → 404). Surface a reload button instead of a dead splash.
-      setTimeout(function () {
-        var home = document.getElementById('home');
-        if ((home && !home.classList.contains('hidden')) || document.getElementById('splash-recover')) return;
-        var s = document.getElementById('splash');
-        if (!s) return;
-        var d = document.createElement('div');
-        d.id = 'splash-recover';
-        d.style.cssText = 'position:absolute;left:0;right:0;bottom:5%;text-align:center;z-index:3;font:600 13px system-ui,sans-serif';
-        d.innerHTML = '<button onclick="location.reload(true)" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:10px 22px;font:inherit">Tap to reload</button>';
-        s.appendChild(d);
-      }, 9000);
+      // purged → 404). Two-stage failsafe: a gentle "Still loading…" note, then
+      // a reload button. BOTH retract the moment the app actually boots — on a
+      // slow first load the app can finish after the failsafe fires, and the
+      // user must never see a reload button over a working app.
+      (function () {
+        var booted = function () {
+          var home = document.getElementById('home');
+          return home && !home.classList.contains('hidden');
+        };
+        var note = null, btn = null;
+        var retract = setInterval(function () {
+          if (!booted()) return;
+          if (note) note.remove();
+          if (btn) btn.remove();
+          clearInterval(retract);
+        }, 400);
+        setTimeout(function () {
+          if (booted()) return;
+          var s = document.getElementById('splash');
+          if (!s) return;
+          note = document.createElement('div');
+          note.id = 'splash-slow';
+          note.style.cssText = 'position:absolute;left:0;right:0;bottom:12%;text-align:center;z-index:3;color:#8fa3c0;font:500 13px system-ui,sans-serif';
+          note.textContent = 'Still loading…';
+          s.appendChild(note);
+        }, 4000);
+        setTimeout(function () {
+          if (booted()) return;
+          var s = document.getElementById('splash');
+          if (!s) return;
+          if (note) note.remove();
+          btn = document.createElement('div');
+          btn.id = 'splash-recover';
+          btn.style.cssText = 'position:absolute;left:0;right:0;bottom:8%;text-align:center;z-index:3;font:600 13px system-ui,sans-serif';
+          btn.innerHTML = '<button onclick="location.reload()" style="background:#2563eb;color:#fff;border:0;border-radius:20px;padding:10px 22px;font:inherit">Tap to reload</button>';
+          s.appendChild(btn);
+        }, 7000);
+      })();
     </script>
   <div id="app">
     <div id="home" class="hidden"></div>
