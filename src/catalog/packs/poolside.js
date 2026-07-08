@@ -66,25 +66,26 @@ export const POOLSIDE_ITEMS = [
       // massed body: overlapping spheres so the union reads as one smooth form
       sphere(g, pink, 26, 0, 30, -6, { sx: 1.05, sy: 0.8, sz: 1.5, seg: 20 });  // body core
       sphere(g, pink, 20, 0, 28, 28, { sz: 1.1, seg: 18 });                     // chest
-      // kicked-up tail feathers
-      segment(g, pink, [0, 34, -38], [0, 56, -60], 10, 3, 12);
-      segment(g, pink, [0, 32, -42], [0, 48, -64], 8, 2.5, 12);
+      // kicked-up tail: soft rounded puff, not a horn
+      sphere(g, pink, 14, 0, 36, -42, { sx: 0.75, sy: 0.8, sz: 1.15, seg: 16 });
+      sphere(g, pink, 9, 0, 46, -52, { sx: 0.6, sy: 0.7, seg: 14 });
       // wing hints: flattened spheres hugging the flanks
       for (const s of [-1, 1]) {
         sphere(g, pink, 17, s * 21, 33, -8, { sx: 0.5, sy: 0.65, sz: 1.45, seg: 16 });
         sphere(g, pink, 12, s * 25, 28, 0, { sx: 0.4, sy: 0.55, sz: 1.2, seg: 14 });
       }
-      // smooth S-curve neck: tapered segment chain, radii blending
+      // tall slender S-neck: rises steeply off the chest, crests, and brings
+      // the head high and forward — the drooped first pass read as an arm
       chain(g, pink, [
-        [0, 32, 38, 9.2], [0, 50, 54, 8.2], [0, 66, 60, 7.2],
-        [0, 78, 56, 6.5], [0, 86, 46, 6]
+        [0, 34, 34, 8.6], [0, 52, 42, 7.0], [0, 70, 44, 5.8],
+        [0, 84, 40, 5.0], [0, 92, 33, 4.6]
       ]);
-      // head elongated toward the bill
-      sphere(g, pink, 9.5, 0, 87, 41, { sz: 1.2, seg: 18 });
-      for (const s of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 1.9, s * 6, 90, 45, { seg: 10 });
-      // downcurved bill, pale base with a black tip
-      segment(g, solid('#f2ddd2', 0.5), [0, 86, 49], [0, 79, 57], 4.2, 2.6, 12);
-      segment(g, solid('#1c1c1e', 0.4), [0, 79, 57], [0, 73, 60], 2.6, 1.1, 10);
+      // head high, slightly forward of the crest
+      sphere(g, pink, 8, 0, 94, 30, { sz: 1.25, seg: 18 });
+      for (const s of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 1.7, s * 5, 96.5, 34, { seg: 10 });
+      // downcurved bill off the high head, pale base with a black tip
+      segment(g, solid('#f2ddd2', 0.5), [0, 93, 38], [0, 86, 46], 3.8, 2.4, 12);
+      segment(g, solid('#1c1c1e', 0.4), [0, 86, 46], [0, 81, 49], 2.4, 1.0, 10);
       return g;
     }
   },

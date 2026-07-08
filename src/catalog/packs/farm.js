@@ -126,8 +126,8 @@ export const FARM_ITEMS = [
       sphere(g, hide, 34, 0, 122, -8, { sx: 0.72, sy: 0.82, sz: 1.3 });    // barrel/belly
       sphere(g, hide, 32, 0, 130, 48, { sx: 0.74, sy: 0.92, sz: 0.95 });   // chest/shoulder
       sphere(g, hide, 32, 0, 130, -62, { sx: 0.8, sy: 0.94, sz: 0.95 });   // hindquarters
-      sphere(g, hide, 18, 0, 148, 46, { sx: 0.56, sy: 0.72, sz: 0.9 });    // withers
-      sphere(g, hide, 20, 0, 148, -66, { sx: 0.66, sy: 0.62, sz: 0.95 });  // croup
+      sphere(g, hide, 18, 0, 144, 46, { sx: 0.6, sy: 0.78, sz: 0.95 });    // withers
+      sphere(g, hide, 20, 0, 144, -64, { sx: 0.7, sy: 0.7, sz: 1.0 });     // croup
       // long arched neck — tapered segment chain up to the poll
       segment(g, hide, [0, 138, 52], [0, 158, 82], 16, 12, 14);
       segment(g, hide, [0, 158, 82], [0, 170, 100], 12, 8.5, 12);
@@ -369,22 +369,22 @@ export const FARM_ITEMS = [
       segment(g, beakM, [0, 52, 18], [0, 50, 25], 2.6, 0.3, 8);
       sphere(g, eye, 1.3, -5, 54, 16);
       sphere(g, eye, 1.3, 5, 54, 16);
-      // grand arched sickle tail — each feather is a smooth 3-segment arc
+      // grand arched sickle tail — a dense plume of smooth bezier-arc feathers
       // rising from the tail base, cresting, then draping down and back
-      for (let i = 0; i < 5; i++) {
-        const s = i % 2 ? 1 : -1;
-        const f = 1 - i * 0.13;                 // outer feathers shorter
-        const dx = 1.6 + i * 0.7;
-        const a = [s * 1.2, 39, -13];
-        const b = [s * dx * 0.7, 39 + 17 * f, -13 - 8 * f];
-        const c = [s * dx, 39 + 19 * f, -13 - 16 * f];
-        const d = [s * (dx + 1), 39 + 5 * f, -13 - 22 * f];
-        segment(g, tailc, a, b, 2.3, 1.7, 8);
-        segment(g, tailc, b, c, 1.7, 1.1, 8);
-        segment(g, tailc, c, d, 1.1, 0.25, 8);
+      for (let i = 0; i < 7; i++) {
+        const s = (i % 2 ? 1 : -1) * Math.ceil(i / 2) / 3;   // fan spread -1..1
+        const f = 1 - Math.ceil(i / 2) * 0.16;               // outer feathers shorter
+        const A = [s * 2, 39, -12], C = [s * 4, 40 + 30 * f, -19], B = [s * 6, 36 - 4 * f, -12 - 25 * f];
+        let prev = A;
+        for (let k = 1; k <= 3; k++) {
+          const t = k / 3, u = 1 - t;
+          const pt = [0, 1, 2].map(m => u * u * A[m] + 2 * u * t * C[m] + t * t * B[m]);
+          segment(g, tailc, prev, pt, 2.6 - k * 0.7, 2.6 - (k + 1) * 0.7 + (k === 3 ? 0.35 : 0), 8);
+          prev = pt;
+        }
       }
-      // short covert tuft filling the tail base
-      sphere(g, tailc, 6, 0, 38, -13, { sx: 0.75, sy: 1.1, sz: 1.2 });
+      // full covert tuft massing the tail base into the body
+      sphere(g, tailc, 7.5, 0, 37, -13, { sx: 0.75, sy: 1.1, sz: 1.2 });
       return g;
     }
   },
@@ -491,8 +491,8 @@ export const FARM_ITEMS = [
       for (let i = 0; i < 8; i++) {
         const xx = -58 + i * 16.5;
         const a = (i % 4 - 1.5) * 0.5;
-        segment(g, wispM, [xx, 124, Math.sin(a) * 14],
-          [xx + 6, 129 + (i % 3), Math.sin(a) * 22 + 4], 0.8, 0.3, 5);
+        segment(g, wispM, [xx, 122, Math.sin(a) * 14],
+          [xx + 6, 131 + (i % 3) * 2, Math.sin(a) * 26 + 4], 0.8, 0.3, 5);
       }
       return g;
     }
@@ -720,12 +720,13 @@ export const FARM_ITEMS = [
       cyl(g, basin, 43.5, 3, 0, 1, -60, { seg: 24 });
       // water surface — real rippled water material, visible through the open top
       const wat = water(180);
-      cyl(g, wat, 44, 2, 0, 44, 60, { seg: 24 });
-      cyl(g, wat, 44, 2, 0, 44, -60, { seg: 24 });
-      box(g, wat, 88, 2, 120, 0, 44, 0);
-      // rolled rim — tube ring around the whole lip
-      for (const z of [60, -60]) torus(g, m, 45, 2.4, 0, 52, z, { seg: 28 });
-      for (const s of [-1, 1]) cyl(g, m, 2.4, 120, s * 45, 52, 0, { rx: Math.PI / 2, seg: 10 });
+      cyl(g, wat, 44, 2, 0, 47.6, 60, { seg: 24 });
+      cyl(g, wat, 44, 2, 0, 47.6, -60, { seg: 24 });
+      box(g, wat, 88, 2, 120, 0, 47.4, 0);
+      // rolled rim — flared collar bands at the round ends + side lip tubes
+      // hugging the outer top edge of the straight walls
+      for (const z of [60, -60]) cyl(g, m, 46.5, 4, 0, 49, z, { seg: 24, open: true });
+      for (const s of [-1, 1]) cyl(g, m, 1.8, 120, s * 45, 51.5, 0, { rx: Math.PI / 2, seg: 10 });
       return g;
     }
   },
