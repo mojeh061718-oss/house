@@ -524,7 +524,7 @@ export const ITEMS = [
       pyramid(g, steel, 76, 40, 48, 0, 6, -2);
       box(g, metal('#babec2', 0.35), 22, 30, 22, 0, 32, -2);
       box(g, metal('#a9adb1', 0.4), 24, 2.5, 24, 0, 27, -2, { r: 0.5 }); // chimney collar
-      box(g, solid('#26292d', 0.35), 60, 2, 34, 0, 5.4, 0, { r: 0.5 }); // filter inset
+      box(g, solid('#26292d', 0.35), 74, 1.5, 46, 0, -1.2, 0, { r: 0.5 }); // recessed filter face (underside)
       return g;
     }
   },
@@ -863,10 +863,12 @@ export const ITEMS = [
       cyl(g, bark, 7, 110, 0, 120, 0, { rz: 0.5 });
       cyl(g, bark, 6, 100, 0, 135, 0, { rz: -0.55 });
       cyl(g, bark, 5, 85, 0, 150, 0, { rx: 0.45 });
-      // full dappled crown + a couple of low satellite tufts
+      // full dappled crown; satellite tufts overlap the crown base so the
+      // canopy reads as one irregular mass, not detached balls
       foliage(g, '#33591f', '#6fa03e', 0, 300, 0, 112, 16, 17);
-      blob(g, '#33591f', '#649238', 46, 92, 218, 30, { seed: 41, sy: 0.85 });
-      blob(g, '#2f5220', '#5d8a34', 40, -85, 205, -38, { seed: 42, sy: 0.8 });
+      blob(g, '#33591f', '#649238', 48, 80, 250, 28, { seed: 41, sy: 0.85 });
+      blob(g, '#2f5220', '#5d8a34', 44, -74, 244, -32, { seed: 42, sy: 0.82 });
+      blob(g, '#365e22', '#68983a', 40, 8, 236, -52, { seed: 44, sy: 0.8 });
       return g;
     }
   },
@@ -1842,7 +1844,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'flag_garden', name: 'Garden Flag', cat: 'outdoor', w: 40, d: 20, h: 90, noShadow: true,
+    id: 'flag_garden', name: 'Garden Flag', cat: 'outdoor', w: 40, d: 12, h: 90, noShadow: true,
     palettes: [
       { name: 'Red', chip: '#b72436', a: '#b72436', b: '#f4efe2' },
       { name: 'Navy', chip: '#2c3e5c', a: '#2c3e5c', b: '#f4efe2' },
@@ -1861,7 +1863,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'flag_wall', name: 'Wall-Mounted Flag', cat: 'outdoor', w: 26, d: 120, h: 30,
+    id: 'flag_wall', name: 'Wall-Mounted Flag', cat: 'outdoor', w: 12, d: 150, h: 80,
     mount: 'wall', palettes: [
       { name: 'Stars & Stripes', chip: '#b22234', kind: 'us' },
       { name: 'Red', chip: '#b72436', kind: 'banner', a: '#b72436', b: '#f4efe2' },
@@ -2987,12 +2989,12 @@ export const ITEMS = [
       // oval acrylic shell (true 170x80 footprint) with a rolled rim
       sphere(g, wh, 82, 0, 28, 0, { sy: 0.36, sz: 0.45, seg: 26 });
       torus(g, wh, 78, 4.5, 0, 55.5, 0, { sy: 0.45, seg: 36, tubeSeg: 12 }); // (local y = world z once laid flat)
-      const wt = sphere(g, water(160), 60, 0, 46, 0, { sy: 0.14, sz: 0.44, seg: 24 });
+      const wt = sphere(g, water(160), 64, 0, 52, 0, { sy: 0.1, sz: 0.44, seg: 24 });
       wt.receiveShadow = true;
-      // freestanding floor-mounted filler at the foot end
-      cyl(g, chrome(), 2, 58, -74, 0, 0);
-      cyl(g, chrome(), 1.7, 20, -65, 57, 0, { rz: Math.PI / 2 });
-      cyl(g, chrome(), 1.5, 7, -56, 51, 0);
+      // freestanding floor-mounted filler standing beside the foot end
+      cyl(g, chrome(), 2.2, 62, -90, 0, 0);
+      cyl(g, chrome(), 1.8, 26, -78, 61, 0, { rz: Math.PI / 2 });
+      cyl(g, chrome(), 1.6, 8, -66, 54, 0);
       return g;
     }
   },
@@ -3281,10 +3283,18 @@ export const ITEMS = [
         lg.rotation.z = -(0.25 + rnd() * 0.3);          // leaf plane tips outward
         g.add(lg);
         const lm = solid(rnd() < 0.5 ? '#2c5a2e' : '#38703a', 0.35);
-        const L = 12 + rnd() * 5;                       // lobe size
-        sphere(lg, lm, L, L * 0.28, 0, -L * 0.58, { sy: 0.09, sz: 0.55, sx: 1.1, seg: 10 });
-        sphere(lg, lm, L, L * 0.28, 0, L * 0.58, { sy: 0.09, sz: 0.55, sx: 1.1, seg: 10 });
-        sphere(lg, lm, L * 0.66, L * 1.18, -1.5, 0, { sy: 0.08, sz: 0.62, sx: 1.5, seg: 10 });
+        const L = 12 + rnd() * 5;                       // leaf size
+        // fan of five finger-lobes: they merge near the petiole and diverge
+        // toward the edge, leaving the monstera's characteristic cuts
+        const sizes = [0.6, 0.85, 1, 0.85, 0.6];
+        for (let k = -2; k <= 2; k++) {
+          const ang = k * 0.42;
+          const r = L * sizes[k + 2];
+          const d = L * 0.35 + r * 0.85;
+          const lobe = sphere(lg, lm, r, Math.cos(ang) * d, 0, Math.sin(ang) * d,
+            { sy: 0.08, sx: 1.3, sz: 0.48, seg: 10 });
+          lobe.rotation.y = -ang;
+        }
       }
       return g;
     }
