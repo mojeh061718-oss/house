@@ -54,6 +54,18 @@ export class UI {
     };
     this.editor.onWeld = () => this.toast('Shared walls merged into one');
 
+    // tap a wall's length pill on the canvas → exact typed entry: the wall
+    // panel opens with its Length field focused and pre-selected
+    this.editor.onEditWallLength = () => {
+      this.renderProps();
+      $('#props').classList.add('open');
+      this.loadSwatchTextures('props');
+      requestAnimationFrame(() => {
+        const inp = $('#pLen');
+        if (inp) { inp.focus(); inp.select(); }
+      });
+    };
+
     // when photo textures finish loading, re-render the catalog cards that
     // were snapshotted against the flat placeholder
     onThumbsRefresh(() => {
@@ -251,6 +263,7 @@ export class UI {
       const next = unitSystem() === 'metric' ? 'imperial' : 'metric';
       setUnitSystem(next);
       store.project.settings.units = next;
+      store.scheduleAutosave(); // persist the preference now, not on the next edit
       syncUnitsLabel();
       this.editor.requestRender();
       this.renderProps();
@@ -1166,8 +1179,9 @@ export class UI {
       lockBtn.innerHTML = `${locked ? ICONS.lock : ICONS.unlock}<span>${locked ? 'Locked' : 'Lock'}</span>`;
       lockBtn.classList.toggle('locked', locked);
     }
-    // Copy sits next to Edit and Delete for everything selectable
-    $('#selDup').style.display = sel ? '' : 'none';
+    // Copy sits next to Edit and Delete for everything selectable (except
+    // dimensions, where duplicate has no meaning — it used to silently no-op)
+    $('#selDup').style.display = sel && sel.kind !== 'dim' ? '' : 'none';
     // wide screens: surface the details drawer automatically
     if (sel && this.wide.matches) {
       $('#props').classList.add('open');
@@ -1618,9 +1632,11 @@ export class UI {
       if (isPath) {
         this.bindLen('pPW', v => commit(() => it.pw = Math.max(30, Math.min(600, Math.round(v)))));
       } else {
-        this.bindLen('pW', v => commit(() => it.w = Math.max(10, Math.round(v))));
-        this.bindLen('pD', v => commit(() => it.d = Math.max(10, Math.round(v))));
-        this.bindLen('pH', v => commit(() => it.h = Math.max(10, Math.round(v))));
+        // clamp typed sizes to the same 10–800 cm range drag-resize enforces
+        // (an unclamped "30" meant as inches used to become a 30-FOOT sofa)
+        this.bindLen('pW', v => commit(() => it.w = Math.min(800, Math.max(10, Math.round(v)))));
+        this.bindLen('pD', v => commit(() => it.d = Math.min(800, Math.max(10, Math.round(v)))));
+        this.bindLen('pH', v => commit(() => it.h = Math.min(800, Math.max(10, Math.round(v)))));
         this.bindNum('pRot', v => commit(() => it.rotation = v * Math.PI / 180));
         this.bindLen('pElev', v => commit(() => it.elevation = Math.max(0, Math.round(v))));
       }
@@ -1670,6 +1686,31 @@ export class UI {
           </div>
         </div>`;
       $('#pDup').onclick = () => this.duplicateSelection();
+      $('#pDel').onclick = () => { if (!store.deleteSelection() && this.selectionLocked()) this.toast('Locked — tap the padlock to unlock'); };
+    } else if (sel.kind === 'dim') {
+      const d = store.dim(sel.id);
+      if (!d) { store.select(null); return; }
+      const r = this.editor.resolveDim ? this.editor.resolveDim(d) : d;
+      const len = Math.hypot(r.bx - r.ax, r.by - r.ay);
+      const anchored = !!(d.aw || d.bw);
+      panel.innerHTML = `${head('Dimension')}
+        <div class="props-body">
+          <div class="props-grid2">
+            <label class="field"><span>Measures</span><input value="${fmtLen(len)}" readonly/></label>
+            ${this.lenRow('pDimOff', 'Offset', Math.abs(d.off ?? 40))}
+          </div>
+          <p class="props-note" style="color:var(--text-dim);font-size:12px;margin:8px 2px">${anchored
+            ? 'Anchored to a wall — it follows the wall when it moves or resizes.'
+            : 'A free measurement between two fixed points.'}</p>
+          <div class="btn-row">
+            <button class="action danger" id="pDel">Delete dimension</button>
+          </div>
+        </div>`;
+      this.bindLen('pDimOff', v => {
+        store.checkpoint();
+        d.off = Math.sign(d.off || 1) * Math.max(10, Math.min(400, v));
+        store.commit(false);
+      });
       $('#pDel').onclick = () => { if (!store.deleteSelection() && this.selectionLocked()) this.toast('Locked — tap the padlock to unlock'); };
     } else if (sel.kind === 'wall') {
       const w = store.wall(sel.id);
@@ -1984,9 +2025,25 @@ export class UI {
   bindLen(id, fn) {
     const inp = document.getElementById(id);
     if (!inp) return;
+    // live echo: show what the typed text parses to ("30" → = 30 ft) BEFORE
+    // commit, so a mistyped unit can't silently become a 30-foot sofa
+    inp.addEventListener('input', () => {
+      const cm = parseLen(inp.value);
+      let echo = inp.parentElement?.querySelector('.len-echo');
+      if (!Number.isFinite(cm) || cm < 0 || fmtLen(cm) === inp.value.trim()) { if (echo) echo.remove(); return; }
+      if (!echo) {
+        echo = document.createElement('em');
+        echo.className = 'len-echo';
+        echo.style.cssText = 'position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;font-style:normal;font-size:11px;color:var(--text-dim);opacity:0.9';
+        const wrap = inp.parentElement;
+        if (wrap) { wrap.style.position = 'relative'; wrap.appendChild(echo); }
+      }
+      echo.textContent = `= ${fmtLen(cm)}`;
+    });
     inp.addEventListener('change', () => {
       const cm = parseLen(inp.value);
       if (!Number.isNaN(cm) && cm >= 0) fn(cm);
+      inp.parentElement?.querySelector('.len-echo')?.remove();
       this.fillPropValues();
     });
   }

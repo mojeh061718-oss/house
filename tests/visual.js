@@ -101,20 +101,16 @@ function diffPngs(aBuf, bBuf) {
     // HTTP proxy, which stalls compositing and times out screenshots
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--no-sandbox', '--no-proxy-server']
   });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  // block service workers like every other suite: the SW claiming the page
+  // mid-run can reload it and the shot lands on a fresh splash
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
+  const page = await ctx.newPage();
   page.on('pageerror', e => { console.error('PAGEERROR:', e.message); process.exitCode = 1; });
+  // NOTE: no storage clearing needed — a fresh Playwright context starts with
+  // empty localStorage AND IndexedDB. (A clear+reload here used to deadlock:
+  // deleteDatabase blocked on the app's open connection, and the reloaded
+  // boot's open() then queued behind the pending delete → dead splash.)
   await page.goto(URL_BASE, { waitUntil: 'networkidle' });
-  // projects live in IndexedDB (localStorage is only a fallback) — clear BOTH,
-  // or the previous run's saved template shows on home and shifts every pixel
-  await page.evaluate(() => {
-    localStorage.clear();
-    return new Promise((res) => {
-      const r = indexedDB.deleteDatabase('honeycutt');
-      r.onsuccess = r.onerror = r.onblocked = () => res();
-      setTimeout(res, 2000);
-    });
-  });
-  await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600); // splash → home
 
   let failures = 0;

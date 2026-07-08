@@ -59,6 +59,13 @@ export function unitPlaceholder() {
   return SYSTEM === 'metric' ? 'e.g. 2.85 m or 76 cm' : `e.g. 9'4" or 30"`;
 }
 
+/** Drawing snap grid in cm: 6" in imperial, 10 cm in metric. An imperial user
+ *  drawing on a 10 cm grid could never hit a whole foot — every wall read
+ *  9'10" or 10'2". On a 6" grid whole feet land exactly. */
+export function gridSize() {
+  return SYSTEM === 'metric' ? 10 : 6 * CM_PER_IN; // 15.24
+}
+
 /** Radians → "0°"..."359°" (whole degrees, normalised to [0,360)). */
 export function fmtAngle(rad) {
   let deg = Math.round(rad * 180 / Math.PI) % 360;
@@ -73,13 +80,22 @@ export function fmtAngle(rad) {
  * A bare number means feet; a trailing " or "in" means inches.
  */
 export function parseFtIn(input) {
-  const s = String(input).trim()
+  let s = String(input).trim()
     .replace(/[“”″]/g, '"')
     .replace(/[‘’′]/g, "'")
-    .replace(/\s*(ft|feet)\s*$/i, "'")
+    .replace(/(\d)\s*(?:ft|feet)\b\.?/gi, "$1'")   // 5 ft 6 → 5'6
+    .replace(/'\s*-\s*/g, "' ")                     // plan notation 5'-6" → 5' 6"
     .toLowerCase();
   if (!s) return NaN;
-  const m = s.match(/^(?:(\d+(?:\.\d+)?)\s*')?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/);
+  // fractions: 5'6 1/2" · 1/2" · 6-1/2" — fold the fraction into a decimal
+  s = s.replace(/(\d+)?[ -]?(\d+)\s*\/\s*(\d+)/g, (_, whole, num, den) => {
+    const v = (whole ? parseFloat(whole) : 0) + parseFloat(num) / parseFloat(den);
+    return String(v);
+  });
+  // "5 6" (two bare numbers) is the spoken form of 5'6"
+  const sp = s.match(/^(\d+)\s+(\d+(?:\.\d+)?|\.\d+)$/);
+  if (sp) return (parseFloat(sp[1]) * 12 + parseFloat(sp[2])) * CM_PER_IN;
+  const m = s.match(/^(?:(\d+(?:\.\d+)?|\.\d+)\s*')?\s*(?:(\d+(?:\.\d+)?|\.\d+)\s*(?:"|in)?)?$/);
   if (!m || (m[1] === undefined && m[2] === undefined)) return NaN;
   if (m[1] === undefined && !/["]|in/.test(s)) {
     return parseFloat(m[2]) * 12 * CM_PER_IN; // bare number = feet

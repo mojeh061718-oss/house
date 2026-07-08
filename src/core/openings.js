@@ -1,6 +1,7 @@
 // Registry of door and window types. Openings are stored as
 // {id, wallId, type, t, width, height, sill, flip, swing}; `type` picks a
 // renderer in editor2d (plan symbol) and arch3d (3D model).
+import { unitSystem, CM_PER_IN } from "./units.js";
 
 export const OPENING_TYPES = [
   // doors
@@ -33,7 +34,12 @@ export function isDoorType(type) {
   return def ? def.kind === 'door' : type !== 'window';
 }
 
-/** Default width/height/sill for an opening type. */
+/** Default width/height/sill for an opening type. In imperial mode the metric
+ *  base sizes are snapped to the nearest 2" so a fresh door reads 3'0", not
+ *  2'11" — the readouts must look intentional, not like conversion noise. */
 export function openingDefaults(type) {
-  return OPENING_MAP.get(type) || OPENING_MAP.get(isDoorType(type) ? 'door' : 'window');
+  const def = OPENING_MAP.get(type) || OPENING_MAP.get(isDoorType(type) ? 'door' : 'window');
+  if (unitSystem() !== 'imperial') return def;
+  const snap2in = v => Math.round(v / CM_PER_IN / 2) * 2 * CM_PER_IN;
+  return { ...def, width: snap2in(def.width), height: snap2in(def.height), sill: snap2in(def.sill) };
 }

@@ -223,8 +223,12 @@ export class Store {
   dim(id) { return this.project.dims.find(d => d.id === id); }
 
   /** Add a persistent dimension annotation (a non-structural change). */
-  addDim(ax, ay, bx, by, off = 40) {
+  addDim(ax, ay, bx, by, off = 40, aw = null, bw = null) {
+    // aw/bw: optional {wallId, t} anchors — an anchored end follows its wall
+    // through moves/resizes and the dim dies with the wall
     const d = { id: uid('d'), ax, ay, bx, by, off };
+    if (aw) d.aw = aw;
+    if (bw) d.bw = bw;
     this.project.dims.push(d);
     return d;
   }
@@ -394,6 +398,7 @@ export class Store {
     } else if (sel.kind === 'wall') {
       cut(p.walls, w => w.id === sel.id);
       cut(p.openings, o => o.wallId === sel.id);
+      cut(p.dims, d => d.aw?.wallId === sel.id || d.bw?.wallId === sel.id);
     } else if (sel.kind === 'room') {
       // walls unique to this room go; walls shared with a neighbor stay so
       // the neighbor keeps its shape — unless every wall is shared (a fully
@@ -406,6 +411,7 @@ export class Store {
       const idSet = new Set(ids.filter(id => !this.wall(id)?.locked));
       cut(p.walls, w => idSet.has(w.id));
       cut(p.openings, o => idSet.has(o.wallId));
+      cut(p.dims, d => idSet.has(d.aw?.wallId) || idSet.has(d.bw?.wallId));
       // furniture inside goes too; roof-level pieces (roofs, dormers,
       // chimneys — elevation at/above the wall top) belong to the whole
       // house, not this room

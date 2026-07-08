@@ -10,10 +10,10 @@ import { drawPlanSymbol } from './plansymbols.js';
 import { DEFAULTS } from '../core/state.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
-import { fmtLen, fmtArea, fmtAngle, unitSystem } from '../core/units.js';
+import { fmtLen, fmtArea, fmtAngle, unitSystem, gridSize } from '../core/units.js';
 import { snapPose, createPathItem, shapePolyline, anchorWallItem, reanchorWallItems } from '../core/placement.js';
 
-const GRID = 10;            // snap grid (cm)
+// snap grid follows the unit system: 6" imperial / 10 cm metric (gridSize())
 
 export class Editor2D {
   constructor(canvas, store) {
@@ -39,6 +39,10 @@ export class Editor2D {
     store.on('change', () => this.requestRender());
     store.on('selection', () => this.requestRender());
     store.on('tool', () => { this.cancelMode(); this.requestRender(); });
+    // a half-finished tape/dimension must not survive a floor switch — its
+    // points are coordinates on the OLD floor and would land in the new
+    // floor's dims (drawn against the wrong walls)
+    store.on('level', () => { this.measure = null; this.dimDraft = null; this.cancelMode(true); this.requestRender(); });
     store.on('projectLoaded', () => { this.fitToContent(); });
 
     canvas.addEventListener('pointerdown', e => this.onDown(e));
@@ -141,17 +145,21 @@ export class Editor2D {
     // intersection, keeping the pairwise intersection test cheap on big plans.
     const near = walls.filter(w => pointSegDist(x, y, w.ax, w.ay, w.bx, w.by).d < tol * 6);
     let best = null;
-    const consider = (px, py, kind, pri) => {
+    const consider = (px, py, kind, pri, anchor) => {
       const d = dist(x, y, px, py);
       if (d > tol) return;
       if (!best || pri < best.pri || (pri === best.pri && d < best.d)) {
-        best = { x: px, y: py, kind, pri, d };
+        best = { x: px, y: py, kind, pri, d, anchor };
       }
     };
-    // endpoints (pri 0 — strongest, closes loops exactly)
-    for (const w of near) { consider(w.ax, w.ay, 'endpoint', 0); consider(w.bx, w.by, 'endpoint', 0); }
+    // endpoints (pri 0 — strongest, closes loops exactly). The anchor lets a
+    // dimension REMEMBER the wall+position it snapped to, so it follows edits.
+    for (const w of near) {
+      consider(w.ax, w.ay, 'endpoint', 0, { wallId: w.id, t: 0 });
+      consider(w.bx, w.by, 'endpoint', 0, { wallId: w.id, t: 1 });
+    }
     // midpoints (pri 1)
-    for (const w of near) consider((w.ax + w.bx) / 2, (w.ay + w.by) / 2, 'midpoint', 1);
+    for (const w of near) consider((w.ax + w.bx) / 2, (w.ay + w.by) / 2, 'midpoint', 1, { wallId: w.id, t: 0.5 });
     // true intersections between crossing walls (pri 1)
     for (let i = 0; i < near.length; i++) {
       for (let j = i + 1; j < near.length; j++) {
@@ -180,14 +188,14 @@ export class Editor2D {
       let ay = opts.ref.y + Math.sin(ang) * len;
       // if an endpoint sits near the constrained tip, close onto it exactly
       let tip = null;
-      for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
-        if (dist(ax, ay, ex, ey) < tol) { ax = ex; ay = ey; tip = { x: ex, y: ey, kind: 'endpoint' }; }
+      for (const w of walls) for (const [i, [ex, ey]] of [[w.ax, w.ay], [w.bx, w.by]].entries()) {
+        if (dist(ax, ay, ex, ey) < tol) { ax = ex; ay = ey; tip = { x: ex, y: ey, kind: 'endpoint', anchor: { wallId: w.id, t: i } }; }
       }
-      if (tip) return { x: ax, y: ay, kind: 'endpoint' };
+      if (tip) return { x: ax, y: ay, kind: 'endpoint', anchor: tip.anchor };
       // landing on another wall's edge makes a clean T-junction
       const onWall = this.nearestWall(ax, ay, tol);
       if (onWall && onWall.wall.id !== opts.excludeWall) {
-        return { x: onWall.px, y: onWall.py, kind: 'onwall' };
+        return { x: onWall.px, y: onWall.py, kind: 'onwall', anchor: { wallId: onWall.wall.id, t: onWall.t } };
       }
       const horiz = Math.abs(Math.cos(ang)) > 0.99;
       const vert = Math.abs(Math.sin(ang)) > 0.99;
@@ -197,13 +205,13 @@ export class Editor2D {
         for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
           if (Math.abs(ax - ex) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) { ax = ex; guide = { x: ex, y: ey }; }
         }
-        if (!guide) ax = Math.round(ax / GRID) * GRID;
+        if (!guide) ax = Math.round(ax / gridSize()) * gridSize();
       } else if (vert) {
         ax = opts.ref.x;
         for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
           if (Math.abs(ay - ey) < tol && dist(ex, ey, opts.ref.x, opts.ref.y) > 1) { ay = ey; guide = { x: ex, y: ey }; }
         }
-        if (!guide) ay = Math.round(ay / GRID) * GRID;
+        if (!guide) ay = Math.round(ay / gridSize()) * gridSize();
       }
       return { x: ax, y: ay, kind: guide ? 'align' : 'axis', guide };
     }
@@ -212,11 +220,11 @@ export class Editor2D {
     if (best) return best; // midpoint / intersection under the cursor
     const onWall = this.nearestWall(x, y, tol);
     if (onWall && onWall.wall.id !== opts.excludeWall) {
-      return { x: onWall.px, y: onWall.py, kind: 'onwall' };
+      return { x: onWall.px, y: onWall.py, kind: 'onwall', anchor: { wallId: onWall.wall.id, t: onWall.t } };
     }
     // alignment with existing endpoints, else grid
-    let gx = Math.round(x / GRID) * GRID;
-    let gy = Math.round(y / GRID) * GRID;
+    let gx = Math.round(x / gridSize()) * gridSize();
+    let gy = Math.round(y / gridSize()) * gridSize();
     let guide = null;
     for (const w of walls) for (const [ex, ey] of [[w.ax, w.ay], [w.bx, w.by]]) {
       if (Math.abs(x - ex) < tol) { gx = ex; guide = { x: ex, y: ey }; }
@@ -261,16 +269,32 @@ export class Editor2D {
     return out;
   }
 
+  /** Live endpoints of a dimension: anchored ends follow their wall (so the
+   *  annotation stays true through edits); unanchored ends use the frozen
+   *  coordinates it was drawn with. */
+  resolveDim(d) {
+    const end = (anchor, fx, fy) => {
+      if (anchor) {
+        const w = this.store.wall(anchor.wallId);
+        if (w) return wallPoint(w, anchor.t);
+      }
+      return { x: fx, y: fy };
+    };
+    const A = end(d.aw, d.ax, d.ay), B = end(d.bw, d.bx, d.by);
+    return { ax: A.x, ay: A.y, bx: B.x, by: B.y };
+  }
+
   /** Which dimension annotation (if any) is under the screen point — hit along
    *  the offset dimension line so it can be selected/deleted. */
   dimAt(sx, sy) {
-    let best = null, bestD = 12;
+    let best = null, bestD = this.coarse ? 26 : 12; // finger-sized on touch
     for (const d of this.store.project.dims) {
-      const dx = d.bx - d.ax, dy = d.by - d.ay;
+      const r0 = this.resolveDim(d);
+      const dx = r0.bx - r0.ax, dy = r0.by - r0.ay;
       const len = Math.hypot(dx, dy) || 1;
       const nx = -dy / len, ny = dx / len;
-      const A = this.toScreen(d.ax + nx * d.off, d.ay + ny * d.off);
-      const B = this.toScreen(d.bx + nx * d.off, d.by + ny * d.off);
+      const A = this.toScreen(r0.ax + nx * d.off, r0.ay + ny * d.off);
+      const B = this.toScreen(r0.bx + nx * d.off, r0.by + ny * d.off);
       const r = pointSegDist(sx, sy, A.x, A.y, B.x, B.y);
       if (r.d < bestD) { bestD = r.d; best = d.id; }
     }
@@ -372,7 +396,7 @@ export class Editor2D {
    *  angle snapped to 45° steps and the length snapped to the grid. */
   snapPathEnd(start, x, y) {
     const dx = x - start.x, dy = y - start.y;
-    const len = Math.round(Math.hypot(dx, dy) / GRID) * GRID;
+    const len = Math.round(Math.hypot(dx, dy) / gridSize()) * gridSize();
     const ang = snapAngle(Math.atan2(dy, dx));
     return { x: start.x + Math.cos(ang) * len, y: start.y + Math.sin(ang) * len };
   }
@@ -385,7 +409,12 @@ export class Editor2D {
     this.pointers.set(e.pointerId, { sx, sy });
 
     if (this.pointers.size === 2) {
-      // second finger: switch to pinch (cancel any drag in progress)
+      // Second finger: this gesture is a PINCH, so whatever the first finger
+      // just did must be taken back. Un-do its tool tap (a phantom measure
+      // vertex / dimension step), roll back any live drag to its checkpoint,
+      // and neutralise the mode — WITHOUT wiping measure/dimension state the
+      // user built up before this gesture. Pinching to zoom mid-measure used
+      // to corrupt the tape or silently discard a half-placed dimension.
       const pts = [...this.pointers.values()];
       this.pinch = {
         d: Math.hypot(pts[0].sx - pts[1].sx, pts[0].sy - pts[1].sy),
@@ -394,7 +423,24 @@ export class Editor2D {
         scale: this.view.scale,
         vx: this.view.x, vy: this.view.y
       };
-      if (this.mode.dragging) this.cancelMode(true);
+      const tu = this._tapUndo;
+      if (tu?.type === 'measure' && this.measure?.pts.length) {
+        this.measure.pts.pop();
+        if (!this.measure.pts.length) this.measure = null;
+      } else if (tu?.type === 'dimA') {
+        this.dimDraft = null;
+      } else if (tu?.type === 'dimB' && this.dimDraft) {
+        delete this.dimDraft.b;
+      }
+      this._tapUndo = null;
+      const MUTATING = ['dragItem', 'dragOpening', 'dragWall', 'dragEndpoint', 'dragMulti',
+        'dragRoom', 'resizeOpening', 'resizeItem', 'rotateItem'];
+      if (MUTATING.includes(this.mode.name)) this.store.revertToCheckpoint();
+      // ALWAYS idle the mode (a surviving 'pan' used to resume from stale
+      // anchors after the pinch, jumping the view; a pan clickHit would
+      // deselect on release after a quick two-finger tap)
+      this.mode = { name: 'idle' };
+      this.requestRender();
       return;
     }
     if (this.pointers.size > 2) return;
@@ -428,6 +474,7 @@ export class Editor2D {
     if (!this.measure) this.measure = { pts: [] };
     this.measure.pts.push({ x: s.x, y: s.y });
     this.measure.cur = { x: s.x, y: s.y };
+    this._tapUndo = { type: 'measure' }; // revertable if this turns into a pinch
   }
 
   /** Dimension tool: tap start, tap end, then move to pull the dimension line
@@ -435,8 +482,8 @@ export class Editor2D {
   downDimension(w) {
     const s = this.snapPoint(w.x, w.y);
     const d = this.dimDraft;
-    if (!d) { this.dimDraft = { a: { x: s.x, y: s.y } }; return; }
-    if (!d.b) { d.b = { x: s.x, y: s.y }; return; }
+    if (!d) { this.dimDraft = { a: { x: s.x, y: s.y, anchor: s.anchor } }; this._tapUndo = { type: 'dimA' }; return; }
+    if (!d.b) { d.b = { x: s.x, y: s.y, anchor: s.anchor }; this._tapUndo = { type: 'dimB' }; return; }
     // both ends set: the third interaction pulls the dimension line off the
     // geometry — a drag sets the standoff, a plain tap uses a default.
     this.mode = { name: 'dimOffset', dragging: true };
@@ -467,6 +514,17 @@ export class Editor2D {
           moved: false, dragging: true, moveTap: { x: w.x, y: w.y }
         };
       }
+      this.requestRender();
+      return;
+    }
+
+    // a tap on a wall's length pill = CAD exact entry: select the wall and
+    // jump straight to typing its length
+    const wpill = (this._wallPills || []).find(p2 => Math.hypot(sx - p2.x, sy - p2.y) <= p2.r);
+    if (wpill && store.wall(wpill.id)) {
+      store.select({ kind: 'wall', id: wpill.id });
+      this.mode = { name: 'none' };
+      this.onEditWallLength && this.onEditWallLength(wpill.id);
       this.requestRender();
       return;
     }
@@ -963,8 +1021,8 @@ export class Editor2D {
       }
       case 'dragMulti': {
         m.moved = true;
-        const dx = Math.round((w.x - m.startX) / GRID) * GRID;
-        const dy = Math.round((w.y - m.startY) / GRID) * GRID;
+        const dx = Math.round((w.x - m.startX) / gridSize()) * gridSize();
+        const dy = Math.round((w.y - m.startY) / gridSize()) * gridSize();
         for (const org of m.origins) {
           const it = store.item(org.id);
           if (!it) continue;
@@ -982,8 +1040,8 @@ export class Editor2D {
       }
       case 'dragRoom': {
         m.moved = true;
-        const dx = Math.round((w.x - m.startX) / GRID) * GRID;
-        const dy = Math.round((w.y - m.startY) / GRID) * GRID;
+        const dx = Math.round((w.x - m.startX) / gridSize()) * gridSize();
+        const dy = Math.round((w.y - m.startY) / gridSize()) * gridSize();
         for (const o of m.walls) {
           const wl = store.wall(o.id);
           if (!wl) continue;
@@ -1138,8 +1196,8 @@ export class Editor2D {
         const wall = store.wall(m.id);
         if (!wall) break;
         m.moved = true;
-        let dx = Math.round((w.x - m.startX) / GRID) * GRID;
-        let dy = Math.round((w.y - m.startY) / GRID) * GRID;
+        let dx = Math.round((w.x - m.startX) / gridSize()) * gridSize();
+        let dy = Math.round((w.y - m.startY) / gridSize()) * gridSize();
         wall.ax = m.origin.ax + dx; wall.ay = m.origin.ay + dy;
         wall.bx = m.origin.bx + dx; wall.by = m.origin.by + dy;
         for (const l of m.linkedA) {
@@ -1221,6 +1279,7 @@ export class Editor2D {
   }
 
   onUp(e) {
+    this._tapUndo = null; // the tap completed as a tap — nothing to take back
     this.pointers.delete(e.pointerId);
     if (this.pointers.size < 2) this.pinch = null;
     const m = this.mode;
@@ -1231,7 +1290,7 @@ export class Editor2D {
       store.select(m.clickHit); // null or {kind:'room'}
     }
     if (m.name === 'wallDraw' && m.preview) {
-      if (dist(m.start.x, m.start.y, m.preview.x, m.preview.y) > GRID * 2) {
+      if (dist(m.start.x, m.start.y, m.preview.x, m.preview.y) > gridSize() * 2) {
         store.checkpoint();
         store.addWall(m.start.x, m.start.y, m.preview.x, m.preview.y);
         store.commit(true);
@@ -1268,7 +1327,7 @@ export class Editor2D {
         let off = d.off;
         if (off == null || Math.abs(off) < 8) off = 40;
         store.checkpoint();
-        store.addDim(d.a.x, d.a.y, d.b.x, d.b.y, off);
+        store.addDim(d.a.x, d.a.y, d.b.x, d.b.y, off, d.a.anchor, d.b.anchor);
         store.commit(false);
       }
       this.dimDraft = null;
@@ -1569,7 +1628,8 @@ export class Editor2D {
     const sel = this.store.selection;
     for (const d of this.store.project.dims) {
       const selected = sel?.kind === 'dim' && sel.id === d.id;
-      this._drawDim(ctx, d.ax, d.ay, d.bx, d.by, d.off, { selected });
+      const r = this.resolveDim(d);
+      this._drawDim(ctx, r.ax, r.ay, r.bx, r.by, d.off, { selected });
     }
   }
 
@@ -1714,9 +1774,10 @@ export class Editor2D {
       // box the drawn dimension line (offset off the geometry) so the delete
       // badge floats on the pill the user sees — the only touch delete path
       const d = store.dim(sel.id); if (!d) return null;
-      const dx = d.bx - d.ax, dy = d.by - d.ay, len = Math.hypot(dx, dy) || 1;
+      const rd = this.resolveDim(d);
+      const dx = rd.bx - rd.ax, dy = rd.by - rd.ay, len = Math.hypot(dx, dy) || 1;
       const nx = -dy / len, ny = dx / len, off = d.off ?? 40;
-      pts.push({ x: d.ax + nx * off, y: d.ay + ny * off }, { x: d.bx + nx * off, y: d.by + ny * off });
+      pts.push({ x: rd.ax + nx * off, y: rd.ay + ny * off }, { x: rd.bx + nx * off, y: rd.by + ny * off });
     } else return null;
     if (!pts.length) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -1758,20 +1819,33 @@ export class Editor2D {
     ctx.restore();
   }
 
+  /** Grid lines land on unit-native steps: 6"/1'/5' imperial (majors every
+   *  foot), 20cm/1m/5m metric (majors every metre) — so what you snap to is
+   *  what you see, and whole feet/metres are always ON the grid. */
+  gridSpec() {
+    const scale = this.view.scale;
+    if (unitSystem() === 'metric') {
+      const step = scale > 0.5 ? 20 : scale > 0.18 ? 100 : 500;
+      return { step, major: 100, chip: step === 20 ? '20 cm' : step === 100 ? '1 m' : '5 m' };
+    }
+    const FT = 30.48;
+    const step = scale > 0.5 ? FT / 2 : scale > 0.18 ? FT : FT * 5;
+    return { step, major: FT, chip: step === FT / 2 ? '6 in' : step === FT ? '1 ft' : '5 ft' };
+  }
+
   drawGrid(ctx, W, H, px) {
     const view = this.view;
     const left = view.x - (W / 2) * px, right = view.x + (W / 2) * px;
     const top = view.y - (H / 2) * px, bottom = view.y + (H / 2) * px;
-    const step = view.scale > 0.5 ? 20 : view.scale > 0.18 ? 100 : 500;
+    const { step, major } = this.gridSpec();
+    const isMajor = v => Math.abs(v / major - Math.round(v / major)) < 1e-6;
     ctx.lineWidth = px;
     for (let x = Math.floor(left / step) * step; x <= right; x += step) {
-      const major = Math.round(x) % 100 === 0;
-      ctx.strokeStyle = major ? 'rgba(120,130,145,0.28)' : 'rgba(120,130,145,0.13)';
+      ctx.strokeStyle = isMajor(x) ? 'rgba(120,130,145,0.28)' : 'rgba(120,130,145,0.13)';
       ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
     }
     for (let y = Math.floor(top / step) * step; y <= bottom; y += step) {
-      const major = Math.round(y) % 100 === 0;
-      ctx.strokeStyle = major ? 'rgba(120,130,145,0.28)' : 'rgba(120,130,145,0.13)';
+      ctx.strokeStyle = isMajor(y) ? 'rgba(120,130,145,0.28)' : 'rgba(120,130,145,0.13)';
       ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
     }
   }
@@ -2323,11 +2397,8 @@ export class Editor2D {
       ctx.restore();
     }
 
-    // scale chip: how big one grid square currently is
-    const gstep = view.scale > 0.5 ? 20 : view.scale > 0.18 ? 100 : 500;
-    const sq = metric
-      ? (gstep === 20 ? '20 cm' : gstep === 100 ? '1 m' : '5 m')
-      : (gstep === 20 ? '8 in' : gstep === 100 ? '3.3 ft' : '16.4 ft');
+    // scale chip: how big one grid square currently is (exact, from gridSpec)
+    const sq = this.gridSpec().chip;
     const text = `1 square = ${sq}`;
     ctx.font = '600 10.5px system-ui, sans-serif';
     const tw = ctx.measureText(text).width;
@@ -2380,6 +2451,7 @@ export class Editor2D {
     const store = this.store;
     const sel = store.selection;
     const drawAll = this.view.scale > 0.3;
+    this._wallPills = []; // tappable: tap a length pill to type the exact length
     for (const w of store.project.walls) {
       const len = wallLength(w);
       if (len < 40) continue;
@@ -2412,6 +2484,7 @@ export class Editor2D {
         ctx.fillStyle = selected ? '#ffffff' : '#2b3038';
         ctx.fillText(text, 0, 0.5);
         ctx.restore();
+        this._wallPills.push({ id: w.id, x: sp.x, y: sp.y, r: Math.max(tw / 2 + 10, 18) });
       }
     }
     // live wall-draw length + bearing angle
