@@ -462,6 +462,7 @@ export class Editor2D {
     switch (store.tool) {
       case 'select': this.downSelect(w, sx, sy); break;
       case 'wall': this.downWall(w); break;
+      case 'arc': this.downArc(w); break;
       case 'room': this.mode = { name: 'roomRect', start: this.snapPoint(w.x, w.y), cur: null, dragging: true }; break;
       case 'door': case 'window': case 'cut': this.downOpening(w, store.tool); break;
       case 'multi': this.downMulti(w, sx, sy); break;
@@ -717,6 +718,60 @@ export class Editor2D {
     // drag-to-draw: press starts the wall, release finishes it
     const pt = this.snapPoint(w.x, w.y);
     this.mode = { name: 'wallDraw', start: pt, preview: pt, dragging: true };
+  }
+
+  /** Curved wall, two moves: drag the CHORD like a normal wall, release, then
+   *  pull the bulge out (live arc preview) and release again to place. The
+   *  commit tessellates the arc into short straight walls, so rooms, 3D,
+   *  openings and dimensions all keep working with zero special cases. */
+  downArc(w) {
+    if (this.arcDraft) {
+      // second gesture: pulling the curve — track until release commits
+      this.mode = { name: 'arcPull', dragging: true };
+      this.arcDraft.sag = this._arcSag(w.x, w.y);
+      return;
+    }
+    const pt = this.snapPoint(w.x, w.y);
+    this.mode = { name: 'arcChord', start: pt, preview: pt, dragging: true };
+  }
+
+  /** Signed perpendicular distance of a point from the draft chord. */
+  _arcSag(px, py) {
+    const d = this.arcDraft;
+    const dx = d.b.x - d.a.x, dy = d.b.y - d.a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const sag = ((px - d.a.x) * (-dy) + (py - d.a.y) * dx) / len;
+    return Math.max(-len * 1.2, Math.min(len * 1.2, sag));
+  }
+
+  /** Sample the circular arc through a→b with sagitta `sag` at the midpoint. */
+  arcPoints(a, b, sag, segs = null) {
+    if (Math.abs(sag) < 4) return [a, b];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const chord = Math.hypot(dx, dy);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const nx = -dy / chord, ny = dx / chord;             // unit normal
+    const h = Math.abs(sag);
+    const R = (chord * chord / 4 + h * h) / (2 * h);     // circle radius
+    const side = Math.sign(sag);
+    const cx = mx + nx * side * (h - R), cy = my + ny * side * (h - R);
+    const a0 = Math.atan2(a.y - cy, a.x - cx);
+    let a1 = Math.atan2(b.y - cy, b.x - cx);
+    // sweep the way that passes through the bulge point
+    let sweep = a1 - a0;
+    while (sweep <= -Math.PI) sweep += Math.PI * 2;
+    while (sweep > Math.PI) sweep -= Math.PI * 2;
+    const arcLen = Math.abs(sweep) * R;
+    const n = segs ?? Math.max(4, Math.min(18, Math.round(arcLen / 50)));
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const t = a0 + sweep * (i / n);
+      pts.push({ x: cx + Math.cos(t) * R, y: cy + Math.sin(t) * R });
+    }
+    // exact endpoints (snap targets must close loops perfectly)
+    pts[0] = { x: a.x, y: a.y };
+    pts[n] = { x: b.x, y: b.y };
+    return pts;
   }
 
   downOpening(w, tool) {
@@ -977,6 +1032,12 @@ export class Editor2D {
   }
 
   onMove(e) {
+    if (this.arcDraft && this.mode.name === 'idle' && this.store.tool === 'arc' && !this.pointers.size) {
+      const { sx, sy } = this.evtPos(e);
+      const w0 = this.toWorld(sx, sy);
+      this.arcDraft.sag = this._arcSag(w0.x, w0.y);
+      this.requestRender();
+    }
     const { sx, sy } = this.evtPos(e);
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { sx, sy });
     const w = this.toWorld(sx, sy);
@@ -1009,6 +1070,14 @@ export class Editor2D {
         this.view.x = m.vx - (sx - m.sx) / this.view.scale;
         this.view.y = m.vy - (sy - m.sy) / this.view.scale;
         if (Math.hypot(sx - m.sx, sy - m.sy) > 5) m.clickHit = undefined, m.clickW = undefined;
+        break;
+      }
+      case 'arcChord': {
+        m.preview = this.snapPoint(w.x, w.y, { ref: m.start });
+        break;
+      }
+      case 'arcPull': {
+        if (this.arcDraft) this.arcDraft.sag = this._arcSag(w.x, w.y);
         break;
       }
       case 'wallDraw': {
@@ -1294,6 +1363,30 @@ export class Editor2D {
       // treated as a click on empty space / room
       store.select(m.clickHit); // null or {kind:'room'}
     }
+    if (m.name === 'arcChord' && m.preview) {
+      const chord = dist(m.start.x, m.start.y, m.preview.x, m.preview.y);
+      if (chord > gridSize() * 2) {
+        this.arcDraft = { a: m.start, b: m.preview, sag: 0 };
+      } else if (chord > 2) {
+        this.onNoop && this.onNoop('Too short — drag the span of the curve first');
+      }
+      this.mode = { name: 'idle' };
+      this.requestRender();
+      return;
+    }
+    if (m.name === 'arcPull' && this.arcDraft) {
+      const d = this.arcDraft;
+      this.arcDraft = null;
+      this.mode = { name: 'idle' };
+      const pts = this.arcPoints(d.a, d.b, d.sag);
+      store.checkpoint();
+      for (let i = 1; i < pts.length; i++) {
+        store.addWall(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
+      }
+      store.commit(true);
+      this.requestRender();
+      return;
+    }
     if (m.name === 'wallDraw' && m.preview) {
       const drawn = dist(m.start.x, m.start.y, m.preview.x, m.preview.y);
       if (drawn > gridSize() * 2) {
@@ -1439,6 +1532,7 @@ export class Editor2D {
     this.mode = { name: 'idle' };
     this.measure = null;
     this.dimDraft = null;
+    this.arcDraft = null;
     this._snap = null;
     if (!keepTool) this.requestRender();
   }
@@ -2199,6 +2293,49 @@ export class Editor2D {
     const store = this.store;
     const m = this.mode;
 
+    // curved-wall preview: chord while dragging the span, live arc while pulling
+    if (m.name === 'arcChord' && m.preview) {
+      ctx.strokeStyle = '#3884ff';
+      ctx.lineWidth = DEFAULTS.wallThickness;
+      ctx.globalAlpha = 0.4;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([DEFAULTS.wallThickness * 1.4, DEFAULTS.wallThickness]);
+      ctx.beginPath();
+      ctx.moveTo(m.start.x, m.start.y);
+      ctx.lineTo(m.preview.x, m.preview.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.lineCap = 'butt';
+    }
+    if (this.arcDraft) {
+      const d = this.arcDraft;
+      const pts = this.arcPoints(d.a, d.b, d.sag ?? 0, 32);
+      ctx.strokeStyle = '#3884ff';
+      ctx.lineWidth = DEFAULTS.wallThickness;
+      ctx.globalAlpha = 0.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      pts.forEach((p2, i) => i ? ctx.lineTo(p2.x, p2.y) : ctx.moveTo(p2.x, p2.y));
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.lineCap = 'butt';
+      // bulge handle at the arc midpoint
+      const mid = pts[Math.floor(pts.length / 2)];
+      ctx.fillStyle = '#2fbf71';
+      ctx.beginPath();
+      ctx.arc(mid.x, mid.y, 7 / this.view.scale, 0, Math.PI * 2);
+      ctx.fill();
+      // faint chord for reference
+      ctx.strokeStyle = 'rgba(56,132,255,0.35)';
+      ctx.lineWidth = 1.2 / this.view.scale;
+      ctx.setLineDash([8 / this.view.scale, 6 / this.view.scale]);
+      ctx.beginPath();
+      ctx.moveTo(d.a.x, d.a.y);
+      ctx.lineTo(d.b.x, d.b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     if (m.name === 'wallDraw' && m.preview) {
       const { start, preview } = m;
       ctx.strokeStyle = '#3884ff';

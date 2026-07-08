@@ -8,6 +8,8 @@ import { MATERIALS, getMaterialPreview, watchTextures, ensureTexture } from '../
 import { wallLength, wallAngle, pointInPolygon } from '../core/geometry.js';
 import { fmtLen, fmtArea, parseLen, unitSystem, setUnitSystem, unitPlaceholder } from '../core/units.js';
 import { installLibrary, libraryInstalled, libraryCount, librarySizeMB } from '../core/offline.js';
+import { planSummary } from '../core/summary.js';
+import { renderPlanSheet } from '../core/planexport.js';
 import { THEMES, applyTheme, applyThemeToRoom } from '../core/themes.js';
 import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
@@ -169,6 +171,8 @@ export class UI {
         <button id="mRename">${icon('file')} Rename project</button>
         <button id="mClear">${icon('trash')} Clear plan</button>
         <button id="mShot">${icon('camera')} 3D snapshot (PNG)</button>
+        <button id="mSummary">${icon('measure')} Plan summary</button>
+        <button id="mPrint">${icon('file')} Print / save plan sheet</button>
         <button id="mFull">${icon('expand')} Toggle full screen</button>
         <button id="mUnits">${icon('measure')} Units: <b id="mUnitsVal">Imperial</b></button>
         <button id="mOffline">${icon('download')} <span id="mOfflineLbl">Save for offline use</span></button>
@@ -258,6 +262,8 @@ export class UI {
       this.toast('Snapshot saved as PNG');
     };
     $('#mShot').onclick = shoot;
+    $('#mSummary').onclick = () => { $('#fileMenu').classList.add('hidden'); this.showSummary(); };
+    $('#mPrint').onclick = () => { $('#fileMenu').classList.add('hidden'); this.showPlanSheet(); };
     const syncUnitsLabel = () => { const el = $('#mUnitsVal'); if (el) el.textContent = unitSystem() === 'metric' ? 'Metric' : 'Imperial'; };
     syncUnitsLabel();
     $('#mUnits').onclick = () => {
@@ -419,6 +425,7 @@ export class UI {
       <span class="rail-div"></span>
       ${tool('wall', 'Wall', 'Draw walls point to point')}
       ${tool('room', 'Room', 'Drag out a rectangular room')}
+      ${tool('arc', 'Curve', 'Curved wall: drag the span, then pull the curve out')}
       ${tool('door', 'Door', 'Choose a door style & place it')}
       ${tool('window', 'Window', 'Choose a window style & place it')}
       ${tool('cut', 'Cut', 'Cut an opening: drag along a wall to remove that part')}
@@ -2253,6 +2260,95 @@ export class UI {
     });
   }
 
+  /** Materials-awareness summary: the numbers a contractor asks for first. */
+  showSummary() {
+    const store = this.store;
+    const sum = planSummary(store.project);
+    const t = sum.totals;
+    const esc = escapeHtml;
+    const lvlName = (i) => store.project.levels.length > 1 ? (i === 0 ? 'Floor G' : `Floor ${i}`) : 'This floor';
+    const roomRows = (l) => l.rooms.map(r =>
+      `<tr><td>${esc(r.name || 'Room')}</td><td style="text-align:right">${fmtArea(r.area)}</td></tr>`).join('');
+    const perLevel = sum.levels.map(l => `
+      <div class="props-section-title">${lvlName(l.index)}</div>
+      <table class="sum-table">
+        <tr><td>Walls (total run)</td><td style="text-align:right"><b>${fmtLen(l.wallRun)}</b></td></tr>
+        <tr><td>· exterior / interior</td><td style="text-align:right">${fmtLen(l.extRun)} / ${fmtLen(l.intRun)}</td></tr>
+        <tr><td>Doors · Windows</td><td style="text-align:right"><b>${l.doors}</b> · <b>${l.windows}</b></td></tr>
+        <tr><td>Floor area (rooms)</td><td style="text-align:right"><b>${fmtArea(l.floorArea)}</b></td></tr>
+        <tr><td>Wall faces to paint</td><td style="text-align:right">${fmtArea(l.paintArea)}</td></tr>
+        <tr><td>Furniture & fixtures</td><td style="text-align:right">${l.itemCount} items</td></tr>
+        ${l.rooms.length ? roomRows(l) : ''}
+      </table>`).join('');
+    const scrim = document.createElement('div');
+    scrim.className = 'modal-scrim';
+    scrim.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" style="max-width:420px;max-height:82vh;overflow:auto">
+        <h3>Plan summary</h3>
+        ${sum.levels.length > 1 ? `
+        <table class="sum-table" style="margin-bottom:4px">
+          <tr><td><b>Whole home</b></td><td style="text-align:right"></td></tr>
+          <tr><td>Walls</td><td style="text-align:right"><b>${fmtLen(t.wallRun)}</b></td></tr>
+          <tr><td>Doors · Windows</td><td style="text-align:right"><b>${t.doors}</b> · <b>${t.windows}</b></td></tr>
+          <tr><td>Floor area</td><td style="text-align:right"><b>${fmtArea(t.floorArea)}</b></td></tr>
+          <tr><td>Rooms · Items</td><td style="text-align:right">${t.rooms} · ${t.items}</td></tr>
+        </table>` : ''}
+        ${perLevel}
+        <p style="color:var(--text-dim);font-size:11.5px;margin-top:8px">Wall runs are measured along wall centerlines; floor areas are room areas.</p>
+        <div class="modal-row">
+          <button class="modal-btn primary" data-r="1">Done</button>
+        </div>
+      </div>`;
+    scrim.addEventListener('click', e => { if (e.target.closest('[data-r]') || e.target === scrim) scrim.remove(); });
+    document.body.appendChild(scrim);
+  }
+
+  /** Print-ready plan sheet: render, preview, then print (→ PDF via the iOS
+   *  share sheet) or save as an image. */
+  showPlanSheet() {
+    const store = this.store;
+    let canvas;
+    try { canvas = renderPlanSheet(store.project, store.project.activeLevel ?? 0); }
+    catch (e) { console.error(e); this.toast('Could not build the plan sheet'); return; }
+    const url = canvas.toDataURL('image/png');
+    const scrim = document.createElement('div');
+    scrim.className = 'modal-scrim';
+    scrim.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" style="max-width:min(92vw,900px)">
+        <h3>Plan sheet</h3>
+        <img id="sheetImg" src="${url}" alt="Plan sheet" style="width:100%;border:1px solid var(--border);border-radius:6px;background:#fff"/>
+        <div class="modal-row">
+          <button class="modal-btn" data-r="0">Close</button>
+          <button class="modal-btn" data-r="save">Save image</button>
+          <button class="modal-btn primary" data-r="print">Print / PDF</button>
+        </div>
+      </div>`;
+    scrim.addEventListener('click', e => {
+      const r = e.target.closest('[data-r]')?.dataset.r;
+      if (r === '0' || e.target === scrim) { scrim.remove(); return; }
+      if (r === 'save') {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(store.project.name || 'plan').replace(/[^\w\- ]+/g, '')} - plan.png`;
+        a.click();
+        this.toast('Plan sheet saved as PNG');
+      }
+      if (r === 'print') {
+        // print via a dedicated element the print stylesheet reveals — no
+        // popups (blocked in installed PWAs), works with iOS "Save to PDF"
+        let ps = document.getElementById('printSheet');
+        if (!ps) {
+          ps = document.createElement('div');
+          ps.id = 'printSheet';
+          document.body.appendChild(ps);
+        }
+        ps.innerHTML = `<img src="${url}" alt="Plan"/>`;
+        window.print();
+      }
+    });
+    document.body.appendChild(scrim);
+  }
+
   showHint() {
     const pill = $('#hintPill');
     if (!pill) return;
@@ -2285,6 +2381,7 @@ export class UI {
           ? `${tap} to select · drag to move · ${zoom}`
           : 'Start with the Wall or Room tool on the left',
         wall: 'Drag to draw a wall · start at the end of another to connect',
+        arc: 'Drag the span of the curve, then pull it out · tap to place',
         room: 'Drag to draw a rectangular room',
         door: `${tap} a wall to place the door`,
         window: `${tap} a wall to place the window`,

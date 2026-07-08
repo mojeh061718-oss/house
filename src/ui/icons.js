@@ -7,6 +7,7 @@ export const ICONS = {
   select: svg('<path d="M5 3l14 8-6.5 1.5L9 19z"/>'),
   wall: svg('<path d="M3 9h18v6H3z"/><path d="M8 9v6M13 9v6M18 9v6M5.5 3.5V9M10.5 15v5.5"/>'),
   room: svg('<rect x="4" y="5" width="16" height="14"/><path d="M4 12h6M14 5v4"/>'),
+  arc: svg('<path d="M4 19a15 15 0 0 1 16 0"/><path d="M4 19v-2M20 19v-2"/><circle cx="12" cy="11.6" r="1.6"/>'),
   door: svg('<path d="M4 20h16"/><path d="M6 20V4h9"/><path d="M15 4a13 13 0 0 1-9 12.6" stroke-dasharray="2.5 2.5"/><path d="M15 4v16"/>'),
   window: svg('<rect x="4" y="6" width="16" height="12"/><path d="M12 6v12M4 12h16"/>'),
   multi: svg('<rect x="3.5" y="3.5" width="13" height="13" rx="1.5" stroke-dasharray="3 2.5"/><rect x="7" y="7" width="6" height="6" rx="1"/><path d="M15.5 15.5 20 20"/>'),

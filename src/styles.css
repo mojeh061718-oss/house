@@ -1492,3 +1492,13 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .proj-card:hover, .proj-card:focus-visible {
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42);
 }
+
+/* ---- plan summary + print sheet (4.1) ---- */
+.sum-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sum-table td { padding: 4px 2px; border-bottom: 1px solid var(--border); color: var(--text); }
+#printSheet { display: none; }
+@media print {
+  body > *:not(#printSheet) { display: none !important; }
+  #printSheet { display: block !important; position: static; }
+  #printSheet img { width: 100%; }
+}
