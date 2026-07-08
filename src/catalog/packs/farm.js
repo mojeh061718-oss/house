@@ -486,8 +486,14 @@ export const FARM_ITEMS = [
         for (const r of [52, 36, 20]) torus(g, wrap, r, 1.8, s * 74, 64, 0, { rx: 0, ry: Math.PI / 2, seg: 30 });
         sphere(g, wrap, 6, s * 74.5, 64, 0, { sx: 0.35 }); // rolled core nub
       }
-      // frizzy top
-      blob(g, p.hay, p.tip, 60, 0, 96, 0, { seed: 6, sy: 0.4, detail: 2 });
+      // loose straw wisps escaping along the top curve
+      const wispM = solid(shade(p.hay, 0.18), 0.9);
+      for (let i = 0; i < 8; i++) {
+        const xx = -58 + i * 16.5;
+        const a = (i % 4 - 1.5) * 0.5;
+        segment(g, wispM, [xx, 124, Math.sin(a) * 14],
+          [xx + 6, 129 + (i % 3), Math.sin(a) * 22 + 4], 0.8, 0.3, 5);
+      }
       return g;
     }
   },
@@ -497,20 +503,31 @@ export const FARM_ITEMS = [
     palettes: [{ name: 'Straw', chip: '#cbab4e', hay: '#cbab4e' }],
     build: (p) => {
       const g = G();
-      // straw-textured block (wood grain reads as packed straw at this hue)
-      box(g, wood('#c9a86a', 0.85), 45, 40, 90, 0, 0, 0, { r: 3 });
-      // frayed straw ends — blobs flattened onto the cut faces (kept within
-      // the declared 90cm depth, no more phantom 139cm bale)
+      // packed-straw block
+      box(g, solid(p.hay, 0.95), 45, 40, 90, 0, 0, 0, { r: 3 });
+      // frayed straw at the cut ends — blobs flattened onto the faces (kept
+      // within the declared 90cm depth, no more phantom 139cm bale)
       for (const z of [-44, 44]) {
-        const b = blob(g, p.hay, '#e4cf86', 19, 0, 20, z, { seed: z + 60, sy: 0.9, detail: 2 });
+        const b = blob(g, shade(p.hay, -0.08), '#e4cf86', 19, 0, 20, z, { seed: z + 60, sy: 0.9, detail: 2 });
         b.scale.z = 0.35;
       }
+      // loose straw wisps lying along the top and flanks
+      const wisp = solid('#e0c268', 0.9);
+      const wispD = solid('#a8863c', 0.9);
+      for (let i = 0; i < 7; i++) {
+        const zz = -36 + i * 12, xx = ((i * 37) % 30) - 15;
+        segment(g, i % 2 ? wisp : wispD,
+          [xx - 6, 40.2 + (i % 3) * 0.4, zz], [xx + 8, 40.6, zz + 8 - (i % 3) * 5], 0.7, 0.4, 5);
+      }
+      for (const s of [-1, 1]) for (let i = 0; i < 3; i++)
+        segment(g, i % 2 ? wisp : wispD,
+          [s * 22.6, 10 + i * 11, -20 + i * 22], [s * 23.2, 16 + i * 11, -6 + i * 22], 0.6, 0.35, 5);
       // baling twine wrapped right around the bale
-      const twine = solid('#c86a2a', 0.7);
+      const twine = solid('#b06a2a', 0.7);
       for (const x of [-13, 13]) {
-        box(g, twine, 1.6, 1.6, 90.4, x, 40, 0);        // top run
-        box(g, twine, 1.6, 1.6, 90.4, x, -0.2, 0);      // bottom run
-        for (const z of [-45.2, 45.2]) box(g, twine, 1.6, 40, 1.6, x, 0, z); // end drops
+        box(g, twine, 1.3, 1.3, 90.4, x, 40, 0);        // top run
+        box(g, twine, 1.3, 1.3, 90.4, x, 0, 0);         // bottom run
+        for (const z of [-45.2, 45.2]) box(g, twine, 1.3, 41.3, 1.3, x, 0, z); // end drops
       }
       return g;
     }
@@ -692,17 +709,23 @@ export const FARM_ITEMS = [
     build: (p) => {
       const g = G();
       const m = metal(p.metal, 0.4);
-      // oval tank walls
-      cyl(g, m, 45, 52, 0, 0, 60, { seg: 24 });
-      cyl(g, m, 45, 52, 0, 0, -60, { seg: 24 });
-      box(g, m, 90, 52, 120, 0, 0, 0);
-      // water surface — real rippled water material, not glass
+      // open-topped oval tank: rounded end shells + straight side walls
+      cyl(g, m, 45, 52, 0, 0, 60, { seg: 24, open: true });
+      cyl(g, m, 45, 52, 0, 0, -60, { seg: 24, open: true });
+      for (const s of [-1, 1]) box(g, m, 3.5, 52, 120, s * 43.5, 0, 0);
+      // dark basin interior under the waterline
+      const basin = solid('#39424a', 0.8);
+      box(g, basin, 86, 3, 120, 0, 1, 0);
+      cyl(g, basin, 43.5, 3, 0, 1, 60, { seg: 24 });
+      cyl(g, basin, 43.5, 3, 0, 1, -60, { seg: 24 });
+      // water surface — real rippled water material, visible through the open top
       const wat = water(180);
-      cyl(g, wat, 40, 2, 0, 46, 60, { seg: 24 });
-      cyl(g, wat, 40, 2, 0, 46, -60, { seg: 24 });
-      box(g, wat, 80, 2, 120, 0, 46, 0);
-      // rolled rim
-      for (const z of [60, -60]) cyl(g, m, 46, 4, 0, 50, z, { seg: 24 });
+      cyl(g, wat, 44, 2, 0, 44, 60, { seg: 24 });
+      cyl(g, wat, 44, 2, 0, 44, -60, { seg: 24 });
+      box(g, wat, 88, 2, 120, 0, 44, 0);
+      // rolled rim — tube ring around the whole lip
+      for (const z of [60, -60]) torus(g, m, 45, 2.4, 0, 52, z, { seg: 28 });
+      for (const s of [-1, 1]) cyl(g, m, 2.4, 120, s * 45, 52, 0, { rx: Math.PI / 2, seg: 10 });
       return g;
     }
   },
