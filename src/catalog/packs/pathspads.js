@@ -215,7 +215,7 @@ function buildFirepitPad(p, w, d, h) {
 export const PATHSPADS_ITEMS = [
   // ---- drawable paths -------------------------------------------------------
   {
-    id: 'pathp_brick_herringbone', name: 'Herringbone Brick Path', cat: 'paths',
+    id: 'pathp_brick_herringbone', name: 'Brick Paver Path', cat: 'paths',
     w: 240, d: 100, h: 4, noShadow: true, palettes: null,
     plan: { type: 'path' }, path: { mat: 'real_brick_red', width: 100 },
     build: () => pathThumb('real_brick_red', 240, 100, 4, 200)

@@ -25,6 +25,8 @@ export const CATEGORIES = [
   { id: 'waterfront', name: 'Docks & Boats' },
   { id: 'yard', name: 'Yard & Garden' },
   { id: 'farm', name: 'Farm & Homestead' },
+  { id: 'porch', name: 'Front Porch' },
+  { id: 'paths', name: 'Paths & Pads' },
   { id: 'outdoor', name: 'Outdoor' }
 ];
 
@@ -3708,7 +3710,7 @@ const OUTDOOR_RECAT = {
   pool: 'pools', hottub: 'pools',
   pond: 'water',
   boat: 'waterfront', dock: 'waterfront',
-  patioset: 'patio', grill: 'patio', umbrella: 'patio', lounger: 'patio', slab: 'patio',
+  patioset: 'patio', grill: 'patio', umbrella: 'patio', lounger: 'patio',
   pergola: 'yard', fence: 'yard', hedge: 'yard', flag: 'yard', rock: 'yard',
   lampRound: 'yard', plant: 'yard', swingset: 'yard', hoop: 'yard', car: 'yard'
 };
@@ -3716,6 +3718,15 @@ for (const it of ITEMS) {
   if (it.cat !== 'outdoor') continue;
   const nc = OUTDOOR_RECAT[it.plan?.type];
   if (nc) it.cat = nc;
+}
+// All walkable/drivable surfaces — drawable paths and drag-to-size pads — live
+// together under "Paths & Pads" wherever they started (fences and water
+// streams keep their own homes).
+for (const it of ITEMS) {
+  const surf = it.path?.surface;
+  const isPath = !!it.path && surf !== 'fence' && surf !== 'water' && it.plan?.type !== 'fence' && !/stream|fence/.test(it.id);
+  const isPad = it.plan?.type === 'slab' && (it.areaDraw || /pad|patio|walk|court/.test(it.id));
+  if ((isPath || isPad) && it.cat !== 'paths') it.cat = 'paths';
 }
 
 /** Shared sunflower builder: stalk with leaves, seed disk, two petal rings. */
