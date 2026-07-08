@@ -20,6 +20,7 @@ import { FRAMES_ITEMS } from './packs/frames.js';
 import { CABINET_ITEMS } from './packs/cabinets.js';
 import { PATHSPADS_ITEMS } from './packs/pathspads.js';
 import { PORCH_ITEMS } from './packs/porch.js';
+import { OUTDOORPLUS_ITEMS } from './packs/outdoorplus.js';
 
 // Assign each pack to a finer catalog category so the "Outdoor" tab isn't one
 // giant broad bucket. (Games & Decor keep the categories their authors set.)
@@ -44,5 +45,6 @@ export const EXTRA_ITEMS = [
   ...FRAMES_ITEMS,                        // 'decor' — photo frames & signs
   ...CABINET_ITEMS,                       // 'kitchen'/'dining'/'bathroom' — cabinetry
   ...PATHSPADS_ITEMS,                     // 'paths' — drawable paths & drag-to-size pads
-  ...PORCH_ITEMS                          // 'porch' — columns, railings, swings, lanterns
+  ...PORCH_ITEMS,                         // 'porch' — columns, railings, swings, lanterns
+  ...OUTDOORPLUS_ITEMS                    // 'yard' — play, garden & backyard living extras
 ];

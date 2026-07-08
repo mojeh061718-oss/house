@@ -130,7 +130,7 @@ export const OUTDOORPLUS_ITEMS = [
         box(g, wd, 46, 4, 46, sx * 58, 24, sz * 58, { ry: Math.PI / 4, r: 1.5 });
       }
       // mounded sand
-      blob(g, '#c6a873', '#e6d3a2', 66, 0, 16, 0, { seed: 9, sy: 0.22, amp: 0.05 });
+      blob(g, '#b3945c', '#d8c084', 66, 0, 16, 0, { seed: 9, sy: 0.22, amp: 0.05 });
       // toy pail with rim ring + little shovel resting on a corner bench
       cyl(g, solid('#c0453a', 0.5), 7, 11, 34, 26, 30, { rTop: 8.6, seg: 16 });
       torus(g, solid('#8f3129', 0.5), 8.2, 0.8, 34, 37, 30, { seg: 24, tubeSeg: 8 });
