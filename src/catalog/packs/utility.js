@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, legs4, knob, handleBar, solid, wood, metal, chrome, glass, water, tex, glow } from '../builders.js';
+import { G, box, cyl, sphere, legs4, knob, handleBar, solid, wood, metal, chrome, glass, water, tex, glow, lathe, cushion, drape, sweep, torus } from '../builders.js';
 
 // Utility, laundry & mudroom pack. Front-load appliances, laundry sinks &
 // cabinets, mudroom lockers with shoe cubbies, and floor drains / wash
@@ -98,15 +98,20 @@ export const UTILITY_ITEMS = [
       const g = G();
       const tub = solid('#dfe2e4', 0.4);
       legs4(g, metal('#8b9096', 0.35), 54, 52, 66, 2, 4);
-      box(g, tub, 56, 26, 54, 0, 78, 0, { r: 4 });                 // deep basin
-      box(g, solid('#c7cbce', 0.3), 48, 20, 46, 0, 80, 0, { r: 3 }); // interior
-      box(g, water(), 46, 3, 44, 0, 74, 0, { r: 3 });
-      cyl(g, chrome(), 2, 3, 0, 74, 0, { seg: 16 });               // drain
-      // gooseneck faucet
-      cyl(g, chrome(), 1.8, 22, 0, 92, -22);
-      cyl(g, chrome(), 1.6, 14, 0, 112, -16, { rx: Math.PI / 2 });
-      cyl(g, chrome(), 1.5, 8, 0, 110, -6, { rx: Math.PI / 2 });
-      for (const sx of [-7, 7]) knob(g, sx, 93, -22, 2.4);
+      // deep OPEN tub: floor + four walls so the basin actually reads
+      box(g, tub, 56, 4, 54, 0, 78, 0, { r: 2 });                  // tub floor
+      for (const sz of [-1, 1]) box(g, tub, 56, 24, 5, 0, 80, sz * 24.5, { r: 2 });
+      for (const sx of [-1, 1]) box(g, tub, 5, 24, 54, sx * 25.5, 80, 0, { r: 2 });
+      box(g, solid('#c7cbce', 0.3), 45, 0.8, 43, 0, 82.1, 0);      // well bottom
+      box(g, water(), 46.5, 2, 44.5, 0, 93.5, 0, { r: 1.5 });      // half-full water line
+      // smooth chrome gooseneck + lever handles on turned bosses
+      lathe(g, chrome(), [[3, 0], [2.8, 0.7], [2, 1.5], [1.8, 2.6]], 0, 103.6, -24.5, { seg: 20 });
+      sweep(g, chrome(), [[0, 104, -24.5], [0, 118, -24.5], [0, 122, -21.5], [0, 123.5, -16], [0, 120, -11], [0, 116, -10]], 1.7, { seg: 36 });
+      cyl(g, chrome(), 1.9, 1.8, 0, 114.2, -10, { seg: 14 });
+      for (const sx of [-7.5, 7.5]) {
+        lathe(g, chrome(), [[1.9, 0], [1.5, 0.8], [1.1, 2]], sx, 103.7, -24.5, { seg: 14 });
+        box(g, chrome(), 1.4, 1.2, 6, sx, 105.5, -22.5, { r: 0.5 });
+      }
       return g;
     }
   },
@@ -203,9 +208,14 @@ export const UTILITY_ITEMS = [
       cyl(g, tank, 27, 138, 0, 0, 0, { seg: 28 });
       cyl(g, tank, 27, 8, 0, 143, 0, { seg: 28, rTop: 24 });      // domed top
       box(g, solid('#9aa0a6', 0.5), 24, 16, 3, 0, 40, 27);        // control box
-      // hot/cold pipes + flue
-      for (const sx of [-9, 9]) cyl(g, metal('#b06a3a', 0.4), 2, 24, sx, 150, -6);
-      cyl(g, metal('#a8adb2', 0.5), 6, 24, 0, 156, 0, { seg: 16 }); // flue
+      // copper supply lines with real swept bends + T&P relief run to the floor
+      const cu = metal('#b06a3a', 0.4);
+      sweep(g, cu, [[-9, 148, -6], [-9, 158, -6], [-11.5, 162, -6], [-17, 163.5, -6], [-22, 163.5, -6], [-25.5, 166, -6], [-26, 172, -6]], 1.9, { seg: 32 });
+      sweep(g, cu, [[9, 148, -6], [9, 155, -6], [11.5, 159, -6], [17, 160.5, -6], [22, 160.5, -6], [25.5, 163, -6], [26, 172, -6]], 1.9, { seg: 32 });
+      cyl(g, metal('#a8adb2', 0.5), 8, 3, 0, 149.5, 0, { seg: 24, rTop: 6 });  // draft hood
+      cyl(g, metal('#a8adb2', 0.5), 6, 22, 0, 152, 0, { seg: 24 });            // flue
+      box(g, metal('#c8a24a', 0.35), 4, 5, 4, 26, 92, 4, { r: 1 });            // brass T&P valve
+      sweep(g, cu, [[26, 96, 4], [29.5, 94, 4], [30.5, 88, 4], [30.5, 40, 4], [30.5, 8, 4]], 1.3, { seg: 20 }); // relief drain pipe
       return g;
     }
   },
@@ -254,9 +264,17 @@ export const UTILITY_ITEMS = [
     plan: { type: 'box' },
     build: (p) => {
       const g = G();
-      box(g, solid(p.body, 0.9), 46, 60, 36, 0, 0, 0, { r: 6 });
-      box(g, solid('#efe9dd', 0.9), 40, 8, 30, 0, 62, 0, { r: 4 }); // stuffed laundry
-      box(g, solid(p.body, 0.85), 44, 6, 34, 0, 58, 0, { r: 5 });   // rolled rim
+      const band = { '#c9a978': '#a8865a', '#9aa0a6': '#7e848a', '#3a3f45': '#26292d' }[p.body] || '#8a8478';
+      // tapered woven basket — ONE lathe profile with a rolled rim
+      lathe(g, solid(p.body, 0.9), [[14.5, 0], [19, 1.5], [20.5, 12], [21.8, 40], [22.4, 54], [21.6, 58], [20, 56.5], [19, 44], [17.5, 12], [1, 10]], 0, 0, 0, { seg: 32 });
+      for (const [ry, rr] of [[14, 20.7], [30, 21.2], [46, 21.9]]) torus(g, solid(band, 0.9), rr, 0.9, 0, ry, 0); // weave bands
+      // stuffed laundry cresting the rim
+      cushion(g, solid('#efe9dd', 0.9), 27, 11, 27, 0, 51, 0, { puff: 0.45, dimple: 0.2 });
+      // a towel flopped over the front edge (fold cap + drape panels)
+      const tw = solid('#c8cdd2', 0.85);
+      cyl(g, tw, 2.4, 19, 0, 58.4, 20.6, { rz: Math.PI / 2, seg: 16 });
+      drape(g, tw, 19, 24, 0, 58.2, 22.6, { sag: 2.2, wave: 2, folds: 3, seed: 3 });
+      drape(g, tw, 19, 13, 0, 58.2, 18.4, { sag: 2, wave: 1.8, folds: 3, seed: 6, ry: Math.PI });
       return g;
     }
   },
@@ -357,21 +375,27 @@ export const UTILITY_ITEMS = [
     palettes: null, plan: { type: 'sink' },
     build: () => {
       const g = G();
-      // splash panel behind
-      box(g, tex('tile_subway', 1.6, 2.4), 72, 128, 3, 0, 64, -28);
-      // shallow floor basin
-      box(g, solid('#c7cbce', 0.3), 66, 14, 52, 0, 7, 4, { r: 3 });
-      box(g, solid('#aeb3b7', 0.3), 58, 10, 44, 0, 8, 4, { r: 2 });
-      box(g, water(), 56, 2, 42, 0, 9, 4, { r: 2 });
-      cyl(g, chrome(), 2.2, 2, 0, 8, 4, { seg: 16 });               // drain grate
-      // wall faucet + coiled hose
-      cyl(g, chrome(), 2, 8, 0, 96, -26, { rx: Math.PI / 2 });
-      cyl(g, chrome(), 1.8, 16, 0, 96, -20);
-      cyl(g, chrome(), 1.5, 10, 0, 104, -13, { rx: Math.PI / 2 });
-      for (const sx of [-10, 10]) { cyl(g, chrome(), 2.4, 2, sx, 92, -26, { rx: Math.PI / 2 }); knob(g, sx, 92, -23, 2); }
-      // sprayer hose hanging
-      for (let i = 0; i < 5; i++) sphere(g, solid('#3a3f45', 0.5), 1.6, 24, 90 - i * 12, -22 + Math.sin(i) * 3);
-      box(g, solid('#2b2f34', 0.4), 6, 12, 5, 24, 30, -20, { r: 2 }); // sprayer head
+      // splash panel behind (runs floor to top — no floating slab)
+      box(g, tex('tile_subway', 1.6, 2.4), 72, 128, 3, 0, 0, -28);
+      // shallow OPEN floor basin: slab + raised lip walls, standing water inside
+      const tray = solid('#c7cbce', 0.3);
+      box(g, tray, 66, 5, 52, 0, 0, 4, { r: 2 });                  // floor slab
+      for (const sz of [-1, 1]) box(g, tray, 66, 9, 5, 0, 3, 4 + sz * 23.5, { r: 2 });
+      for (const sx of [-1, 1]) box(g, tray, 5, 9, 52, sx * 30.5, 3, 4, { r: 2 });
+      box(g, solid('#aeb3b7', 0.3), 54, 0.8, 40, 0, 5.1, 4);       // well bottom
+      box(g, water(), 53, 1.8, 39, 0, 6, 4, { r: 1 });             // standing water
+      // wall-mount faucet: ONE smooth sweep from the wall over the basin
+      cyl(g, chrome(), 3, 1.6, 0, 96, -26.5, { rx: Math.PI / 2, seg: 20 }); // wall escutcheon
+      sweep(g, chrome(), [[0, 96, -27], [0, 96, -22], [0, 101, -18.5], [0, 104.5, -13], [0, 101, -8], [0, 97, -7]], 1.7, { seg: 36 });
+      cyl(g, chrome(), 1.9, 1.8, 0, 95.2, -7, { seg: 14 });
+      for (const sx of [-10, 10]) {
+        cyl(g, chrome(), 2.2, 2, sx, 92, -26, { rx: Math.PI / 2, seg: 16 });
+        box(g, chrome(), 1.4, 1.2, 6, sx, 91.4, -22.4, { r: 0.5 });          // levers
+      }
+      // sprayer wand on a smooth hanging hose (no more bead chain)
+      sweep(g, solid('#3a3f45', 0.5), [[10, 92, -25], [20, 86, -21], [26, 70, -19], [23, 54, -22], [24, 40, -21], [24, 37, -20.5]], 1.1, { seg: 36 });
+      box(g, chrome(), 2.2, 2.4, 6, 24, 32, -24);                            // wall clip
+      lathe(g, solid('#2b2f34', 0.4), [[2.9, 0], [2.5, 2], [1.3, 4.5], [1.1, 13.5], [1.6, 15]], 24, 22, -20.5, { seg: 18 });
       return g;
     }
   },
@@ -382,14 +406,21 @@ export const UTILITY_ITEMS = [
     build: () => {
       const g = G();
       const basin = solid('#dcdfe1', 0.4);
-      box(g, basin, 62, 30, 62, 0, 0, 0, { r: 3 });
-      box(g, solid('#c2c6c9', 0.35), 52, 22, 52, 0, 3, 0, { r: 2 });
-      box(g, water(), 50, 2, 50, 0, 5, 0, { r: 2 });
-      cyl(g, chrome(), 2, 2, 8, 5, 8, { seg: 16 });
-      // service faucet with lever, rising just above the basin
-      cyl(g, chrome(), 1.8, 26, -22, 30, -24);
-      cyl(g, chrome(), 1.6, 22, -22, 54, -14, { rx: Math.PI / 2 });
-      box(g, chrome(), 10, 2, 2, -14, 52, -24);
+      // OPEN basin: floor slab + four walls, so the well actually reads
+      box(g, basin, 62, 8, 62, 0, 0, 0, { r: 3 });                 // floor
+      for (const sz of [-1, 1]) box(g, basin, 62, 24, 7, 0, 6, sz * 27.5, { r: 2.5 });
+      for (const sx of [-1, 1]) box(g, basin, 7, 24, 62, sx * 27.5, 6, 0, { r: 2.5 });
+      box(g, solid('#c2c6c9', 0.35), 47.5, 1.2, 47.5, 0, 7.4, 0);  // well bottom
+      box(g, water(), 47, 2, 47, 0, 8.6, 0, { r: 1.5 });           // standing water
+      // service faucet: turned escutcheon + ONE smooth sweep over the basin
+      lathe(g, chrome(), [[3, 0], [2.8, 0.7], [2, 1.5], [1.8, 2.6]], -22, 29.6, -27, { seg: 20 });
+      sweep(g, chrome(), [[-22, 30, -27], [-22, 48, -27], [-20.5, 53, -23.5], [-16.5, 54.5, -18], [-12.5, 51, -13], [-11.5, 46.5, -12]], 1.6, { seg: 36 });
+      cyl(g, chrome(), 1.8, 1.8, -11.5, 44.7, -12, { seg: 14 });
+      cyl(g, chrome(), 1.2, 3, -17, 29.6, -27, { seg: 12 });
+      box(g, chrome(), 6, 1.2, 1.6, -14.5, 32.4, -27, { r: 0.5, rz: -0.2 });
+      // galvanized mop bucket standing in the water (intrigue)
+      lathe(g, metal('#aab0b4', 0.45), [[6.2, 0], [7.4, 1], [9.2, 15], [9.6, 16.5], [8.8, 15.8], [8.4, 10], [6, 1.8], [0.6, 2]], 10, 8.8, 8, { seg: 24 });
+      sweep(g, metal('#8a9094', 0.4), [[1.6, 23.8, 8], [4.5, 28.2, 8], [10, 30.2, 8], [15.5, 28.2, 8], [18.4, 23.8, 8]], 0.55, { seg: 24 }); // bail handle
       return g;
     }
   }

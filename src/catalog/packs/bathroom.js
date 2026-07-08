@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, legs4, glow, solid, wood, metal, chrome, glass, mirror, water, tex } from '../builders.js';
+import { G, box, cyl, sphere, legs4, glow, solid, wood, metal, chrome, glass, mirror, water, tex, lathe, cushion, drape, sweep, torus } from '../builders.js';
 
 // Shared finish palettes ----------------------------------------------------
 const TUB_FINISH = [
@@ -14,6 +14,21 @@ const VANITY_FINISH = [
 ];
 const hwMat = (p) => (p.hw === '#c8a24a' ? metal('#c8a24a', 0.3) : chrome());
 
+// Compact deck-mounted gooseneck: lathe escutcheon + ONE smooth sweep arc
+// (spout toward +z) + aerator; optional side lever. s scales the arc height.
+function bathFaucet(g, m, x, y, z, s = 1, lever = true) {
+  lathe(g, m, [[2.8, 0], [2.6, 0.6], [1.9, 1.2], [1.7, 2.2]], x, y - 0.3, z, { seg: 20 });
+  sweep(g, m, [
+    [x, y + 1.5, z], [x, y + 13 * s, z], [x, y + 17.5 * s, z + 2],
+    [x, y + 19 * s, z + 6], [x, y + 16 * s, z + 10.5], [x, y + 12 * s, z + 11.5]
+  ], 1.4, { seg: 32 });
+  cyl(g, m, 1.6, 1.6, x, y + 10.4 * s, z + 11.5, { seg: 14 });
+  if (lever) {
+    cyl(g, m, 1.0, 2.6, x + 4.4, y, z, { seg: 12 });
+    box(g, m, 5.5, 1.1, 1.4, x + 6.8, y + 2.5, z, { r: 0.5, rz: -0.2 });
+  }
+}
+
 export const BATHROOM_ITEMS = [
   // ---- Freestanding soaking tub -------------------------------------------
   {
@@ -22,16 +37,24 @@ export const BATHROOM_ITEMS = [
     build: (p) => {
       const g = G();
       const body = solid(p.body, p.rough);
-      // sculpted pill-shaped outer shell + narrower pedestal foot
-      box(g, body, 150, 10, 60, 0, 0, 0, { r: 8 });        // base foot
-      box(g, body, 170, 46, 80, 0, 9, 0, { r: 30 });       // main shell
-      box(g, solid(p.body, Math.min(0.9, p.rough + 0.05)), 168, 8, 78, 0, 47, 0, { r: 28 }); // rolled rim
-      // inner basin cavity + water
-      box(g, solid('#e2e1de', 0.2), 142, 30, 54, 0, 22, 0, { r: 24 });
-      box(g, water(), 138, 5, 50, 0, 40, 0, { r: 22 });
-      // deck drain + overflow
-      cyl(g, chrome(), 2.6, 1.4, 0, 44, 20, { seg: 20 });
-      cyl(g, chrome(), 1.8, 1.2, 0, 41, -34, { rx: Math.PI / 2 });
+      const ox = 172 / 84; // stretch the circular lathe into the oval footprint
+      // ONE smooth lathe shell: sculpted foot, belly, rolled rim, inner wall
+      const shell = lathe(g, body, [
+        [1, 0], [24, 0.4], [30, 1.2], [37, 6], [40.5, 16], [41.5, 30],
+        [40.5, 42], [38, 48], [34, 51.4], [30.5, 52], [27.5, 50.5], [26.5, 45], [26, 36], [26, 30]
+      ], 0, 0, 0, { seg: 48 });
+      shell.scale.x = ox;
+      // white inner liner + bath water
+      const liner = lathe(g, solid('#e9e8e5', 0.18), [
+        [1, 31], [20, 31.8], [24, 34.5], [25, 42], [25.2, 48]
+      ], 0, 0, 0, { seg: 40 });
+      liner.scale.x = ox;
+      const wtr = cyl(g, water(), 25.5, 2.2, 0, 43.2, 0, { seg: 40 });
+      wtr.scale.x = ox;
+      // teak caddy across the rim with a soap bar + rolled washcloth (intrigue)
+      box(g, wood('#8a6a48', 0.5), 15, 2.4, 52, 44, 51.6, 0, { r: 0.8 });
+      cushion(g, solid('#dfe7e9', 0.4), 8.5, 2.8, 5.5, 44, 54.1, -9, { puff: 0.35, dimple: 0.1 });
+      cyl(g, solid('#e6e2d8', 0.9), 3.2, 11, 44, 57.1, 10, { rx: Math.PI / 2, seg: 18 });
       return g;
     }
   },
@@ -46,26 +69,38 @@ export const BATHROOM_ITEMS = [
       // four ornate ball-and-claw feet
       for (const sx of [-1, 1]) {
         for (const sz of [-1, 1]) {
-          const fx = sx * 66, fz = sz * 26;
+          const fx = sx * 58, fz = sz * 22;
           sphere(g, feetMat, 6.5, fx, 7, fz, { sy: 1.1 });
           cyl(g, feetMat, 3.4, 14, fx, 12, fz, { rTop: 2.2 });
         }
       }
-      // raised rolled-rim body
-      box(g, body, 164, 40, 74, 0, 24, 0, { r: 28 });
-      box(g, solid(p.body, Math.min(0.9, p.rough + 0.05)), 166, 9, 76, 0, 57, 0, { r: 30 }); // fat rolled rim
-      box(g, solid('#e2e1de', 0.2), 140, 26, 52, 0, 34, 0, { r: 22 });
-      box(g, water(), 136, 5, 48, 0, 52, 0, { r: 20 });
-      // telephone-style faucet with cross handles at one end
-      cyl(g, chrome(), 1.7, 26, -68, 62, -18);
-      cyl(g, chrome(), 1.7, 26, -60, 62, -18);
-      cyl(g, chrome(), 1.4, 22, -64, 88, -18, { rx: Math.PI / 2 });
-      cyl(g, chrome(), 1.3, 12, -64, 84, -30, { rx: Math.PI / 2 });
-      for (const hx of [-72, -56]) {
-        cyl(g, chrome(), 3.2, 1.2, hx, 64, -18, { rx: Math.PI / 2 });
-        box(g, chrome(), 7, 1, 1, hx, 64, -18);
-        box(g, chrome(), 1, 1, 7, hx, 64, -18);
+      // ONE smooth lathe shell with a real roll-top rim + open basin
+      const ox = 166 / 75;
+      const shell = lathe(g, body, [
+        [1, 12], [24, 12.6], [31, 13.5], [34.5, 18], [35.5, 34], [35, 52], [34.5, 57],
+        [36.5, 59.5], [37.5, 62], [36.5, 65], [33, 66], [30, 64.5], [28.7, 59], [28.2, 44], [28, 28]
+      ], 0, 0, 0, { seg: 44 });
+      shell.scale.x = ox;
+      const liner = lathe(g, solid('#e9e8e5', 0.18), [[1, 26], [22, 27], [26.3, 30], [27.2, 40], [27.4, 60]], 0, 0, 0, { seg: 36 });
+      liner.scale.x = ox;
+      const wtr = cyl(g, water(), 27.6, 2, 0, 55, 0, { seg: 40 });
+      wtr.scale.x = ox;
+      // bridge-style telephone faucet: smooth sweeps, turned escutcheons
+      const ch = chrome();
+      for (const rx of [-68, -56]) {
+        lathe(g, ch, [[3, 0], [2.8, 0.7], [2, 1.4]], rx, 65.5, -18, { seg: 16 }); // rim escutcheon
+        cyl(g, ch, 1.7, 22, rx, 62, -18, { seg: 18 });                            // supply riser
+        cyl(g, ch, 0.9, 5, rx, 78, -15.5, { rx: Math.PI / 2, seg: 12 });          // handle stem
+        box(g, ch, 7, 1.1, 1.1, rx, 77.45, -12.8, { r: 0.4 });                    // cross handle
+        box(g, ch, 1.1, 7, 1.1, rx, 74.5, -12.8, { r: 0.4 });
+        sphere(g, ch, 1.3, rx, 78, -12.6);
       }
+      sweep(g, ch, [[-68, 84, -18], [-68, 88, -18], [-62, 90.5, -18], [-56, 88, -18], [-56, 84, -18]], 1.6, { seg: 32 }); // bridge
+      sweep(g, ch, [[-62, 90, -18], [-59, 91.5, -13], [-55, 90, -5], [-52.5, 85, -1], [-52, 81, 0]], 1.5, { seg: 32 });   // spout into the tub
+      cyl(g, ch, 1.8, 1.6, -52, 79.4, 0, { seg: 14 });
+      // telephone handshower hanging from a hook off the bridge
+      sweep(g, ch, [[-62, 90, -19], [-62, 88, -25], [-62, 84.5, -27]], 1, { seg: 14 });
+      lathe(g, ch, [[3.3, 0], [2.9, 1.6], [1.4, 3.6], [1.05, 15], [1.4, 16.5]], -62, 68, -27, { seg: 18 });
       return g;
     }
   },
@@ -90,14 +125,15 @@ export const BATHROOM_ITEMS = [
       box(g, post, 3, 208, 3, 48, 5, -47);
       // door handle
       cyl(g, chrome(), 1, 34, -14, 108, 49, { seg: 12 });
-      // rain head on ceiling arm + valve + handheld on slide bar
-      cyl(g, chrome(), 1.6, 30, -20, 176, -46);
-      cyl(g, chrome(), 1.6, 24, -20, 176, -46, { rx: Math.PI / 2 });
-      cyl(g, chrome(), 11, 2, -20, 178, -34, { seg: 28 });
-      cyl(g, chrome(), 3.4, 5, 26, 110, -46);       // thermostatic valve body
+      // rain head on ONE smooth swept arm + valve + handheld on slide bar
+      sweep(g, chrome(), [[-20, 206, -47], [-20, 188, -47], [-20, 181, -42], [-20, 179, -34]], 1.6, { seg: 24 });
+      lathe(g, chrome(), [[0.5, 0], [11, 0.15], [11.3, 0.9], [2, 1.7], [1.5, 3.4]], -20, 175.8, -34, { seg: 32 }); // rain head disc
+      cyl(g, chrome(), 3.4, 5, 26, 110, -46);        // thermostatic valve body
       box(g, chrome(), 2, 60, 2, 40, 96, -46);       // slide bar
-      cyl(g, chrome(), 2, 20, 40, 150, -44, { rx: 0.5 });
-      cyl(g, chrome(), 3, 3, 40, 150, -40, { rx: 0.5 });
+      const hh = lathe(g, chrome(), [[1.1, 0], [1.05, 14], [1.6, 16], [3.1, 19], [3.4, 20.5]], 40, 138, -44, { seg: 18 });
+      hh.rotation.x = 0.15;
+      box(g, chrome(), 2.4, 3, 3, 40, 148, -45.5);   // slide-bar clamp
+      sweep(g, solid('#c0c4c8', 0.35), [[40, 139, -44], [41, 122, -40], [38, 108, -38], [34, 100, -42], [30, 96, -46]], 0.7, { seg: 28 }); // hose
       return g;
     }
   },
@@ -128,10 +164,11 @@ export const BATHROOM_ITEMS = [
         const basin = sphere(g, solid('#f4f3f0', 0.18), 16, cx, 86, 2, { sy: 0.4 });
         basin.scale.x = 1.35;
         cyl(g, chrome(), 2, 1, cx, 84.5, 2, { seg: 16 });
-        cyl(g, hw, 1.5, 20, cx, 88, -16);
-        cyl(g, hw, 1.2, 13, cx, 107, -10, { rx: Math.PI / 2 });
-        box(g, hw, 2, 6, 2, cx - 5, 90, -16, { rz: 0.3 });
+        bathFaucet(g, hw, cx, 88, -16, 1.1);
       }
+      // rolled guest towel with a woven band, set between the basins
+      cyl(g, solid('#e6e2d8', 0.9), 4.2, 17, 0, 92.2, 6, { rz: Math.PI / 2, seg: 22 });
+      torus(g, solid('#b9a27c', 0.6), 3.1, 0.8, 5.5, 92.2, 6, { rx: 0, ry: Math.PI / 2 });
       return g;
     }
   },
@@ -151,8 +188,7 @@ export const BATHROOM_ITEMS = [
       const basin = sphere(g, solid('#f4f3f0', 0.18), 15, -6, 36, 2, { sy: 0.42 });
       basin.scale.x = 1.5;
       cyl(g, chrome(), 1.9, 1, -6, 34.5, 2, { seg: 16 });
-      cyl(g, hw, 1.5, 18, -6, 38, -15);
-      cyl(g, hw, 1.2, 12, -6, 55, -9, { rx: Math.PI / 2 });
+      bathFaucet(g, hw, -6, 38, -15, 0.95);
       return g;
     }
   },
@@ -163,17 +199,20 @@ export const BATHROOM_ITEMS = [
     build: () => {
       const g = G();
       const white = solid('#f2f1ee', 0.2);
-      cyl(g, white, 13, 66, 0, 0, 0, { rTop: 10 });     // fluted pedestal column
-      cyl(g, white, 16, 6, 0, 0, 0, { rTop: 14 });      // foot
+      // turned pedestal column — foot, waist and capital in ONE lathe profile
+      lathe(g, white, [[17, 0], [15, 1.5], [11.5, 4], [9.8, 14], [9, 34], [9.4, 52], [11, 62], [13.5, 66]], 0, 0, 0, { seg: 36 });
       // basin bowl on top
       box(g, white, 56, 16, 46, 0, 68, 0, { r: 8 });
       const bowl = sphere(g, solid('#e6e5e2', 0.2), 18, 0, 78, 2, { sy: 0.5 });
       bowl.scale.x = 1.25;
       cyl(g, chrome(), 1.6, 1, 0, 76.5, 2, { seg: 14 });
       box(g, white, 30, 8, 6, 0, 80, -20, { r: 2 });    // faucet deck
-      cyl(g, chrome(), 1.5, 16, 0, 84, -18);
-      cyl(g, chrome(), 1.2, 11, 0, 100, -12, { rx: Math.PI / 2 });
-      for (const hx of [-9, 9]) cyl(g, chrome(), 1.6, 4, hx, 84, -18);
+      bathFaucet(g, chrome(), 0, 88, -19, 0.8, false);
+      for (const hx of [-9, 9]) {                       // turned cross handles
+        lathe(g, chrome(), [[1.7, 0], [1.3, 1], [0.8, 2.4], [1.5, 3.2], [0.9, 4]], hx, 88, -19, { seg: 16 });
+        box(g, chrome(), 5, 0.9, 0.9, hx, 90.9, -19, { r: 0.4 });
+        box(g, chrome(), 0.9, 0.9, 5, hx, 90.9, -19, { r: 0.4 });
+      }
       return g;
     }
   },
@@ -189,17 +228,17 @@ export const BATHROOM_ITEMS = [
       legs4(g, metal('#3a3d40', 0.35), 78, 44, 74, 2, 3, true);
       box(g, wd, 84, 5, 50, 0, 72, 0, { r: 1 });        // wood top
       box(g, wd, 74, 4, 42, 0, 22, 0, { r: 1 });        // lower shelf
-      // rolled towel + folded towel on shelf
+      // rolled towel + soft folded towel on the shelf
       cyl(g, solid('#dcd8cf', 0.85), 5, 30, -18, 30, 8, { rz: Math.PI / 2 });
-      box(g, solid('#c8cdd2', 0.85), 26, 6, 26, 16, 26, 0, { r: 1 });
-      // raised vessel bowl
-      cyl(g, solid('#ecebe8', 0.15), 18, 15, 0, 77, 4, { rTop: 20, seg: 32 });
-      cyl(g, solid('#d6d5d2', 0.2), 15, 3, 0, 84, 4, { seg: 32 });
-      // tall vessel faucet
-      cyl(g, hw, 1.6, 30, 0, 77, -16);
-      cyl(g, hw, 1.3, 22, 0, 107, -10, { rx: Math.PI / 2 });
-      cyl(g, hw, 2, 4, 0, 107, 2, { rx: Math.PI / 2 });
-      box(g, hw, 3, 8, 2, 12, 82, -16, { rz: -0.3 });
+      cushion(g, solid('#c8cdd2', 0.85), 26, 6.5, 26, 16, 26, 0, { puff: 0.3, dimple: 0.12 });
+      // raised vessel bowl — flared lip in one lathe profile
+      lathe(g, solid('#ecebe8', 0.15), [[3.5, 0], [10, 1], [15.5, 5], [18, 10.5], [18.4, 13.5], [17, 15], [14.5, 13], [13, 8], [5, 6], [0.6, 6.2]], 0, 77, 4, { seg: 40 });
+      // tall vessel gooseneck: escutcheon + one smooth arc over the rim
+      lathe(g, hw, [[2.9, 0], [2.7, 0.6], [2, 1.4], [1.8, 2.4]], 0, 77, -16, { seg: 20 });
+      sweep(g, hw, [[0, 78, -16], [0, 100, -16], [0, 105, -14], [0, 106.5, -9], [0, 103, -4.5], [0, 98.5, -3.5]], 1.5, { seg: 36 });
+      cyl(g, hw, 1.7, 1.8, 0, 96.6, -3.5, { seg: 14 });
+      cyl(g, hw, 1.05, 2.6, 5, 77, -16, { seg: 12 });
+      box(g, hw, 5.5, 1.1, 1.4, 7.6, 79.5, -16, { r: 0.5, rz: -0.2 });
       return g;
     }
   },
@@ -278,9 +317,11 @@ export const BATHROOM_ITEMS = [
         const y = 14 + i * 11;
         cyl(g, bar, 1.5, 48, 0, y, 0, { rz: Math.PI / 2, seg: 12 });
       }
-      // a plush towel draped over one rung
-      box(g, solid('#eae6dd', 0.9), 40, 34, 5, 0, 40, 5, { r: 2 });
-      box(g, solid('#eae6dd', 0.9), 40, 6, 9, 0, 74, 4, { r: 3 });
+      // a real plush towel folded over the top rung: fold cap + two drape panels
+      const tw = solid('#eae6dd', 0.9);
+      cyl(g, tw, 2.7, 40, 0, 80, 0.6, { rz: Math.PI / 2, seg: 18 });
+      drape(g, tw, 40, 37, 0, 80.6, 3, { sag: 3, wave: 2.2, folds: 4, seed: 2 });
+      drape(g, tw, 40, 26, 0, 80.6, -2, { sag: 2.5, wave: 2, folds: 3, seed: 5, ry: Math.PI });
       return g;
     }
   },
@@ -354,19 +395,18 @@ export const BATHROOM_ITEMS = [
     build: (p) => {
       const m = p.hw === '#d5d9dd' ? chrome() : metal(p.hw, 0.3);
       const g = G();
-      cyl(g, m, 6, 2.5, 0, 0, 0, { seg: 24 });          // floor flange
-      cyl(g, m, 2.6, 100, 0, 2, 0, { seg: 20 });        // riser
-      // gooseneck arc over the tub
-      cyl(g, m, 2.4, 20, 0, 100, 0, { rz: -0.7 });
-      cyl(g, m, 2.4, 18, 6, 112, 0, { rz: -1.4 });
-      cyl(g, m, 2.4, 12, 14, 110, 0);                   // downspout
-      cyl(g, m, 3.2, 3, 14, 98, 0, { seg: 18 });        // spout end
-      // hand-shower cradle + wand
-      cyl(g, m, 2, 10, -6, 60, 0, { rx: Math.PI / 2 });
-      cyl(g, m, 1.8, 16, -6, 58, 8, { rx: 0.5 });
-      cyl(g, m, 2.6, 3, -6, 58, 14, { rx: 0.5 });
-      // lever handle
-      box(g, m, 2, 12, 2, 6, 42, 0, { rz: -0.4 });
+      // turned floor flange + slender riser (one smooth column)
+      lathe(g, m, [[7, 0], [6.4, 1], [3.6, 2.4], [2.9, 4.5], [2.7, 8]], 0, 0, 0, { seg: 28 });
+      cyl(g, m, 2.7, 92, 0, 6, 0, { seg: 24 });
+      // ONE smooth swept gooseneck + aerator
+      sweep(g, m, [[0, 94, 0], [0, 105, 0], [3, 111, 0], [8.5, 113, 0], [13.5, 109.5, 0], [15.3, 103, 0], [15.5, 98, 0]], 2.3, { seg: 40 });
+      cyl(g, m, 2.7, 2, 15.5, 96.2, 0, { seg: 16 });
+      // lever handle on a side boss
+      cyl(g, m, 1.4, 3.5, -4.5, 46, 0, { rz: Math.PI / 2, seg: 14 });
+      box(g, m, 1.6, 9, 1.6, -6.3, 45.5, 0, { r: 0.6, rz: 0.3 });
+      // handshower wand hanging from a riser-mounted holder
+      cyl(g, m, 1, 5, 0, 62, 2.5, { rx: Math.PI / 2, seg: 12 });
+      lathe(g, m, [[3.2, 0], [2.8, 1.6], [1.3, 3.6], [1, 15.5], [1.5, 17]], 0, 46, 5.5, { seg: 18 });
       return g;
     }
   },
@@ -387,8 +427,8 @@ export const BATHROOM_ITEMS = [
       }
       box(g, wd, 66, 3, 30, 0, 24, 0, { r: 0.6 });     // lower shelf
       legs4(g, wd, 64, 28, 41, 2.4, 4, true);
-      // a folded towel on the seat
-      box(g, solid('#eae6dd', 0.9), 34, 7, 26, 12, 44, 0, { r: 2 });
+      // a soft folded towel on the seat (cushion, not a hard box)
+      cushion(g, solid('#eae6dd', 0.9), 34, 7, 26, 12, 44, 0, { puff: 0.35, dimple: 0.18 });
       return g;
     }
   },
