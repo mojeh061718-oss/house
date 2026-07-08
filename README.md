@@ -44,10 +44,18 @@ PWAs also request a landscape orientation lock where supported.
 - Custom touch orbit (drag) + pinch zoom/pan, first-person walk mode
 - Sun + sky lighting with soft shadows; one-tap PNG snapshots
 
-**Catalog — 45+ parametric models** across living room, bedroom, kitchen,
-bathroom, dining, office and decor/lighting, with finish palettes and 3D-
-rendered thumbnails. **40+ procedural materials**: woods, parquet, tiles,
-marble, brick, carpets, paints, fabrics, stone counters.
+**Catalog — 340+ parametric models** across living room, bedroom, kitchen,
+bathroom, dining, office, decor/lighting, games, patio, pools, water features,
+docks, yard, farm and structures — every one procedural, size-honest (an
+enforced bbox contract), with finish palettes and 3D-rendered thumbnails.
+**90+ materials**: photo-scanned floors/walls/ground plus procedural woods,
+tiles, marble, brick, carpets, paints, fabrics and stone.
+
+**4.0 highlights** — CAD-grade measuring (unit-aware grid, wall-anchored
+dimensions, tap-a-pill exact entry), a catalog-wide realism pass (real
+animals, pinnate palms, torus floats, planked boats), camera-tracked
+shadows, reflective glass, 2× fewer draw calls, and a premium splash that
+can never blank out on a phone.
 
 ## Run it locally
 

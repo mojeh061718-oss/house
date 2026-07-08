@@ -1,151 +1,98 @@
 # HANDOFF — Honeycutt Home Studio
 
-> ⚠️ **START HERE — CURRENT STATE (v3.0.1), written 2026-07-05.**
+> ⚠️ **START HERE — CURRENT STATE (v4.0.0), written 2026-07-08.**
 > Everything below the `═══ OLDER HISTORY ═══` divider is earlier context, kept
-> for reference but partly stale (it predates v3.0). Trust THIS top section first.
+> for reference but partly stale. Trust THIS top section first.
 
-## 0. Your mandate for this session
+## 0. Where things stand
 
-You are continuing a large, high-stakes update for a **non-technical, iPhone-first**
-user who reviews on the live/dev site. Work to these standards:
+- **Branch:** `claude/app-debug-4-0-blueprint-ga9lgf` — carries the entire 4.0
+  program (audit → fixes → asset pass → release). NOT yet merged to `main`.
+- **v4.0.0** is the head of the branch. The full audit + plan that drove it is
+  `BLUEPRINT-4.0.md` (repo root): 76 numbered defects, all phases executed.
+- **Deploy:** this branch is NOT wired into `.github/workflows/deploy.yml`
+  (an intentional-permission boundary — the user must approve adding it).
+  Until wired (or merged), nothing from this branch is publicly visible.
+  To wire: add the branch under `on.push.branches` AND to the `SLOT=dev`
+  case line in deploy.yml, then push.
 
-- **Max effort, zero mistakes.** This user explicitly wants best-in-market
-  quality. Verify every change end-to-end before claiming it works. Prefer
-  reading the real code over assuming. Use subagents (parallel `Agent` calls) to
-  investigate/branch-check, and use the `code-review` skill on non-trivial diffs.
-- **First task: a full VISUAL + CODE debug of the v3.0 build** (see §4). Drive
-  the actual app and look at it; don't just read code. Then fix what's broken,
-  most-severe first.
-- **Stay token-aware.** This is a long-lived project. Don't re-read huge files
-  in full when a targeted `Grep`/offset-`Read` will do. Delegate broad searches
-  to `Explore`/`general-purpose` subagents so their file dumps stay out of your
-  context — keep only conclusions. Don't paste large tool outputs back. Batch
-  independent tool calls in one message.
-- **Reliability > cleverness.** The app's whole value prop is that it never
-  crashes on a phone. Don't regress that.
+## 1. What 4.0 contains (all verified, all committed on this branch)
 
-## 1. Where things stand
+- **Phase 0 (v3.3.0) trust fixes:** retracting splash failsafe, cached-material
+  corruption eliminated (netMaterial/glow discipline), thumbnail env map (chrome
+  no longer black in the catalog), honest locking incl. walls/openings, empty
+  hint-pill blob fixed, pointercancel cancels instead of committing, no-op undo
+  checkpoints removed, floor browsing no longer dirties the project, honest
+  offline install (fail count tracked), user strings escaped.
+- **Phase 1 (v3.4.0) CAD precision:** unit-aware grid (6"/1'/5' imperial with
+  foot majors — whole feet land ON grid; 10 cm/1 m/5 m metric), openings snap to
+  whole 2" in imperial (new door = 3'0"), pinch can never corrupt Measure/
+  Dimension (first-finger tap side effects are reverted, drags roll back via
+  store.revertToCheckpoint), dimensions ANCHOR to walls (aw/bw = {wallId,t} —
+  follow edits, die with the wall), dim props card + finger-size hit target,
+  tap a wall's length pill → typed exact entry, parseFtIn accepts 5'-6"/5 6/
+  fractions/.5, live "= 5'6"" echo under length fields, typed dims clamped.
+- **Phase 2 (v3.5.0–v3.6.0) asset realism:** see ASSETS-TODO.md §"4.0 realism
+  pass". Size contract at ZERO violations and now ENFORCED by verify-allbuild.
+- **Phase 3 graphics:** shadow frustum tracks the orbit target/walker
+  (updateShadowFrustum), night ambient floor, 2048px sky dome, reflective
+  clearcoat glass, new projects default to `siding_white` exterior.
+- **Phase 4 performance:** `viewer3d.mergeItemModel` merges same-material
+  meshes per item (estate 1453 → ~750 draw calls); byte-budget texture LRU that
+  never disposes live materials (evicted mats become `owned`, freed on rebuild);
+  arch3d material leaks fixed (cached solid()/singletons); three.js split into
+  its own vendor chunk (app updates re-download ~580 KB, not 1.27 MB).
+- **Phase 5 ergonomics:** sticky door/window/cut tools (Select/Esc disarms),
+  undo/redo keep the selection when it survives, walk mode exits on view
+  switch, styled modals everywhere (no native alert/confirm), offline prompt
+  deferred to the 2nd visit, boot-failure banner on home, per-project
+  "unsaved edits" badges, pagehide draft synced to localStorage AND preferred
+  if newer at boot, catalog search synonyms, Adjust shows absolute dims,
+  no-op feedback toasts, fitToContent uses item extents.
+- **Phase 6 splash:** static-first premium sequence — the logo is visible from
+  frame zero (inline SVG attrs), a `.play` class stamped after first paint runs
+  the CSS draw-in (strokes → window bloom → wordmark rise), fully inside
+  `prefers-reduced-motion: no-preference`; failsafe ladder (4s "Still loading…",
+  7s reload button) that RETRACTS when boot completes; splash exits as soon as
+  storage resolves.
 
-- **Live** (root, from `main`): **v2.29.0**. URL: `https://mojeh061718-oss.github.io/house/`
-- **Dev** (from branch `claude/handoff-md-completion-8vnjdh` → `/house/dev/`): **v3.0.1**.
-  URL: `https://mojeh061718-oss.github.io/house/dev/`
-- **DEV-ONLY CONSTRAINT (in force):** everything from v2.27.0 onward — including
-  ALL of v3.0.x — ships to the **dev branch only**. Do NOT push to `main`/live
-  without the user's explicit say-so. Develop on `claude/handoff-md-completion-8vnjdh`.
-- Deploy: push → `.github/workflows/deploy.yml` → gh-pages (dev branch → `/dev/`
-  slot, `main` → root). The internal "pages build and deployment" step is flaky;
-  re-run via `mcp__github__actions_run_trigger` (rerun_workflow_run) if needed.
-  Verify with `mcp__github__actions_list` (its output is huge — parse the saved
-  file with python, don't inline it).
+## 2. Gates (run all before shipping anything)
 
-## 2. What v3.0.0 + v3.0.1 added (all on dev)
+```bash
+npm run build                       # must be clean
+node tests/verify-boot.js           # boot + 3D + zero errors
+node tests/verify-splash-failsafe.js# static splash + failsafe both directions
+APP_URL=http://localhost:4173/ node tests/verify-allbuild.js
+                                    # 1310 builds, 0 throws, 0 size violations (ENFORCED)
+npm run test:visual                 # 4 shots, pixel-diff vs baselines
+```
+Playwright notes (hard-won): launch args need `--no-proxy-server` (the agent
+proxy stalls loopback compositing); NEVER pass hasTouch/isMobile to newPage
+(headless screenshots hang); block service workers in every suite (an SW claim
+mid-run reloads the page); screenshots need 90–120s timeouts under load; the
+visual suite needs a quiet machine — heavy parallel chromium work corrupts
+baselines written at the same time.
 
-- **CAD precision suite** (`src/editor/editor2d.js`): object-snap engine
-  (`_snapPoint`/`perpFoot`/`wallSplitTs`) with subtle snap glyphs (labels were
-  REMOVED on purpose — user wanted no jargon); **Measure/tape tool** (per-leg
-  length + angle + "Total"); **persistent Dimension tool** (annotations saved per
-  level in `project.dims`, drawn via `_drawDim`/`drawDimAnnotations`, selectable
-  via `dimAt` → `deleteSelection`); live wall length+angle while drawing.
-- **Typed exact entry + metric/imperial** (`src/core/units.js`: `fmtLen`/
-  `parseLen`/`setUnitSystem`; toggle in the menu; editable wall length). Units
-  re-sync on undo via the `history` listener in ui.js.
-- **Offline library** (`src/core/offline.js` + `public/sw.js`): "Save for offline
-  use" downloads all `public/tex/*.jpg` into a persistent SW cache (`honeycutt-lib`)
-  that survives app updates; first-run prompt (`maybePromptOffline`); airplane
-  mode verified working. `installLibrary` returns false (and stays honest) when
-  there's no controlling SW.
-- **Style-aware "Design this room"** (`src/core/themes.js` `applyThemeToRoom`):
-  per-room coordinated floor+wall+furniture palette, wired in the room props panel.
-- **Premium 3D materials**: `envMapIntensity` on solid/wood in `src/catalog/builders.js`.
-- **New animated splash** (`index.html` #splash + `src/styles.css` splash block):
-  a blueprint house draws itself, gold CAD dimension line, warm windows, honey
-  wordmark, honeycomb motif. Hold time 2850ms in `home.showSplash`.
-- **v3.0.1 fixes:** furnish now works on **L/T-shaped rooms** (`roomBBox` fallback
-  + polygon clip in `furnishRoom(store, box, type, poly)`); **per-segment wall
-  measurements** (each split gets its own legible pill label); selected door/window
-  shows its width; splash plays under Reduce Motion.
+## 3. Invariants added in 4.0 (do not regress)
 
-## 3. Known-open threads / risks to check
+- Size contract: built bbox within 0.35–1.45× of def w/d/h per axis, enforced.
+- Never mutate cached materials (solid/wood/metal/tex). glow()/netMaterial()
+  for per-instance looks. Evicted tex() materials are tagged owned, not disposed.
+- Dims may carry `aw`/`bw` anchors {wallId, t}; deleting a wall cuts its dims.
+- `isDirty()` ignores activeLevel. `revertToCheckpoint()` = cancel semantics.
+- The hint pill hides when a tool has no hint text (empty pill = the old blob bug).
+- mergeItemModel runs on every item build — leaf meshes with userData, material
+  arrays, or instancing are intentionally skipped; don't rely on per-leaf-mesh
+  identity in items (use the outer group's userData).
 
-1. **Splash on the real device** — user reported "no animation." v3.0.1 fixed the
-   likely cause (Reduce Motion + an animated drop-shadow filter). NOT yet
-   confirmed on their iPhone. If it still doesn't animate, the next theory is the
-   **forced-landscape rotation** (`src/core/orientation.js` rotates `#app` 90°):
-   consider rendering the splash un-rotated in portrait, or counter-rotating it.
-2. **Test harness flakiness** — in the previous session, Playwright against the
-   local preview started timing out (`networkidle` hangs; even `goto` after many
-   runs). Root cause was resource exhaustion from many spawned vite/chromium
-   procs + the agent proxy routing loopback. A fresh container should fix it.
-   Working recipe when it behaves: `chromium.launch({args:['--use-gl=angle',
-   '--use-angle=swiftshader','--no-sandbox']})`, `page.goto(url,{waitUntil:'commit'})`,
-   then `waitForTimeout`. Preview: `node_modules/.bin/vite preview --port 4180 --strictPort`.
-   The app exposes `window.homestudio = {store, editor, viewer, ui, home}` for driving.
-3. **Furnish on L-rooms** — the bounding-box templates may still place a piece
-   oddly in concave rooms even with the polygon clip; visually confirm.
-4. **Performance instancing** was deferred — repeated items (fences, chairs) are
-   not instanced yet; dense scenes can drop frames on a phone.
-5. Bundle is ~1 MB JS (single chunk). Fine for now; note if it grows.
+## 4. Open threads for post-4.0
 
-## 4. Your first job: visual + code debug (do this before new features)
-
-**Visual (drive the real app on dev or a local preview, in a phone viewport):**
-- Splash: does the house actually animate in? (Test with and without Reduce Motion.)
-- Draw a wall, split it with a partition → both segments show legible length pills?
-- Place a door and a window → each shows its width when selected?
-- Select an L-shaped room → do Auto-furnish buttons appear and place sensible
-  furniture inside the real floor (not the notch)?
-- Measure + Dimension tools: snap glyphs subtle (no END/MID/INT jargon)? Dimension
-  respects where you pull it out?
-- 3D: materials look richer (metals/wood reflect)? No regressions vs live.
-- Metric toggle flips every readout; offline "Save" shows progress + works offline.
-
-**Code (use the `code-review` skill + targeted subagents):**
-- Re-review `src/editor/editor2d.js` precision code and `src/core/state.js` `dims`
-  schema for edge cases. Re-check `src/core/offline.js` + `public/sw.js`.
-- Confirm no console/page errors on boot and when exercising each new tool.
-
-Report findings, fix most-severe first, verify, then bump patch version, commit,
-push to **dev**, confirm the deploy is green.
-
-## 5. Requested future work — ASSET REALISM PASS (user priority)
-
-The user wants a dedicated agent (or a sequence of them) to **go through the
-catalog assets and make them dramatically more realistic**. Their words: some of
-the trees, animals, items etc. are "poorly drawn," and with real time invested
-they "can be extremely realistic." Treat this as a first-class quality project,
-not a quick pass.
-
-- **Where the assets live:** every item is built PROCEDURALLY in code (no binary
-  models). Builders/materials: `src/catalog/builders.js` (the `box/cyl/sphere/
-  prism/blob/foliage/wood/metal/glass/tex/...` DSL). Item definitions + their
-  `build(p)` functions: `src/catalog/items.js` and the packs in
-  `src/catalog/packs/*.js` (bathroom, kitchen, livingroom, lounge, decks, docks,
-  pools, poolside, water, farm, fencing, games, structures, decor, cabinets,
-  frames, utility). 2D plan symbols: `src/editor/plansymbols.js`. Photo textures:
-  `src/core/textures.js` (procedural generators + local CC0 JPGs in `public/tex/`).
-- **What to improve:** the worst offenders the user called out are **trees,
-  plants, and animals**, plus assorted **items** that read as crude. Add
-  geometry detail (layered blob canopies with trunk taper and branching; animals
-  with real silhouettes and limbs rather than boxy stand-ins), better materials
-  (bark/foliage variation, subsurface-ish leaf tones, fur/feather color ramps),
-  and use the v3.0 `envMapIntensity`/PBR tuning already in `builders.js`.
-- **HARD CONSTRAINTS — do not regress these:**
-  1. **Stay procedural + lightweight.** The app's identity is instant load,
-     fully offline, no big downloads. Do NOT bulk-import heavy glTF models. If
-     a few CC0 glTF props are ever added, gate them behind the offline system
-     and keep the procedural versions as the fast default.
-  2. **Watch the GPU/memory budget.** A past release crashed phones by leaking
-     textures; more geometry per item × hundreds of items can tank mobile FPS.
-     Reuse cached materials (never set `userData.owned` on a cached material),
-     lean on instancing for repeated foliage, and profile a dense scene on a
-     phone-sized viewport before shipping.
-  3. **Keep 2D plan symbols legible** — a photoreal 3D tree still needs a clean,
-     simple top-down symbol.
-- **Suggested approach:** do it pack-by-pack (or category-by-category) with
-  parallel subagents, each taking a few items, rebuilding their `build(p)`
-  functions and visually verifying each in the 3D viewer (drive the real app;
-  screenshot before/after). Ship in small, reviewed batches to dev, not one huge
-  diff. Bump versions per batch.
+1. Deploy wiring (above) — needs user approval, then verify gh-pages goes green.
+2. Merge to main = the "ship live" decision; user's call.
+3. Nice-to-haves from BLUEPRINT Part 2 not blocking 4.0: instanced foliage for
+   repeated planting, 2-cascade shadows, more tree species, arch (walls) draw-
+   call merging (needs per-face userData redesign), D2 offline cache validation.
+4. The `before` git worktree in the session scratchpad is ephemeral — ignore.
 
 ═══════════════════════════ OLDER HISTORY (pre-v3.0, partly stale) ═══════════════════════════
 

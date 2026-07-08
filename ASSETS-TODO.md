@@ -27,6 +27,36 @@ bbox/grounding audit use `window.homestudio.{THREE, ITEMS}`.
 
 ## Done so far
 
+### v3.5.0–v4.0.0 — the 4.0 realism pass (this branch)
+
+**The size contract is now ENFORCED at zero violations** across all 1,310
+item×palette builds (`tests/verify-allbuild.js` fails on any bbox outside
+0.35–1.45× of the declared w/d/h; `LENIENT_SIZE=1` to bypass while iterating).
+
+- **Root causes fixed:** `blob()` noise is radius-relative (small bushes/rocks
+  are properly lumpy); `water(sizeCm)` scales ripples to the surface; real
+  `torus()` primitive; reflective clearcoat `glass()`; the viewer merges
+  same-material meshes per item (estate 1453 → ~750 draw calls) so detailed
+  builds are cheap to render.
+- **items.js:** palm (true pinnate fronds), hedge (half-buried tufts), oak/
+  birch/pine crowns, monstera split leaves, flower beds, hill, hammock, pool
+  ladder, office chair, gazebo, car/truck massing, torus hoop rim, sunflower
+  mesh diets, old toilet retired; 14 size fixes.
+- **farm.js:** every animal rebuilt (massed bodies over shrunken cores, jointed
+  legs, faces, wool/feathers), scarecrow, honest bales, rippled trough; all on
+  the new `animal` plan glyph.
+- **poolside/docks/lounge/decks/pools/water/decor:** torus floats, smooth
+  S-neck flamingo/swan, honest kayak, planked transom skiffs, dinghy with
+  outboard, sailboat re-massed, hammock + egg swing rebuilt, real water in
+  deck spas, round stock tank, honest pond heights.
+- **2D symbols:** animal glyph, game-machine labels, greenhouse/shed/sauna/
+  container glyphs, filled hoop; chain-link fences (panel + drawn runs).
+
+Remaining polish candidates (nice-to-have, not blockers): boulder/rock family
+variation, more tree species, bird/pet pack, seasonal palettes.
+
+### v3.1.x — surfaces, water, animals, grounding (parallel line)
+
 ### v3.1.x — surfaces, water, animals, grounding (parallel line)
 HD water + asphalt driveway + broom-concrete sidewalk + real gravel; HD upgrade
 of all ~97 procedural material generators; farm animals rebuilt; ~15 floating

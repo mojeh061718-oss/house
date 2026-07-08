@@ -119,7 +119,27 @@ function diffPngs(aBuf, bBuf) {
   let failures = 0;
   for (const shot of SHOTS) {
     await shot.run(page);
-    const buf = await page.screenshot({ timeout: 120000 }); // SwiftShader under load is slow
+    // force TWO fresh animation frames before capturing: under SwiftShader the
+    // compositor can lag the DOM by many seconds, and screenshots otherwise
+    // grab a stale frame (this suite once baselined a dead splash while the
+    // DOM said the home screen was up)
+    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+    let buf = await page.screenshot({ timeout: 120000 }); // SwiftShader under load is slow
+    // PIXEL-verified capture: even after the rAF barrier, SwiftShader can
+    // serve a frame from before the splash faded. The home screen has the
+    // blue "New project" disc at (143,184); the splash is near-black there.
+    // Reshoot until the pixels agree with the DOM (max ~60s).
+    if (shot.name === 'home') {
+      for (let tries = 0; tries < 30; tries++) {
+        const img = PNG.sync.read(buf);
+        const i = (184 * img.width + 143) * 4;
+        const [r, g, b2] = [img.data[i], img.data[i + 1], img.data[i + 2]];
+        if (b2 > 120 && b2 > r + 40) break; // blue disc → the real home frame
+        await page.waitForTimeout(2000);
+        await page.evaluate(() => new Promise(r2 => requestAnimationFrame(() => requestAnimationFrame(r2))));
+        buf = await page.screenshot({ timeout: 120000 });
+      }
+    }
     const basePath = path.join(BASE, shot.name + '.png');
     if (UPDATE || !fs.existsSync(basePath)) {
       fs.writeFileSync(basePath, buf);
