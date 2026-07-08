@@ -82,7 +82,12 @@ export class Editor2D {
     const p = this.store.project;
     const pts = [];
     for (const w of p.walls) pts.push([w.ax, w.ay], [w.bx, w.by]);
-    for (const it of p.items) pts.push([it.x, it.y]);
+    for (const it of p.items) {
+      // full extents, not just centers — a big deck used to sit half out of frame
+      const hw = (it.w || 0) / 2, hd = (it.d || 0) / 2;
+      pts.push([it.x - hw, it.y - hd], [it.x + hw, it.y + hd]);
+      if (it.path) for (const pt of it.path) pts.push([pt.x, pt.y]);
+    }
     const cw = this.canvas.offsetWidth, ch = this.canvas.offsetHeight;
     if (!pts.length || !cw) {
       this.view = { x: 0, y: 0, scale: 0.55 };
@@ -721,7 +726,7 @@ export class Editor2D {
     const type = tool === 'cut' ? 'gap' : tool === 'door' ? store.doorType : store.windowType;
     const width = openingDefaults(type).width;
     const len = wallLength(near.wall);
-    if (len < width + 12) return;
+    if (len < width + 12) { this.onNoop && this.onNoop('That wall is too short for this ' + (tool === 'cut' ? 'cut' : tool)); return; }
     const t = clamp(near.t, (width / 2 + 6) / len, 1 - (width / 2 + 6) / len);
     store.checkpoint();
     const o = store.addOpening(near.wall.id, type, t);
@@ -1290,10 +1295,13 @@ export class Editor2D {
       store.select(m.clickHit); // null or {kind:'room'}
     }
     if (m.name === 'wallDraw' && m.preview) {
-      if (dist(m.start.x, m.start.y, m.preview.x, m.preview.y) > gridSize() * 2) {
+      const drawn = dist(m.start.x, m.start.y, m.preview.x, m.preview.y);
+      if (drawn > gridSize() * 2) {
         store.checkpoint();
         store.addWall(m.start.x, m.start.y, m.preview.x, m.preview.y);
         store.commit(true);
+      } else if (drawn > 2) {
+        this.onNoop && this.onNoop('Too short — drag further to draw a wall');
       }
     }
     if (m.name === 'pathDraw') {
@@ -1405,9 +1413,9 @@ export class Editor2D {
     }
     if (m.name === 'placeOpening') {
       // the opening is already placed (default width on a tap, dragged-out
-      // width if you sized it) — just hand back to the select tool
+      // width if you sized it). The tool STAYS armed so placing five windows
+      // is five taps, not five trips to the rail — Select/Esc disarms.
       store.commit(true);
-      store.setTool('select');
     }
     if (m.name === 'dragItem' && m.moved) {
       // a wall-mounted piece dragged along/onto a wall re-remembers its host
@@ -1460,7 +1468,7 @@ export class Editor2D {
       const sel = store.selection;
       if (sel?.kind === 'item') {
         const it = store.item(sel.id);
-        if (it.locked) return;
+        if (!it || it.locked) return;
         store.checkpoint();
         it.rotation += Math.PI / 12;
         store.commit(false);

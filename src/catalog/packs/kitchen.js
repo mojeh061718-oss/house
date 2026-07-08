@@ -1,7 +1,7 @@
 // High-detail modern/luxury kitchen catalog pack. Parametric models built from
 // primitives only (no external assets), using the app's photo textures for
 // counters, backsplashes and cabinet fronts. All dims in cm; +Y up; front +Z.
-import { G, box, cyl, sphere, legs4, handleBar, knob, glow, solid, wood, metal, chrome, glass, tex } from '../builders.js';
+import { G, box, cyl, sphere, pyramid, legs4, handleBar, knob, glow, solid, wood, metal, chrome, glass, tex } from '../builders.js';
 
 // Cabinet + counter finish palettes: `cab` paints the doors/carcass, `top` is a
 // counter texture id, `grain` swaps painted for a wood-grain finish.
@@ -257,8 +257,9 @@ export const KITCHEN_ITEMS = [
     build: () => {
       const g = G();
       const body = STEEL();
-      // wide trapezoid canopy that narrows into a chimney flue
-      cyl(g, body, 34, 30, 0, 0, 4, { rTop: 15, seg: 4 }).rotation.y = Math.PI / 4;
+      // wide canopy narrowing into a chimney flue — sized to the declared
+      // 60×46 footprint (the old 4-seg cyl swept far past it)
+      pyramid(g, body, 56, 30, 40, 0, 2, 0);
       box(g, body, 24, 86, 20, 0, 30, 4, { r: 0.5 });        // flue
       box(g, metal('#a8acb0', 0.3), 56, 2, 40, 0, 0.5, 0);   // baffle underside
       box(g, glow('#fff2d0', 0.6), 26, 0.6, 8, 0, 0, 6);

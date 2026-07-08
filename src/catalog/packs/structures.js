@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, prism, wavyPanel, blob, foliage, solid, wood, metal, glass, glow, tex } from '../builders.js';
+import { G, box, cyl, sphere, prism, wavyPanel, blob, foliage, solid, wood, metal, glass, water, glow, tex } from '../builders.js';
 
 // Modern outdoor structures & yard features — all parametric, primitives only.
 const WOODS = [
@@ -44,14 +44,15 @@ export const STRUCTURES_ITEMS = [
         cyl(g, wd, 7, 228, sx * 138, 0, sz * 118);
       }
       for (const sz of [-1, 1]) box(g, wd, 296, 10, 8, 0, 228, sz * 118);
-      // draped fabric canopy
+      // draped fabric canopy — wavyPanel is x-centred with its run along local
+      // +y, so lay it flat from the back beam (rx 90° maps local y onto +z)
       const canopy = wavyPanel(g, fabric, 292, 250, 5, 14);
-      canopy.position.set(-146, 240, 118);
+      canopy.position.set(0, 240, -125);
       canopy.rotation.x = Math.PI / 2;
-      // tie-back sheer curtains at the back corners
+      // tie-back sheer curtains hanging at the back corners
       for (const sx of [-1, 1]) {
         const c = wavyPanel(g, solid('#f6f2ea', 0.9), 90, 210, 4, 8);
-        c.position.set(sx * 138 - 45, 210, -118);
+        c.position.set(sx * 93, 0, -118);
       }
       return g;
     }
@@ -65,7 +66,7 @@ export const STRUCTURES_ITEMS = [
       { name: 'Blush', chip: '#d8b6ac', wood: '#d8b6ac' },
       { name: 'Cedar', chip: '#9c7550', wood: '#9c7550' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'shed' },
     build: (p) => {
       const g = G();
       const wall = tex('siding_sand', 3, 2);
@@ -97,7 +98,7 @@ export const STRUCTURES_ITEMS = [
   // ---- Greenhouse -----------------------------------------------------------
   {
     id: 'struct_greenhouse', name: 'Glass Greenhouse', cat: 'outdoor', w: 260, d: 340, h: 250,
-    palettes: null, plan: { type: 'box' },
+    palettes: null, plan: { type: 'greenhouse' },
     build: () => {
       const g = G();
       const gl = glass();
@@ -189,7 +190,7 @@ export const STRUCTURES_ITEMS = [
 
   // ---- Vertical garden wall -------------------------------------------------
   {
-    id: 'yard_vertical_garden', name: 'Living Wall', cat: 'outdoor', w: 160, d: 24, h: 200,
+    id: 'yard_vertical_garden', name: 'Living Wall', cat: 'outdoor', w: 160, d: 30, h: 200,
     palettes: null, plan: { type: 'fence' },
     build: () => {
       const g = G();
@@ -204,7 +205,7 @@ export const STRUCTURES_ITEMS = [
         const y = 20 + row * 38;
         box(g, solid('#5a5d62', 0.7), 150, 12, 16, 0, y, 2);
         for (let x = -60; x <= 60; x += 30) {
-          foliage(g, '#3f5f26', '#7da845', x, y + 16, 8, 15, 8, row * 13 + x + 200);
+          foliage(g, '#3f5f26', '#7da845', x, y + 16, 5, 11, 8, row * 13 + x + 200);
         }
       }
       return g;
@@ -272,7 +273,7 @@ export const STRUCTURES_ITEMS = [
 
   // ---- Bike rack ------------------------------------------------------------
   {
-    id: 'yard_bike_rack', name: 'Bike Rack', cat: 'outdoor', w: 180, d: 40, h: 75,
+    id: 'yard_bike_rack', name: 'Bike Rack', cat: 'outdoor', w: 180, d: 10, h: 75,
     palettes: null, plan: { type: 'box' },
     build: () => {
       const g = G();
@@ -310,9 +311,9 @@ export const STRUCTURES_ITEMS = [
       // glowing status screen
       box(g, dark, 26, 40, 3, 0, 78, 11.5);
       box(g, glow('#57e0a0', 0.9), 22, 34, 2, 0, 80, 12.4);
-      // coiled cable + connector holstered on the side
-      cyl(g, solid('#141518', 0.7), 3, 45, 18, 40, 0, { rz: Math.PI / 2 });
-      box(g, dark, 8, 16, 10, 20, 44, 4, { r: 3 });
+      // coiled cable running down the side + holstered connector
+      cyl(g, solid('#141518', 0.7), 3, 44, 15, 26, 0);
+      box(g, dark, 8, 16, 10, 17, 44, 4, { r: 3 });
       return g;
     }
   },
@@ -356,13 +357,13 @@ export const STRUCTURES_ITEMS = [
       const g = G();
       const stone = solid(p.chip, 0.9);
       const basin = solid('#8f8b82', 0.85);
-      // catch basin
+      // catch basin with real rippled water
       cyl(g, basin, 34, 12, 0, 0, 0);
-      cyl(g, glass(), 30, 6, 0, 8, 0);
+      cyl(g, water(60), 30, 6, 0, 8, 0);
       // monolith spout column
       box(g, stone, 22, 108, 22, 0, 12, 0, { r: 3 });
       // water sheet spilling from a scupper
-      box(g, glass(), 14, 70, 3, 0, 40, 12);
+      box(g, water(70), 14, 70, 3, 0, 40, 12);
       cyl(g, metal('#9a9ea4', 0.4), 3, 6, 0, 100, 11, { rx: Math.PI / 2 });
       // pebbles in the basin
       for (let i = 0; i < 8; i++) {
@@ -402,7 +403,7 @@ export const STRUCTURES_ITEMS = [
   // ---- Wood storage shed ----------------------------------------------------
   {
     id: 'struct_wood_shed', name: 'Storage Shed', cat: 'outdoor', w: 300, d: 220, h: 235,
-    palettes: WOODS, plan: { type: 'storage' },
+    palettes: WOODS, plan: { type: 'shed' },
     build: (p) => {
       const g = G();
       const wall = wood(p.wood, 0.75);
@@ -433,7 +434,7 @@ export const STRUCTURES_ITEMS = [
       { name: 'Cedar', chip: '#a9773f', wood: '#a9773f' },
       { name: 'Thermowood', chip: '#7a5230', wood: '#7a5230' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'sauna' },
     build: (p) => {
       const g = G();
       const wd = wood(p.wood, 0.6);
@@ -473,8 +474,9 @@ export const STRUCTURES_ITEMS = [
       box(g, wd, 90, 84, 130, 0, 0, 0, { r: 10 });
       // banding
       for (const y of [14, 66]) box(g, metal('#5a5e62', 0.4), 92, 5, 132, 0, y, 0);
-      // water surface inset
-      box(g, glass(), 74, 6, 114, 0, 74, 0, { r: 6 });
+      // water surface inset — rippled water, not glass; top sits just proud of
+      // the 84cm stave rim so the surface actually shows
+      box(g, water(114), 74, 6, 114, 0, 79, 0, { r: 6 });
       // spout + digital chiller unit
       cyl(g, metal('#c6cace', 0.3), 2.5, 14, 30, 80, 55, { rx: 0.6 });
       box(g, solid('#26282c', 0.5), 26, 30, 18, 0, 0, 72, { r: 3 });

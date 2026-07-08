@@ -70,14 +70,23 @@ home.beginSplash();
     textures: import('./core/textures.js'),
   };
   const names = Object.keys(steps);
+  // Home only truly needs storage — reveal it as soon as that's ready and let
+  // three.js/catalog/textures finish warming BEHIND the home screen. (They're
+  // in the same bundle today, but this keeps the splash exit tied to the one
+  // real dependency, and code-splitting later gets faster for free.)
+  await Promise.allSettled([steps.storage]);
+  home.endSplash();      // internally holds until the splash has had its full time, then fades
+
   const results = await Promise.allSettled(names.map(n => steps[n]));
   const failed = [];
   results.forEach((r, i) => {
     if (r.status === 'rejected') { failed.push(names[i]); console.error('[boot] failed to load "' + names[i] + '":', r.reason); }
   });
-  if (failed.length) window.__bootFailed = failed;   // the splash failsafe can surface this
-
-  home.endSplash();      // internally holds until the splash has had its full time, then fades
+  if (failed.length) {
+    window.__bootFailed = failed;   // surfaced as a banner on the home screen
+    // home may already be rendered — refresh it so the banner appears
+    try { const h = document.getElementById('home'); if (h && !h.classList.contains('hidden')) home.render(); } catch { /* ok */ }
+  }
 })().catch(e => console.error('[boot] fatal:', e));   // inline failsafe shows a reload button
 
 // keep our projects out of eviction; iOS grants this to installed home-screen

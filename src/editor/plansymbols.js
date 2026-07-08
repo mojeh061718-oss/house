@@ -444,8 +444,124 @@ export function drawPlanSymbol(ctx, def, w, d, px) {
       break;
     }
     case 'hoop': {
-      line(-hw, hd * 0.2, hw, hd * 0.2);        // backboard
-      circle(0, -hd * 0.15, Math.min(hw, hd) * 0.3);
+      ctx.save();
+      // filled backboard bar so it survives busy plans
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      rr(ctx, -hw, hd * 0.2 - 2.5, w, 5, 2);
+      ctx.fill();
+      ctx.stroke();
+      // orange rim fill
+      ctx.fillStyle = 'rgba(232,99,42,0.8)';
+      ctx.beginPath();
+      ctx.arc(0, -hd * 0.15, Math.min(hw, hd) * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 'animal': {
+      // simple top-view critter: rounded body + smaller head + ear nubs (nose to +y front)
+      const hr = Math.max(3, Math.min(hw * 0.55, hd * 0.26));   // head radius
+      const by = -hd * 0.16;                                     // body centre sits back
+      const bw = hw * 0.78, bl = hd * 0.56;
+      ctx.beginPath();
+      ctx.ellipse(0, by, bw, bl, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      const hy = by + bl + hr * 0.45;                            // head overlaps the body front
+      // ear nubs first so the head sits on top of them
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(s * hr * 0.8, hy - hr * 0.45, hr * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(0, hy, hr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'game': {
+      // standard box outline + a short centred label naming the machine
+      outline(2);
+      const label = plan.label || '';
+      if (label) {
+        ctx.save();
+        const fs = Math.min(20, d * 0.38, (w * 0.86) / Math.max(1, label.length * 0.62));
+        ctx.font = `600 ${fs}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#3d4148';
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'greenhouse': {
+      // glassy fill + ridge line along the long axis + glazing bars
+      ctx.save();
+      ctx.fillStyle = 'rgba(214,232,238,0.85)';
+      outline(2);
+      ctx.globalAlpha = 0.55;
+      if (w >= d) {
+        line(-hw + 4, 0, hw - 4, 0);                            // ridge
+        const step = Math.max(18, w / 8);
+        for (let x = -hw + step; x < hw - 4; x += step) line(x, -hd + 3, x, hd - 3);
+      } else {
+        line(0, -hd + 4, 0, hd - 4);
+        const step = Math.max(18, d / 8);
+        for (let y = -hd + step; y < hd - 4; y += step) line(-hw + 3, y, hw - 3, y);
+      }
+      ctx.restore();
+      break;
+    }
+    case 'shed': {
+      outline(2);
+      // gable ridge along the long axis
+      if (w >= d) line(-hw + 4, 0, hw - 4, 0);
+      else line(0, -hd + 4, 0, hd - 4);
+      // door leaf + swing arc on the front edge
+      const dw = Math.min(40, w * 0.35);
+      line(-dw / 2, hd, -dw / 2, hd - dw);
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(-dw / 2, hd, dw, -Math.PI / 2, 0);
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 'sauna': {
+      // barrel from above: rounded-end body + stave lines + door mark at the front
+      rr(ctx, -hw, -hd, w, d, Math.min(hw, hd) * 0.5);
+      ctx.fill();
+      ctx.stroke();
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      for (const f of [-0.45, 0, 0.45]) line(hw * f, -hd + 6, hw * f, hd - 6);
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(0, hd - 3, Math.min(hw * 0.4, 14), Math.PI, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'container': {
+      outline(1);
+      // transverse corrugation ribs across the roof
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      if (w >= d) {
+        const step = Math.max(10, w / 14);
+        for (let x = -hw + step; x < hw - 3; x += step) line(x, -hd + 3, x, hd - 3);
+      } else {
+        const step = Math.max(10, d / 14);
+        for (let y = -hd + step; y < hd - 3; y += step) line(-hw + 3, y, hw - 3, y);
+      }
+      ctx.restore();
+      // cargo-door seam at one end
+      if (w >= d) line(hw - 6, -hd, hw - 6, hd);
+      else line(-hw, hd - 6, hw, hd - 6);
       break;
     }
     case 'pergola': {

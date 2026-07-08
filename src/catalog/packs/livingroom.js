@@ -218,7 +218,9 @@ export const LIVINGROOM_ITEMS = [
       const m = metal(p.base, 0.3);
       for (const s of [-1, 1]) {
         box(g, m, 4, 34, 54, s * 54, 0, 0, { r: 1 });
-        cyl(g, m, 2, 100, s * 54, 8, 0, { rz: Math.PI / 2 });
+        // round foot bar running along the side panel's depth (z), not out past
+        // the ends — the old rz-rotated 100cm bar doubled the table's width
+        cyl(g, m, 2, 54, s * 54, 8, 0, { rx: Math.PI / 2 });
       }
       box(g, m, 100, 3, 4, 0, 6, 24);
       box(g, m, 100, 3, 4, 0, 6, -24);

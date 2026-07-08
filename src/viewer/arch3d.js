@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { wallLength, wallAngle, pointInPolygon, polygonArea } from '../core/geometry.js';
 import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
+import { solid } from '../catalog/builders.js';
 
 const matCache = new Map();
 watchTextures((matId) => {
@@ -183,8 +184,9 @@ function buildFenceModel(it, def) {
   const g = new THREE.Group();
   const pal = def.palettes?.[Math.min(it.palette ?? 0, def.palettes.length - 1)] || def.palettes?.[0] || {};
   const H = pal.h || 110;
-  const mat = new THREE.MeshStandardMaterial({ color: pal.color || '#e8e6e0', roughness: 0.8 });
-  const postMat = new THREE.MeshStandardMaterial({ color: pal.post || pal.color || '#dedbd2', roughness: 0.85 });
+  // cached solid() — a fresh material per rebuild leaked GPU programs
+  const mat = solid(pal.color || '#e8e6e0', 0.8);
+  const postMat = solid(pal.post || pal.color || '#dedbd2', 0.85);
   const rel = it.path.map(p => ({ x: p.x - it.x, y: p.y - it.y }));
   const bar = (w, h, d, x, y, z, ry) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -344,7 +346,7 @@ function roomAt(rooms, x, y) {
   return null;
 }
 
-const FRAME = () => new THREE.MeshStandardMaterial({ color: '#ede9e2', roughness: 0.55 });
+const FRAME = () => solid('#ede9e2', 0.55);
 let frameMat = null, doorMat = null, glassMat = null, handleMat = null;
 function doorMats() {
   if (!frameMat) {
@@ -407,7 +409,7 @@ function buildOpeningModel(o, thickness) {
     } else {
       bar(leaf, doorMat, lw, h - jamb, 4.5, lw / 2, (h - jamb) / 2, 0);
       for (let i = 0; i < 2; i++) {
-        bar(leaf, new THREE.MeshStandardMaterial({ color: '#d2ccc0', roughness: 0.5 }),
+        bar(leaf, solid('#d2ccc0', 0.5),
           lw - 18, (h - jamb) / 2 - 22, 1.2, lw / 2, (h - jamb) * (0.28 + i * 0.47), 2.8);
       }
     }
@@ -628,8 +630,8 @@ function buildOpeningModel(o, thickness) {
       // header so no daylight gap shows above the door)
       const slats = 4;
       const sh = (h - 1) / slats;
-      const slatMat = new THREE.MeshStandardMaterial({ color: '#e3dfd6', roughness: 0.6 });
-      const slatMat2 = new THREE.MeshStandardMaterial({ color: '#d6d2c8', roughness: 0.6 });
+      const slatMat = solid('#e3dfd6', 0.6);
+      const slatMat2 = solid('#d6d2c8', 0.6);
       for (let i = 0; i < slats; i++) {
         bar(g, i % 2 ? slatMat2 : slatMat, w - jamb, sh - 1.2, 4.5, 0, sh * i + sh / 2, 0);
       }
@@ -793,9 +795,10 @@ export function buildFloors(project, rooms, holes = []) {
   return group;
 }
 
+let _ceilMat = null, _slabMat = null;
 export function buildCeilings(project, rooms, holes = []) {
   const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: '#f0ede6', roughness: 0.95, side: THREE.DoubleSide });
+  const mat = _ceilMat || (_ceilMat = new THREE.MeshStandardMaterial({ color: '#f0ede6', roughness: 0.95, side: THREE.DoubleSide }));
   for (const r of rooms) {
     const geo = new THREE.ShapeGeometry(roomShape(r.polygon, holes));
     geo.rotateX(-Math.PI / 2);
@@ -812,7 +815,7 @@ export function buildCeilings(project, rooms, holes = []) {
  *  sitting just below the upper floor (local y in [-height, 0]). */
 export function buildFloorSlab(project, rooms, holes = [], height = 30) {
   const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: '#cbc5ba', roughness: 0.9 });
+  const mat = _slabMat || (_slabMat = new THREE.MeshStandardMaterial({ color: '#cbc5ba', roughness: 0.9 }));
   for (const r of rooms) {
     const geo = new THREE.ExtrudeGeometry(roomShape(r.polygon, holes), { depth: height, bevelEnabled: false });
     geo.rotateX(-Math.PI / 2);

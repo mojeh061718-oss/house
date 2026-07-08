@@ -170,7 +170,7 @@ export const UTILITY_ITEMS = [
     build: () => {
       const g = G();
       const m = metal('#b9bec3', 0.3);
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, m, 2, 182, sx * 44, 91, sz * 21);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, m, 2, 182, sx * 44, 0, sz * 21);
       for (const sy of [8, 52, 96, 140, 178]) {
         box(g, m, 92, 2, 46, 0, sy, 0);
         for (let i = -3; i <= 3; i++) box(g, m, 1, 1.5, 46, i * 13, sy + 1.5, 0);
@@ -234,7 +234,8 @@ export const UTILITY_ITEMS = [
       box(g, solid('#cdd6dd', 0.7), 118, 4, 36, 6, 86, 0, { r: 16 }); // padded top (tapered look)
       box(g, solid('#b7c1c9', 0.7), 40, 3, 30, -50, 86.5, 0, { r: 14 });
       const m = metal('#9aa0a6', 0.35);
-      for (const s of [-1, 1]) cyl(g, m, 1.4, 100, s * 20, 44, 0, { rx: s * 0.5 });
+      // X-frame legs run floor (y≈0) up to the underside of the top (y≈86)
+      for (const s of [-1, 1]) cyl(g, m, 1.4, 96, s * 20, -4, 0, { rx: s * 0.5 });
       box(g, m, 40, 2, 2, 0, 4, 0);
       // an iron resting on the rest
       box(g, solid('#2b2f34', 0.4), 18, 8, 11, 40, 92, 0, { r: 4 });
@@ -273,19 +274,20 @@ export const UTILITY_ITEMS = [
       box(g, cab, 150, 3, 42, 0, 200, 0);                           // top
       // bench seat
       box(g, cab, 150, 5, 42, 0, 46, 0, { r: 1 });
-      // lower shoe cubbies (open boxes under the bench)
+      // lower shoe cubbies (open boxes under the bench seat at 46)
       for (let i = -1; i <= 1; i++) {
-        box(g, solid('#17191c', 0.95), 40, 38, 34, i * 49, 24, 2);   // cubby shadow box
-        box(g, cab, 40, 2, 34, i * 49, 24, 2);                       // divider shelf
+        box(g, solid('#17191c', 0.95), 40, 44, 34, i * 49, 1, 3);    // cubby shadow box
+        box(g, cab, 40, 2, 34, i * 49, 24, 3);                       // divider shelf
       }
       // coat hooks at seat-back height
       for (let i = -1; i <= 1; i++) for (const sx of [-14, 14]) {
         cyl(g, metal('#4a4d52', 0.4), 1.2, 8, i * 49 + sx, 120, -14, { rx: Math.PI / 3 });
         sphere(g, metal('#4a4d52', 0.4), 1.8, i * 49 + sx, 116, -10);
       }
-      // upper open cubbies (for baskets / hats)
+      // upper open cubbies (for baskets / hats) — baskets sit ON the 168 shelf
+      // and stay under the 200 top instead of clipping through it
       box(g, cab, 150, 3, 42, 0, 168, 0);
-      for (let i = -1; i <= 1; i++) box(g, solid('#c9a978', 0.85), 40, 24, 34, i * 49, 182, 0, { r: 3 });
+      for (let i = -1; i <= 1; i++) box(g, solid('#c9a978', 0.85), 40, 24, 34, i * 49, 171, 0, { r: 3 });
       return g;
     }
   },
@@ -332,7 +334,8 @@ export const UTILITY_ITEMS = [
       const cab = wood(p.wood, 0.5);
       box(g, cab, 110, 40, 38, 0, 0, 0, { r: 1 });
       box(g, solid('#d8ccb8', 0.8), 110, 6, 38, 0, 40, 0, { r: 2 }); // cushion top
-      for (let i = -1; i <= 1; i++) box(g, solid('#17191c', 0.95), 32, 30, 32, i * 36, 5, 2); // open cubbies
+      // open cubbies — front face pokes just proud of the carcass so they read
+      for (let i = -1; i <= 1; i++) box(g, solid('#17191c', 0.95), 32, 30, 32, i * 36, 5, 3.5); // open cubbies
       return g;
     }
   },

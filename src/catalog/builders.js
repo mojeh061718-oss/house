@@ -113,7 +113,15 @@ export function wood(hex, rough = 0.55) {
   return m;
 }
 
-const TEX_CAP = 140; // most distinct sized surfaces a scene ever shows at once
+// GPU byte budget for sized texture pairs. Count-based capping treated a
+// 2048² photo pair (~21 MB) the same as a 512² procedural pair (~1.3 MB);
+// budgeting by bytes is what the phone GPU actually feels.
+const TEX_BUDGET_BYTES = 112 * 1024 * 1024;
+let texBytesTotal = 0;
+const texWeight = (m) => {
+  const px = (im) => (im?.width || 512) * (im?.height || 512);
+  return (px(m.map?.image) + px(m.bumpMap?.image)) * 4 * 1.33; // RGBA + mips
+};
 
 /** Textured material from the procedural material registry. Each distinct
  *  (material, repeatX, repeatY) uploads its own GPU texture pair, so the repeats
@@ -146,12 +154,19 @@ export function tex(matId, repeatX = 1, repeatY = 1) {
     metalness: 0
   });
   texCache.set(key, m);
-  // evict the least-recently-used entries and free their GPU textures
-  while (texCache.size > TEX_CAP) {
+  m.userData.texBytes = texWeight(m);
+  texBytesTotal += m.userData.texBytes;
+  // Evict least-recently-used entries once over the byte budget. Do NOT
+  // dispose here — a mesh in the live scene may still be using the evicted
+  // material (disposing it forced visible re-upload churn / black flashes).
+  // Instead mark it `owned`, and the viewer's disposeGroup frees it together
+  // with its meshes on the next rebuild.
+  while (texBytesTotal > TEX_BUDGET_BYTES && texCache.size > 1) {
     const oldest = texCache.keys().next().value;
     const dead = texCache.get(oldest);
     texCache.delete(oldest);
-    dead.map?.dispose(); dead.bumpMap?.dispose(); dead.dispose();
+    texBytesTotal -= dead.userData.texBytes || 0;
+    dead.userData.owned = true; dead.userData.ownedMap = true;
   }
   return m;
 }
@@ -191,9 +206,19 @@ export function textMaterial(text, opts = {}) {
 let glassMat = null;
 export function glass() {
   if (!glassMat) {
+    // Real glass reads by REFLECTION, not by a milky opacity film. Keep the
+    // cheap transparency (true transmission needs refraction passes the phone
+    // budget can't afford), but make it catch the environment hard, with a
+    // clearcoat and near-zero roughness — panes now glint and mirror the sky
+    // instead of reading as fogged plastic.
     glassMat = new THREE.MeshPhysicalMaterial({
-      color: '#cfe4ea', transparent: true, opacity: 0.28,
-      roughness: 0.05, metalness: 0, side: THREE.DoubleSide
+      color: '#dbeef4', transparent: true, opacity: 0.22,
+      roughness: 0.03, metalness: 0,
+      clearcoat: 1, clearcoatRoughness: 0.03,
+      envMapIntensity: 1.6,
+      reflectivity: 0.9,
+      side: THREE.DoubleSide,
+      depthWrite: false  // fewer sorting artifacts on multi-pane builds
     });
   }
   return glassMat;
@@ -208,7 +233,14 @@ export function mirror() {
 }
 
 let waterMat = null;
-export function water() {
+const waterMats = new Map();
+/** Shared rippled water. Pass the surface's longest side in cm and the ripple
+ *  scale follows it (~one ripple train per 60cm); tiny bowls get fine ripples,
+ *  big ponds don't stretch. Cached per repeat bucket. */
+export function water(sizeCm = 300) {
+  const rep = Math.max(1, Math.min(16, Math.round(sizeCm / 60)));
+  const cached = waterMats.get(rep);
+  if (cached) return cached;
   if (!waterMat) {
     // A real water surface reads by how it bends the light, so drive it with a
     // proper tangent-space NORMAL map baked from a multi-octave ripple height
@@ -258,7 +290,15 @@ export function water() {
       envMapIntensity: 1.25
     });
   }
-  return waterMat;
+  let m = waterMat;
+  if (rep !== 5) {
+    m = waterMat.clone();
+    m.normalMap = waterMat.normalMap.clone();
+    m.normalMap.needsUpdate = true;
+    m.normalMap.repeat.set(rep, rep);
+  }
+  waterMats.set(rep, m);
+  return m;
 }
 
 /** Organic pond built at true size: wobbled shoreline, bed, water, rocks. */
@@ -572,15 +612,21 @@ export function blob(parent, hexA, hexB, r, x, y, z, opts = {}) {
   const colors = new Float32Array(pos.count * 3);
   const v = new THREE.Vector3();
   const sy = opts.sy ?? 1;
+  // noise frequency is RADIUS-RELATIVE: the wave count over the surface is
+  // the same for a 25cm bush as a 250cm canopy. (Absolute frequencies made
+  // anything under ~30cm radius come out a smooth ball — the root cause of
+  // the "green slug" hedges and marble-smooth small rocks.)
+  const f = 5.2 / Math.max(1, r);
+  const amp = opts.amp ?? 0.075;
   for (let i = 0; i < pos.count; i++) {
     v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
     // deterministic lumpy displacement from overlapping waves
     const n =
-      Math.sin(v.x * 0.13 + seed * 1.7) +
-      Math.cos(v.y * 0.11 + seed * 2.3) +
-      Math.sin(v.z * 0.15 + seed * 3.1) +
-      Math.sin((v.x + v.z) * 0.07 + seed);
-    v.multiplyScalar(1 + n * 0.055);
+      Math.sin(v.x * f * 2.6 + seed * 1.7) +
+      Math.cos(v.y * f * 2.2 + seed * 2.3) +
+      Math.sin(v.z * f * 3.0 + seed * 3.1) +
+      Math.sin((v.x + v.z) * f * 1.4 + seed);
+    v.multiplyScalar(1 + n * amp);
     pos.setXYZ(i, v.x, v.y * sy, v.z);
     // dappled light: higher & more outward → brighter
     const t = Math.min(1, Math.max(0, 0.45 + (v.y / r) * 0.38 + n * 0.06));
@@ -592,6 +638,21 @@ export function blob(parent, hexA, hexB, r, x, y, z, opts = {}) {
   const blobMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
   blobMat.userData.owned = true; // unique per blob (vertex colours baked in)
   const mesh = new THREE.Mesh(geo, blobMat);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Solid torus (rings, pool floats, tubes). R = center radius, tube = tube
+ *  radius; base sits at y (torus lies flat unless opts.rx tips it). */
+export function torus(parent, material, R, tube, x, y, z, opts = {}) {
+  const geo = new THREE.TorusGeometry(R, tube, opts.tubeSeg ?? 18, opts.seg ?? 42);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.rotation.x = opts.rx ?? -Math.PI / 2; // flat by default
+  if (opts.ry) mesh.rotation.y = opts.ry;
+  if (opts.rz) mesh.rotation.z = opts.rz;
+  if (opts.sx || opts.sy || opts.sz) mesh.scale.set(opts.sx ?? 1, opts.sy ?? 1, opts.sz ?? 1);
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   parent.add(mesh);

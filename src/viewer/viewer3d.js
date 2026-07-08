@@ -3,6 +3,7 @@
 // snapping) in 3D. All pointer input goes through rotation-aware helpers so
 // the forced-landscape mode on iPhone/iPad works identically.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel, buildFloorSlab } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
@@ -94,8 +95,8 @@ export class Viewer3D {
 
     // sky dome: gradient + clouds by day, moon at night
     this.skyCanvas = document.createElement('canvas');
-    this.skyCanvas.width = 1024;
-    this.skyCanvas.height = 512;
+    this.skyCanvas.width = 2048;
+    this.skyCanvas.height = 1024;
     this.skyTexture = new THREE.CanvasTexture(this.skyCanvas);
     this.skyTexture.colorSpace = THREE.SRGBColorSpace;
     const skyGeo = new THREE.SphereGeometry(12000, 32, 16);
@@ -207,11 +208,22 @@ export class Viewer3D {
     this.orbit.theta = 0.55;
     this.orbit.phi = 0.95;
     this.applyOrbit();
-    this.sun.target.position.set(c.x, 0, c.z);
-    const s = this.sun.shadow.camera;
-    s.left = -c.span; s.right = c.span; s.top = c.span; s.bottom = -c.span;
-    s.updateProjectionMatrix();
     this.walk.pos.set(c.x, 160, c.z + 100);
+  }
+
+  /** Fit the sun's shadow box around what the camera is actually looking at,
+   *  not the whole property. One 2048px map over a 60m lot gave ~3cm/texel
+   *  mush; tracking the focus keeps close-ups crisp and zoom-outs covered. */
+  updateShadowFrustum() {
+    if (!this.sun) return;
+    const focus = this.walkMode ? this.walk.pos : this.orbit.target;
+    const half = clamp((this.orbit?.radius ?? 900) * 1.15, 500, 2600);
+    this.sun.target.position.set(focus.x, 0, focus.z);
+    const s = this.sun.shadow.camera;
+    if (Math.abs(s.right - half) > half * 0.15) { // resize on meaningful change only
+      s.left = -half; s.right = half; s.top = half; s.bottom = -half;
+      s.updateProjectionMatrix();
+    }
   }
 
   applyOrbit() {
@@ -234,6 +246,7 @@ export class Viewer3D {
       o.target.z + o.radius * sp * Math.cos(o.theta)
     );
     this.camera.lookAt(o.target);
+    this.updateShadowFrustum();
   }
 
   /** Y offset of a stacked level's base. */
@@ -329,13 +342,51 @@ export class Viewer3D {
     }
     guard(() => this.groundGroup.add(buildGround(project)), 'ground');
     this.rebuildItems();
-    const c = this.center();
-    this.sun.target.position.set(c.x, 0, c.z);
-    const s = this.sun.shadow.camera;
-    const span = Math.max(c.span, 600);
-    s.left = -span; s.right = span; s.top = span; s.bottom = -span;
-    s.updateProjectionMatrix();
+    this.updateShadowFrustum();
     this.applyTimeOfDay(this.timeOfDay ?? 13);
+  }
+
+  /** Collapse an item model's same-material meshes into one draw call each.
+   *  Parametric builds are dozens of tiny boxes/cylinders sharing a handful of
+   *  cached materials — a bookcase was ~90 draw calls, a furnished yard
+   *  thousands; phones bottleneck on CALLS, not triangles. Meshes with unique
+   *  (owned/vertex-colored) materials, material arrays, instancing or userData
+   *  are left alone. Runs BEFORE the model enters the scene, so the original
+   *  little geometries never upload to the GPU. */
+  mergeItemModel(model) {
+    model.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+    const buckets = new Map();
+    model.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh) return;
+      if (Array.isArray(o.material) || !o.geometry?.isBufferGeometry) return;
+      if (Object.keys(o.userData).length) return;
+      if (o.geometry.morphAttributes && Object.keys(o.geometry.morphAttributes).length) return;
+      const attrs = Object.keys(o.geometry.attributes).sort().join(',');
+      const key = `${o.material.uuid}|${attrs}|${o.castShadow ? 1 : 0}${o.receiveShadow ? 1 : 0}|${!!o.geometry.index}`;
+      let b = buckets.get(key);
+      if (!b) buckets.set(key, b = []);
+      b.push(o);
+    });
+    for (const list of buckets.values()) {
+      if (list.length < 2) continue;
+      try {
+        const geos = list.map(o => {
+          const g = o.geometry.clone();
+          g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+          return g;
+        });
+        const merged = mergeGeometries(geos, false);
+        if (!merged) continue;
+        const mesh = new THREE.Mesh(merged, list[0].material);
+        mesh.castShadow = list[0].castShadow;
+        mesh.receiveShadow = list[0].receiveShadow;
+        model.add(mesh);
+        for (const o of list) o.removeFromParent();
+        for (const g of geos) g.dispose();
+      } catch { /* incompatible attributes — keep the originals */ }
+    }
+    return model;
   }
 
   rebuildItems() {
@@ -373,6 +424,7 @@ export class Viewer3D {
           : def.buildSized ? def.buildSized(pal, it.w, it.d, it.h)
             : def.build(pal);
         if (!isPath && !def.buildSized) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
+        this.mergeItemModel(model);
         const outer = new THREE.Group();
         outer.add(model);
         outer.userData.itemId = it.id;
@@ -749,8 +801,8 @@ export class Viewer3D {
     const K = {
       night: {
         zenith: '#0a111e', horizon: '#182338', below: '#10161f',
-        sun: '#8fa5d0', sunI: 0.12, hemiSky: '#24304a', hemiGround: '#12161e', hemiI: 0.18,
-        exposure: 0.7, envI: 0.05
+        sun: '#8fa5d0', sunI: 0.12, hemiSky: '#2c3a56', hemiGround: '#181d26', hemiI: 0.34,
+        exposure: 0.74, envI: 0.12
       },
       golden: {
         zenith: '#41609a', horizon: '#f2a660', below: '#8a6a4a',
@@ -803,6 +855,7 @@ export class Viewer3D {
 
     // repaint the sky: gradient base, clouds by day, moon at night
     const g = this.skyCanvas.getContext('2d');
+    g.setTransform(this.skyCanvas.width / 1024, 0, 0, this.skyCanvas.height / 512, 0, 0);
     const W = 1024, H = 512;
     const grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#' + s.zenith.getHexString());
@@ -1104,7 +1157,7 @@ export class Viewer3D {
     store.checkpoint();
     const o = store.addOpening(wall.id, type, t);
     store.commit(true);
-    store.setTool('select');
+    // tool stays armed — tap the next wall spot to place another
     store.select({ kind: 'opening', id: o.id });
     return true;
   }
@@ -1528,6 +1581,7 @@ export class Viewer3D {
     if (this.needsRebuild) this.rebuild();
 
     if (this.debugEl) this._frames++;
+    if (this.walkMode) this.updateShadowFrustum(); // shadows follow the walker
     if (this.walkMode) {
       const k = this.walk.keys;
       const speed = (k.has('ShiftLeft') ? 450 : 220) * dt;

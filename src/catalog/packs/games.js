@@ -13,7 +13,7 @@ export const GAMES_ITEMS = [
       { name: 'Tournament Green', chip: '#1f6b4a', felt: '#1f6b4a' },
       { name: 'Olympic Blue', chip: '#215f9c', felt: '#215f9c' }
     ],
-    plan: { type: 'table' },
+    plan: { type: 'game', label: 'TT' },
     build: (p) => {
       const g = G();
       const top = solid(p.felt, 0.65);
@@ -47,7 +47,7 @@ export const GAMES_ITEMS = [
       { name: 'Walnut', chip: '#5a4230', wood: '#5a4230' },
       { name: 'Maple', chip: '#b58a52', wood: '#b58a52' }
     ],
-    plan: { type: 'table' },
+    plan: { type: 'game', label: 'FOOS' },
     build: (p) => {
       const g = G();
       const cab = wood(p.wood, 0.55);
@@ -88,7 +88,7 @@ export const GAMES_ITEMS = [
       { name: 'Arctic White', chip: '#dfe4ea', body: '#dfe4ea' },
       { name: 'Neon Black', chip: '#26282c', body: '#26282c' }
     ],
-    plan: { type: 'table' },
+    plan: { type: 'game', label: 'AIR' },
     build: (p) => {
       const g = G();
       const cab = solid(p.body, 0.5);
@@ -161,7 +161,7 @@ export const GAMES_ITEMS = [
       { name: 'Cabinet Red', chip: '#a8302a', body: '#a8302a', accent: '#ffcf3a' },
       { name: 'Cabinet Black', chip: '#1d1f23', body: '#1d1f23', accent: '#2fd9ff' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'ARC' },
     light: { y: 120, color: '#6a9cff', intensity: 0.6, distance: 300 },
     build: (p) => {
       const g = G();
@@ -195,7 +195,7 @@ export const GAMES_ITEMS = [
       { name: 'Wildfire', chip: '#c23a2a', body: '#c23a2a', accent: '#ff3a4a' },
       { name: 'Midnight', chip: '#22242a', body: '#22242a', accent: '#2fd9ff' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'PIN' },
     light: { y: 96, color: '#ff5a5a', intensity: 0.7, distance: 280 },
     build: (p) => {
       const g = G();
@@ -264,7 +264,7 @@ export const GAMES_ITEMS = [
       { name: 'Cardinal', chip: '#b3352b', wood: '#c9b48a', paint: '#b3352b' },
       { name: 'Navy', chip: '#215f9c', wood: '#c9b48a', paint: '#215f9c' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'CORN' },
     build: (p) => {
       const g = G();
       const board = wood(p.wood, 0.5);
@@ -360,7 +360,7 @@ export const GAMES_ITEMS = [
       { name: 'Court Blue', chip: '#215f9c', body: '#215f9c' },
       { name: 'Court Red', chip: '#a8302a', body: '#a8302a' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'BBALL' },
     light: { y: 180, color: '#ff9a3a', intensity: 0.7, distance: 320 },
     build: (p) => {
       const g = G();
@@ -426,7 +426,7 @@ export const GAMES_ITEMS = [
       { name: 'Bubblegum', chip: '#e0489a', body: '#e0489a', accent: '#ff6ad5' },
       { name: 'Cyan', chip: '#1f9ab5', body: '#1f9ab5', accent: '#2fd9ff' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'CLAW' },
     light: { y: 150, color: '#ff6ad5', intensity: 0.7, distance: 300 },
     build: (p) => {
       const g = G();
@@ -461,7 +461,7 @@ export const GAMES_ITEMS = [
       { name: 'Cherry Wood', chip: '#7a2e22', body: '#7a2e22' },
       { name: 'Blonde', chip: '#c19a5a', body: '#c19a5a' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'JUKE' },
     light: { y: 90, color: '#ff5a7a', intensity: 0.7, distance: 300 },
     build: (p) => {
       const g = G();
@@ -556,7 +556,7 @@ export const GAMES_ITEMS = [
       { name: 'Classic Cream', chip: '#d8c9a4', body: '#d8c9a4', accent: '#ffcf5a' },
       { name: 'Retro Red', chip: '#a8302a', body: '#a8302a', accent: '#ff7a3a' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'SKEE' },
     light: { y: 150, color: '#ffcf6a', intensity: 0.6, distance: 300 },
     build: (p) => {
       const g = G();
@@ -591,7 +591,7 @@ export const GAMES_ITEMS = [
       { name: 'Gold', chip: '#c79a3a', body: '#c79a3a', accent: '#ff4a4a' },
       { name: 'Ruby', chip: '#8a2a24', body: '#8a2a24', accent: '#ffcf3a' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'game', label: 'SLOT' },
     light: { y: 110, color: '#ff5a5a', intensity: 0.6, distance: 250 },
     build: (p) => {
       const g = G();

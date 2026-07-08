@@ -34,6 +34,27 @@ function confirmModal({ title, message, okLabel = 'OK', danger = false }) {
   });
 }
 
+/** One-button notice in the same styled modal (replaces native alert(),
+ *  which rendered as a jarring "This webpage says…" sheet on an iOS PWA). */
+function noticeModal(message, title = 'Home Studio') {
+  return new Promise(resolve => {
+    const scrim = document.createElement('div');
+    scrim.className = 'modal-scrim';
+    scrim.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
+        <div class="modal-row">
+          <button class="modal-btn primary" data-r="1">OK</button>
+        </div>
+      </div>`;
+    scrim.addEventListener('click', e => {
+      if (e.target.closest('[data-r]')) { scrim.remove(); resolve(); }
+    });
+    document.body.appendChild(scrim);
+  });
+}
+
 /** Draw a small clean plan preview of a stored project onto a canvas. */
 function drawPreview(canvas, project, w, h) {
   const data = project.levels ? project.levels[0] : project;
@@ -123,7 +144,9 @@ export class Home {
   endSplash() {
     const el = $('#splash');
     if (!el) { this.show(); return; }
-    const MIN_SHOWN = 1100;   // logo shows at least this long, then fades
+    // hold long enough for the draw-in sequence to land when motion is on;
+    // reduced-motion (static logo) keeps the quick exit
+    const MIN_SHOWN = window.matchMedia?.('(prefers-reduced-motion: no-preference)').matches ? 2350 : 1100;
     const t0 = this._splashT0 ?? window.__splashT0 ?? Date.now();
     const wait = Math.max(0, MIN_SHOWN - (Date.now() - t0));
     setTimeout(() => {
@@ -156,8 +179,18 @@ export class Home {
       !localStorage.getItem('hs.installTipDismissed');
     const draft = getDraft();
     const draftName = draft?.data?.name ? `“${escapeHtml(draft.data.name)}”` : 'your last design';
+    const bootFailed = Array.isArray(window.__bootFailed) && window.__bootFailed.length;
     home.innerHTML = `
       <div class="home-scroll">
+        ${bootFailed ? `
+        <div class="install-tip draft-tip" id="bootFailTip">
+          <span>${ICONS.close}</span>
+          <p><b>Some parts didn't load</b> (${escapeHtml(window.__bootFailed.join(', '))}).
+          Opening a project may not work — check your connection and reload.</p>
+          <span class="draft-actions">
+            <button class="home-action primary" onclick="location.reload()">Reload</button>
+          </span>
+        </div>` : ''}
         ${draft ? `
         <div class="install-tip draft-tip" id="draftTip">
           <span>${ICONS.undo}</span>
@@ -217,7 +250,7 @@ export class Home {
           <div class="proj-card saved ${this.selected.has(p.id) ? 'sel' : ''}" data-id="${p.id}" role="button" tabindex="0">
             <span class="proj-thumb"><canvas></canvas></span>
             <span class="proj-name">${escapeHtml(p.name)}</span>
-            <span class="proj-meta">Edited ${timeAgo(p.updatedAt)}</span>
+            <span class="proj-meta">Edited ${timeAgo(p.updatedAt)}${getDraft(p.id) ? ' · <b style="color:#e8b34b">unsaved edits</b>' : ''}</span>
             ${this.selectMode
               ? `<span class="proj-check">${ICONS.check}</span>`
               : `<button class="proj-del" data-del="${p.id}" title="Delete project">${ICONS.trash}</button>`}
@@ -278,7 +311,7 @@ export class Home {
       try {
         if (await backupToFile()) this.render();
       } catch {
-        alert('Backup failed — please try again.');
+        noticeModal('Backup failed — please try again.', 'Back up');
       }
     };
     const restoreBtn = $('#homeRestore');
@@ -294,11 +327,11 @@ export class Home {
             const data = JSON.parse(txt);
             if (!isBackup(data)) throw new Error('not a backup');
             const n = importBackup(data);
-            alert(n > 0 ? `${n} project${n === 1 ? '' : 's'} restored.`
-              : 'Nothing to restore — everything in that backup is already here.');
+            noticeModal(n > 0 ? `${n} project${n === 1 ? '' : 's'} restored.`
+              : 'Nothing to restore — everything in that backup is already here.', 'Restore');
             this.render();
           } catch {
-            alert('That file is not a Home Studio backup.');
+            noticeModal('That file is not a Home Studio backup.', 'Restore');
           }
         });
       };
@@ -339,10 +372,14 @@ export class Home {
       });
     }
     for (const del of home.querySelectorAll('.proj-del')) {
-      del.addEventListener('click', (e) => {
+      del.addEventListener('click', async (e) => {
         e.stopPropagation();
         const p = projects.find(x => x.id === del.dataset.del);
-        if (confirm(`Delete “${p?.name ?? 'project'}”? This cannot be undone.`)) {
+        if (await confirmModal({
+          title: 'Delete project?',
+          message: `Delete “${p?.name ?? 'project'}”? This cannot be undone.`,
+          okLabel: 'Delete', danger: true
+        })) {
           deleteProject(del.dataset.del);
           this.render();
         }

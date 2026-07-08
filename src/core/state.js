@@ -46,7 +46,9 @@ export function emptyProject(name = 'Untitled project') {
       wallHeight: DEFAULTS.wallHeight,
       defaultFloor: 'oak',
       defaultWall: 'paint_warmwhite',
-      exteriorWall: 'plaster_light',
+      // new homes read FINISHED from outside out of the box — flat white
+      // plaster made every fresh build look like an unrendered shell
+      exteriorWall: 'siding_white',
       groundType: 'grass',
       timeOfDay: 13
     }
@@ -165,11 +167,24 @@ export class Store {
     }
   }
 
+  /** Does the current selection still refer to something in the project? */
+  _selectionAlive(sel) {
+    if (!sel) return false;
+    if (sel.kind === 'item') return !!this.item(sel.id);
+    if (sel.kind === 'wall') return !!this.wall(sel.id);
+    if (sel.kind === 'opening') return !!this.opening(sel.id);
+    if (sel.kind === 'dim') return !!this.dim(sel.id);
+    if (sel.kind === 'multi') return sel.ids.some(id => this.item(id));
+    return false; // rooms re-key on geometry changes — safer to drop
+  }
+
   undo() {
     if (!this.undoStack.length) return;
     this.redoStack.push(JSON.stringify(serializeProject(this.project)));
     this.project = hydrateProject(JSON.parse(this.undoStack.pop()));
-    this.selection = null;
+    // keep the selection when the piece survives the undo — losing it forced
+    // the user to re-find what they were working on after every Undo
+    if (!this._selectionAlive(this.selection)) this.selection = null;
     this.commit(true);
     this.emit('selection');
     this.emit('history');
@@ -189,7 +204,7 @@ export class Store {
     if (!this.redoStack.length) return;
     this.undoStack.push(JSON.stringify(serializeProject(this.project)));
     this.project = hydrateProject(JSON.parse(this.redoStack.pop()));
-    this.selection = null;
+    if (!this._selectionAlive(this.selection)) this.selection = null;
     this.commit(true);
     this.emit('selection');
     this.emit('history');
@@ -447,7 +462,7 @@ export class Store {
   saveDraftNow() {
     clearTimeout(this._dirtyTimer);
     if (this.currentProjectId && this.isDirty()) {
-      saveDraft(this.currentProjectId, serializeProject(this.project));
+      saveDraft(this.currentProjectId, serializeProject(this.project), true);
     }
     this.emit('saveState', 'saved');
   }
@@ -497,7 +512,7 @@ export class Store {
   addLevel() {
     if (this.project.levels.length >= 4) return false;
     this.checkpoint();
-    this.project.levels.push({ walls: [], openings: [], items: [], roomStyles: {}, dims: [] });
+    this.project.levels.push(emptyLevel()); // one source of truth for the schema
     this.setActiveLevel(this.project.levels.length - 1, false);
     this.commit(true);
     return true;

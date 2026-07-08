@@ -35,6 +35,14 @@ export async function initStorage() {
       for (const p of await idbGetAll(db, 'projects')) projects.set(p.id, p);
       for (const d of await idbGetAll(db, 'drafts')) drafts.set(d.projectId, d);
       for (const m of await idbGetAll(db, 'meta')) meta.set(m.k, m.v);
+      // a pagehide-synced localStorage draft can be NEWER than what IndexedDB
+      // managed to commit before iOS killed the process — prefer it
+      try {
+        const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+        if (d?.projectId && d.data && (!drafts.has(d.projectId) || d.at > drafts.get(d.projectId).at)) {
+          drafts.set(d.projectId, d);
+        }
+      } catch { /* corrupt */ }
       return;
     } catch {
       db = null; // any IndexedDB failure → fall back to localStorage
@@ -137,12 +145,16 @@ export function deleteProject(id) {
 
 // ---- crash-recovery drafts (per project) ------------------------------------
 
-export function saveDraft(projectId, data) {
+export function saveDraft(projectId, data, sync = false) {
   if (!projectId) return;
   const rec = { projectId, at: Date.now(), data };
   drafts.set(projectId, rec);
   if (db) idbPut(db, 'drafts', rec).catch(() => {});
   else flushDraftsLS();
+  // belt-and-braces for pagehide/freeze: iOS can kill the process before the
+  // async IndexedDB transaction commits, so also write the latest draft
+  // SYNCHRONOUSLY to localStorage (recovery prefers the newer of the two)
+  if (sync && db) flushDraftsLS();
 }
 
 /** A specific project's draft, or (no id) the most recently edited draft. */
@@ -157,12 +169,13 @@ export function clearDraft(projectId) {
   if (projectId) {
     if (!drafts.delete(projectId)) return;
     if (db) idbDelete(db, 'drafts', projectId).catch(() => {});
-    else flushDraftsLS();
+    flushDraftsLS(); // keep the pagehide-synced LS copy in step, or a stale
+                     // draft would resurrect on the next boot after a save
   } else {
     const ids = [...drafts.keys()];
     drafts.clear();
     if (db) ids.forEach(k => idbDelete(db, 'drafts', k).catch(() => {}));
-    else flushDraftsLS();
+    flushDraftsLS();
   }
 }
 

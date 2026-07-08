@@ -25,7 +25,7 @@ function el(tag, cls = '', html = '') {
   return e;
 }
 
-const deg = rad => Math.round((rad * 180 / Math.PI) % 360);
+const deg = rad => { let d = Math.round((rad * 180 / Math.PI) % 360); if (d < 0) d += 360; return d; };
 
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -53,6 +53,7 @@ export class UI {
       if (this.selectionLocked()) this.toast('Locked — tap the padlock to unlock');
     };
     this.editor.onWeld = () => this.toast('Shared walls merged into one');
+    this.editor.onNoop = (msg) => this.toast(msg);
 
     // tap a wall's length pill on the canvas → exact typed entry: the wall
     // panel opens with its Length field focused and pre-selected
@@ -362,7 +363,7 @@ export class UI {
             if (!Array.isArray(data.walls) && !Array.isArray(data.levels)) throw new Error('bad file');
             store.loadProject(data, store.currentProjectId);
           } catch {
-            alert('This file is not a valid Home Studio project.');
+            this.notice('This file is not a valid Home Studio project.');
           }
         });
       };
@@ -379,6 +380,12 @@ export class UI {
     const mode = this.store.viewMode;
     // leaving 3D ends room-focus furnishing cleanly
     if (mode !== '3d' && this._focusRoomKey) this.exitRoomFocus();
+    // ...and ends walk mode — it used to stay armed invisibly, dropping the
+    // user into walk controls when they came back to 3D later
+    if (mode !== '3d' && this.viewer.walkMode) {
+      this.viewer.setWalkMode(false);
+      $('#btnWalk')?.classList.remove('active');
+    }
     document.querySelectorAll('#viewToggle .tb-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.view === mode);
     });
@@ -756,7 +763,7 @@ export class UI {
       it.w = Math.max(10, Math.min(2000, Math.round(this._adjBase.w * k)));
       it.d = Math.max(10, Math.min(2000, Math.round(this._adjBase.d * k)));
       it.h = Math.max(10, Math.min(1000, Math.round(this._adjBase.h * k)));
-      $('#adjSizeVal').textContent = `${adjSize.value}%`;
+      $('#adjSizeVal').textContent = `${adjSize.value}% · ${fmtLen(it.w)} × ${fmtLen(it.d)}`;
       store.commit(false);
     });
     for (const s of [adjRot, adjSize]) {
@@ -830,7 +837,7 @@ export class UI {
     const deg = Math.round(((it.rotation || 0) * 180 / Math.PI) % 360 + 360) % 360;
     const rot = $('#adjRot'), size = $('#adjSize');
     rot.value = deg; $('#adjRotVal').textContent = `${deg}°`;
-    size.value = 100; $('#adjSizeVal').textContent = '100%';
+    size.value = 100; $('#adjSizeVal').textContent = `100% · ${fmtLen(it.w)} × ${fmtLen(it.d)}`;
     $('#adjustPop').classList.remove('hidden');
     $('#fabCluster')?.classList.add('adjusting');
     $('#selAdjust').classList.add('active');
@@ -923,12 +930,21 @@ export class UI {
   /** Let the user pick a photo from their device for a picture-frame item. The
    *  image is downscaled to keep the saved project small, then stored on the
    *  item as a data URL and rendered onto the frame. */
-  /** Offer the offline download once, the first time someone opens a project. */
+  /** Offer the offline download once — but never during someone's FIRST
+   *  session: a download prompt before they've drawn a single wall was the
+   *  first thing a new user saw. From the second visit on, they've chosen to
+   *  come back and the offer lands as a favor instead of a roadblock. */
   async maybePromptOffline() {
     if (this._offlinePrompted) return;
     this._offlinePrompted = true;
     try { if (localStorage.getItem('hhs.offlinePrompted')) return; } catch { return; }
     if (libraryInstalled() || !navigator.onLine) return;
+    let visits = 0;
+    try {
+      visits = (parseInt(localStorage.getItem('hhs.visits') || '0', 10) || 0) + 1;
+      localStorage.setItem('hhs.visits', String(visits));
+    } catch { return; }
+    if (visits < 2) return;
     // let the project settle in first
     await new Promise(r => setTimeout(r, 1400));
     try { localStorage.setItem('hhs.offlinePrompted', '1'); } catch { /* private mode */ }
@@ -1335,7 +1351,18 @@ export class UI {
     // a search query overrides the active tab and matches item names everywhere
     const q = this.catSearch || '';
     if (q) {
-      const hits = ITEMS.filter(i => !i.hidden && i.name.toLowerCase().includes(q));
+      const SYN = {
+        couch: 'sofa', settee: 'sofa', tv: 'tv', television: 'tv', fridge: 'refrigerator',
+        icebox: 'refrigerator', cooker: 'range', stove: 'range', hob: 'range', tub: 'bath',
+        commode: 'toilet', loo: 'toilet', wc: 'toilet', basin: 'sink', tap: 'faucet',
+        wardrobe: 'closet', dresser: 'drawer', nightstand: 'bedside', lamp: 'lamp',
+        pool: 'pool', hottub: 'spa', jacuzzi: 'spa', bbq: 'grill', barbecue: 'grill',
+        auto: 'car', vehicle: 'car', bike: 'bicycle', plant: 'plant', flower: 'flower',
+        tree: 'tree', bush: 'shrub', hedge: 'hedge', fence: 'fence', shed: 'shed',
+        playset: 'play', trampoline: 'trampoline', firepit: 'fire', fireplace: 'fireplace'
+      };
+      const terms = [q, ...(SYN[q.replace(/\s+/g, '')] ? [SYN[q.replace(/\s+/g, '')]] : [])];
+      const hits = ITEMS.filter(i => !i.hidden && terms.some(t => i.name.toLowerCase().includes(t)));
       if (!hits.length) {
         grid.innerHTML = `<p class="cat-empty">No furniture matches “${q}”.</p>`;
         return;
@@ -2176,6 +2203,28 @@ export class UI {
       });
       document.body.appendChild(scrim);
       setTimeout(() => { input.focus(); input.select(); }, 30);
+    });
+  }
+
+  /** One-button styled notice (no native alert sheets on the PWA). */
+  notice(message, title = 'Home Studio') {
+    return new Promise(resolve => {
+      const scrim = document.createElement('div');
+      scrim.className = 'modal-scrim';
+      const esc = escapeHtml;
+      scrim.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+          <h3>${esc(title)}</h3>
+          <p>${esc(message)}</p>
+          <div class="modal-row">
+            <button class="modal-btn primary" data-r="1">OK</button>
+          </div>
+        </div>`;
+      scrim.addEventListener('pointerdown', e => e.stopPropagation());
+      scrim.addEventListener('click', e => {
+        if (e.target.closest('[data-r]')) { scrim.remove(); resolve(); }
+      });
+      document.body.appendChild(scrim);
     });
   }
 

@@ -2,7 +2,7 @@
 // assembled from primitives (no external assets), with architectural 2D plan
 // symbols and selectable finish palettes.
 import {
-  G, box, cyl, sphere, legs4, strut, handleBar, knob, shade, wavyPanel, prism, pyramid,
+  G, box, cyl, sphere, legs4, strut, segment, torus, handleBar, knob, shade, wavyPanel, prism, pyramid,
   solid, wood, tex, metal, chrome, glass, mirror, water, artMaterial, foliage, blob, buildPond,
   buildTallGrass, flagTexture, buildFlag, glow, netMaterial
 } from './builders.js';
@@ -518,10 +518,13 @@ export const ITEMS = [
     elevation: 150, mount: 'wall', palettes: null, plan: { type: 'wallCabinet' },
     build: () => {
       const g = G();
-      box(g, metal('#c4c8cc', 0.3), 80, 8, 52, 0, 0, 0, { r: 1 });
-      // pyramid canopy: 4-segment cylinder rotated 45°
-      cyl(g, metal('#c4c8cc', 0.3), 40, 26, 0, 6, -2, { rTop: 15, seg: 4 }).rotation.y = Math.PI / 4;
-      box(g, metal('#babec2', 0.35), 22, 34, 22, 0, 28, -2);
+      const steel = metal('#c4c8cc', 0.3);
+      box(g, steel, 80, 8, 52, 0, 0, 0, { r: 1 });
+      // rectangular tapered canopy (true footprint — no rotated-square overhang)
+      pyramid(g, steel, 76, 40, 48, 0, 6, -2);
+      box(g, metal('#babec2', 0.35), 22, 30, 22, 0, 32, -2);
+      box(g, metal('#a9adb1', 0.4), 24, 2.5, 24, 0, 27, -2, { r: 0.5 }); // chimney collar
+      box(g, solid('#26292d', 0.35), 60, 2, 34, 0, 5.4, 0, { r: 0.5 }); // filter inset
       return g;
     }
   },
@@ -569,6 +572,7 @@ export const ITEMS = [
 
   // ======================= BATHROOM =======================
   {
+    hidden: true, // superseded by the bathroom pack's bath_toilet_skirted (kept for old saves)
     id: 'toilet', name: 'Toilet', cat: 'bathroom', w: 40, d: 70, h: 78,
     palettes: null, plan: { type: 'toilet' },
     build: () => {
@@ -713,21 +717,35 @@ export const ITEMS = [
     palettes: null, plan: { type: 'officeChair' },
     build: () => {
       const g = G();
-      const black = solid('#2c2c2e', 0.7);
+      const mesh = solid('#2c2c2e', 0.72);      // upholstery
+      const shell = solid('#1c1c1e', 0.5);      // plastic shell/arms
+      const alum = metal('#8e9297', 0.35);
+      // 5-star base: tapered spokes sloping down to castered feet
       for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2;
-        const arm = box(g, black, 26, 3, 5, Math.cos(a) * 13, 3, Math.sin(a) * 13, { ry: -a });
-        arm.castShadow = true;
-        sphere(g, solid('#1a1a1c', 0.5), 3.4, Math.cos(a) * 26, 3.4, Math.sin(a) * 26);
+        const a = (i / 5) * Math.PI * 2 + Math.PI / 10;
+        const fx = Math.cos(a) * 25, fz = Math.sin(a) * 25;
+        strut(g, alum, Math.cos(a) * 4, 9, Math.sin(a) * 4, fx, 5, fz, 2.6, { rTop: 1.8 });
+        sphere(g, solid('#141416', 0.45), 3.2, fx, 3.2, fz);                 // caster wheel
+        cyl(g, shell, 1.6, 4, fx, 5.6, fz);                                  // caster fork
       }
-      cyl(g, metal('#7e8286', 0.35), 2.4, 30, 0, 5, 0);
-      box(g, black, 48, 8, 46, 0, 44, 2, { r: 3.5 });
-      const back = box(g, black, 46, 54, 7, 0, 52, -22, { r: 3.5 });
-      back.rotation.x = 0.1;
-      box(g, black, 8, 3, 26, -25, 62, 0, { r: 1.5 });
-      box(g, black, 8, 3, 26, 25, 62, 0, { r: 1.5 });
-      box(g, black, 3, 16, 3, -25, 46, 0);
-      box(g, black, 3, 16, 3, 25, 46, 0);
+      cyl(g, alum, 4.5, 6, 0, 4, 0, { rTop: 3.6 });      // hub
+      cyl(g, chrome(), 2.2, 24, 0, 9, 0);                // gas lift
+      cyl(g, shell, 3.4, 13, 0, 9, 0, { rTop: 2.9 });    // cylinder boot
+      box(g, shell, 34, 3, 30, 0, 40, 1, { r: 1 });      // tilt mechanism
+      // contoured seat: main pad + waterfall front lip, slight recline
+      box(g, mesh, 47, 9, 44, 0, 43, 1, { r: 4.5, rx: -0.05 });
+      box(g, mesh, 45, 7, 12, 0, 42.5, 21, { r: 3.5, rx: 0.3 });
+      // curved back: shell + lumbar bulge + soft headrest, tilted back
+      box(g, mesh, 45, 52, 7.5, 0, 51, -22.5, { r: 4, rx: 0.1 });
+      box(g, mesh, 40, 17, 5, 0, 57, -18.6, { r: 2.5, rx: 0.13 });          // lumbar pad
+      box(g, mesh, 32, 13, 7, 0, 92, -27, { r: 3.5, rx: 0.22 });            // headrest
+      box(g, shell, 41, 46, 2.5, 0, 54, -27.2, { r: 2, rx: 0.1 });          // back shell
+      // arms: L-supports rising from the seat frame with padded tops
+      for (const s of [-1, 1]) {
+        strut(g, shell, s * 22, 42, 6, s * 26, 62, 2, 2.2);
+        box(g, shell, 5.5, 2.5, 25, s * 26.5, 62, -3, { r: 1 });
+        box(g, solid('#242427', 0.6), 7.5, 3.5, 26, s * 26.5, 64, -3, { r: 1.6 });
+      }
       return g;
     }
   },
@@ -900,12 +918,20 @@ export const ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      // organic clipped hedge: a row of overlapping leafy lumps
-      for (let i = 0; i < 5; i++) {
-        blob(g, '#31511f', '#5c8a36', 34, -80 + i * 40, 42, 0, { seed: 90 + i * 5, sy: 1.15 });
+      // clipped hedge: a squared leafy core block with lumpy two-tone foliage
+      // masses breaking up every face (deep shade sides -> sunlit top)
+      box(g, solid('#35592c', 0.95), 188, 76, 42, 0, 5, 0, { r: 12, seg: 3 });
+      for (const [bx, bz, sd] of [[-72, 3, 90], [-25, -4, 95], [25, 4, 100], [72, -3, 105]]) {
+        const m = blob(g, '#2e5b2e', '#54823a', 26, bx, 40, bz, { seed: sd, sy: 1.35 });
+        m.scale.x = 1.3; m.scale.z = 0.66;
       }
-      blob(g, '#365722', '#639240', 30, -55, 55, 6, { seed: 118, sy: 1 });
-      blob(g, '#2f4f1e', '#578534', 30, 48, 52, -6, { seed: 121, sy: 1.05 });
+      for (const [bx, sd] of [[-55, 108], [0, 112], [55, 116]]) {
+        const m = blob(g, '#417034', '#6fa049', 24, bx, 74, 0, { seed: sd, sy: 0.55 });
+        m.scale.x = 1.5; m.scale.z = 0.85;
+      }
+      // woody trunk stubs peeking out under the foliage skirt
+      const bark = solid('#4a3826', 0.95);
+      for (const bx of [-62, 0, 62]) cyl(g, bark, 2.6, 14, bx, 0, 0, { rTop: 2 });
       return g;
     }
   },
@@ -996,24 +1022,32 @@ export const ITEMS = [
     plan: { type: 'car' },
     build: (p) => {
       const g = G();
-      const paint = solid(p.body, 0.32);
-      const darkGlass = solid('#1d2733', 0.12);
+      const paint = solid(p.body, 0.28);
+      const darkGlass = solid('#1d2733', 0.1);
+      const trim = solid('#1e2023', 0.6);
       const tire = solid('#1c1c1e', 0.9);
       const rim = metal('#c2c6cc', 0.3);
-      // wheels (axles run along item width/x)
-      for (const [wz, wx] of [[-150, -78], [-150, 78], [150, -78], [150, 78]]) {
-        cyl(g, tire, 33, 22, wx, 33, wz, { rz: Math.PI / 2 });
-        cyl(g, rim, 18, 23.5, wx, 33, wz, { rz: Math.PI / 2 });
+      // wheels with dark wheel-well arches flush with the rockers
+      for (const [wz, wx] of [[-148, -79], [-148, 79], [148, -79], [148, 79]]) {
+        cyl(g, trim, 39, 3, Math.sign(wx) * 85.5, 33, wz, { rz: Math.PI / 2, seg: 26 }); // arch inset
+        cyl(g, tire, 32, 22, wx, 32, wz, { rz: Math.PI / 2, seg: 26 });
+        cyl(g, rim, 17, 23.5, wx, 32, wz, { rz: Math.PI / 2, seg: 20 });
+        cyl(g, solid('#3a3d42', 0.4), 6, 24.5, wx, 32, wz, { rz: Math.PI / 2 });        // hub
       }
-      box(g, paint, 172, 62, 440, 0, 32, 0, { r: 16, seg: 4 });     // body
-      box(g, paint, 160, 52, 230, 0, 82, 18, { r: 18, seg: 4 });    // cabin
-      box(g, darkGlass, 152, 40, 218, 0, 88, 18, { r: 14, seg: 4 }); // glass band
-      box(g, solid('#f4f0d8', 0.3), 24, 12, 6, -62, 62, -218);      // headlights
-      box(g, solid('#f4f0d8', 0.3), 24, 12, 6, 62, 62, -218);
-      box(g, solid('#7a2018', 0.4), 24, 10, 6, -62, 64, 218);       // taillights
-      box(g, solid('#7a2018', 0.4), 24, 10, 6, 62, 64, 218);
-      box(g, metal('#9aa0a6', 0.4), 150, 8, 10, 0, 30, -222);       // bumpers
-      box(g, metal('#9aa0a6', 0.4), 150, 8, 10, 0, 30, 222);
+      box(g, trim, 166, 10, 424, 0, 16, 0, { r: 4, seg: 2 });        // rocker/underbody
+      box(g, paint, 174, 56, 450, 0, 22, 0, { r: 15, seg: 4 });      // lower body
+      box(g, paint, 156, 58, 232, 0, 70, 24, { r: 19, seg: 4 });     // greenhouse/cabin
+      box(g, darkGlass, 159, 28, 238, 0, 84, 24, { r: 13, seg: 3 }); // wraparound glass band (proud of the cabin)
+      // face: grille + slim headlights + lower intake
+      box(g, trim, 92, 14, 4, 0, 47, -224, { r: 2 });
+      box(g, trim, 130, 9, 4, 0, 27, -224, { r: 2 });
+      box(g, solid('#eef2f4', 0.2), 32, 7, 4, -58, 63, -223.5, { r: 2 });
+      box(g, solid('#eef2f4', 0.2), 32, 7, 4, 58, 63, -223.5, { r: 2 });
+      // tail: light bar + plate recess
+      box(g, solid('#8a1f16', 0.35), 130, 7, 4, 0, 66, 223.5, { r: 2 });
+      box(g, trim, 44, 14, 3, 0, 40, 224, { r: 1.5 });
+      // side mirrors
+      for (const s of [-1, 1]) box(g, paint, 7, 6, 12, s * 88, 84, -32, { r: 2 });
       return g;
     }
   },
@@ -1103,21 +1137,27 @@ export const ITEMS = [
       // water surface rides just above the shell so it reads from any angle
       const w = cyl(g, water(), 183, 4, 0, 122.5, 0, { seg: 36 });
       w.receiveShadow = true;
-      // A-frame ladder over the wall
+      // A-frame ladder leaning over the wall: outer flight from the ground,
+      // small platform over the top rail, inner flight dropping to the water
+      const ch = chrome();
       for (const s of [-1, 1]) {
-        cyl(g, chrome(), 2.4, 150, 175 + s * 0, 0, -24 * s);
+        strut(g, ch, 254, 0, s * 17, 199, 144, s * 17, 2.4);   // outer stringers
+        strut(g, ch, 199, 144, s * 17, 154, 30, s * 17, 2.2);  // inner stringers
+        strut(g, ch, 254, 0, s * 17, 244, 116, s * 17, 1.4);   // handrail uprights
+        strut(g, ch, 244, 116, s * 17, 202, 158, s * 17, 1.4); // handrails to the top
       }
-      cyl(g, chrome(), 2.4, 150, 175, 0, -24, { rx: 0.5 });
-      cyl(g, chrome(), 2.4, 150, 175, 0, 24, { rx: -0.5 });
-      for (let i = 0; i < 4; i++) {
-        box(g, chrome(), 34, 3, 6, 175, 28 + i * 32, -40 + i * 9.5);
-        box(g, chrome(), 34, 3, 6, 175, 28 + i * 32, 40 - i * 9.5);
+      for (const t of [0.2, 0.4, 0.6, 0.8]) {                  // outer treads
+        box(g, ch, 12, 3, 32, 254 - 55 * t, 144 * t, 0, { r: 1 });
       }
+      for (const t of [0.28, 0.56]) {                          // inner treads (to water)
+        box(g, ch, 12, 3, 32, 199 - 45 * t, 144 - 114 * t, 0, { r: 1 });
+      }
+      box(g, solid('#e4e7ea', 0.5), 34, 4, 40, 199, 146, 0, { r: 2 }); // top platform
       return g;
     }
   },
   {
-    id: 'pool_above_deck', name: 'Pool + Deck', cat: 'outdoor', w: 640, d: 420, h: 145, noShadow: true,
+    id: 'pool_above_deck', name: 'Pool + Deck', cat: 'outdoor', w: 640, d: 420, h: 220, noShadow: true,
     palettes: null, plan: { type: 'pool' },
     build: () => {
       const g = G();
@@ -1698,7 +1738,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'light_string', name: 'String Lights', cat: 'outdoor', w: 300, d: 24, h: 220, noShadow: true,
+    id: 'light_string', name: 'String Lights', cat: 'outdoor', w: 300, d: 12, h: 220, noShadow: true,
     palettes: null, plan: { type: 'box' },
     light: { y: 165, color: '#ffdca0', intensity: 0.8, distance: 480 },
     build: () => {
@@ -1719,7 +1759,7 @@ export const ITEMS = [
           const seg = cyl(g, wireMat, 0.5, len, (x + prev.x) / 2, (y + prev.y) / 2 - len / 2, 0);
           seg.rotation.z = Math.atan2(dx, -dy);
         }
-        sphere(g, bulbMat, 3.2, x, y - 4, 0);          // hanging bulb
+        sphere(g, bulbMat, 3.2, x, y - 4, Math.sin(i * 2.1) * 2.4); // hanging bulb, light sway
         prev = { x, y };
       }
       return g;
@@ -1789,7 +1829,7 @@ export const ITEMS = [
 
   // ===== FLAGS =====
   {
-    id: 'flag_us', name: 'American Flag Pole', cat: 'outdoor', w: 50, d: 50, h: 600, noShadow: true,
+    id: 'flag_us', name: 'American Flag Pole', cat: 'outdoor', w: 190, d: 50, h: 600, noShadow: true,
     palettes: null, plan: { type: 'flag' },
     build: () => {
       const g = G();
@@ -1954,13 +1994,12 @@ export const ITEMS = [
         box(g, solid('#1a1a1c', 0.3), 3.4, 3.2, 9, -57 + i * 6.7, 75.5, 14.5);
       }
       box(g, body, 150, 5, 20, 0, 78, -4);                        // fallboard
+      box(g, body, 130, 22, 3, 0, 92, 10.5, { rx: -0.22 });       // music desk
       for (const sx of [-1, 1]) box(g, body, 10, 66, 12, sx * 66, 0, 20); // front legs
-      // pedals + bench
-      for (const px of [-10, 0, 10]) box(g, metal('#b8a468', 0.3), 5, 3, 10, px, 6, 24);
-      box(g, body, 74, 6, 34, 0, 46, 78, { r: 1.5 });
-      legs4(g, body, 66, 28, 46, 3, 4, true);
-      const bench = g.children.slice(-4);
-      for (const leg of bench) leg.position.z += 78;
+      box(g, body, 150, 6, 8, 0, 120, 16, { r: 1.5 });            // top lid lip
+      // brass pedals on a small toe block
+      box(g, body, 44, 10, 8, 0, 0, 24, { r: 1 });
+      for (const px of [-10, 0, 10]) box(g, metal('#b8a468', 0.3), 5, 3, 12, px, 8, 26);
       return g;
     }
   },
@@ -1988,7 +2027,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'mirror_floor', name: 'Floor Mirror', cat: 'decor', w: 62, d: 14, h: 172,
+    id: 'mirror_floor', name: 'Floor Mirror', cat: 'decor', w: 62, d: 24, h: 172,
     palettes: WOODS, plan: { type: 'wallDecor' },
     build: (p) => {
       const g = G();
@@ -2158,28 +2197,40 @@ export const ITEMS = [
     plan: { type: 'car' },
     build: (p) => {
       const g = G();
-      const paint = solid(p.body, 0.32);
-      const darkGlass = solid('#1d2733', 0.12);
+      const paint = solid(p.body, 0.28);
+      const darkGlass = solid('#1d2733', 0.1);
+      const trim = solid('#1e2023', 0.6);
       const tire = solid('#1c1c1e', 0.9);
       const rim = metal('#c2c6cc', 0.3);
-      for (const [wz, wx] of [[-180, -84], [-180, 84], [160, -84], [160, 84]]) {
-        cyl(g, tire, 40, 26, wx, 40, wz, { rz: Math.PI / 2 });
-        cyl(g, rim, 22, 27.5, wx, 40, wz, { rz: Math.PI / 2 });
+      // wheels with dark arch insets flush to the body sides
+      for (const [wz, wx] of [[-178, -84], [-178, 84], [162, -84], [162, 84]]) {
+        cyl(g, trim, 47, 3, Math.sign(wx) * 92, 40, wz, { rz: Math.PI / 2, seg: 26 });
+        cyl(g, tire, 39, 26, wx, 39, wz, { rz: Math.PI / 2, seg: 26 });
+        cyl(g, rim, 20, 27.5, wx, 39, wz, { rz: Math.PI / 2, seg: 20 });
+        cyl(g, solid('#3a3d42', 0.4), 7, 28.5, wx, 39, wz, { rz: Math.PI / 2 });
       }
-      box(g, paint, 186, 66, 540, 0, 44, 0, { r: 8, seg: 4 });   // chassis body
-      box(g, paint, 178, 62, 190, 0, 104, -60, { r: 10, seg: 4 }); // cab
-      box(g, darkGlass, 170, 46, 178, 0, 112, -58, { r: 9, seg: 4 });
-      // open bed
-      box(g, solid('#2b2d31', 0.7), 166, 6, 220, 0, 106, 150);
-      box(g, paint, 8, 34, 220, -85, 110, 150);
-      box(g, paint, 8, 34, 220, 85, 110, 150);
-      box(g, paint, 170, 34, 8, 0, 110, 262);
-      box(g, solid('#f4f0d8', 0.3), 30, 12, 6, -66, 78, -264);
-      box(g, solid('#f4f0d8', 0.3), 30, 12, 6, 66, 78, -264);
-      box(g, solid('#7a2018', 0.4), 26, 12, 6, -74, 92, 266);
-      box(g, solid('#7a2018', 0.4), 26, 12, 6, 74, 92, 266);
-      box(g, metal('#9aa0a6', 0.4), 170, 12, 12, 0, 34, -268);
-      box(g, metal('#9aa0a6', 0.4), 170, 12, 12, 0, 34, 268);
+      box(g, trim, 176, 14, 500, 0, 20, 0, { r: 4, seg: 2 });         // frame/underbody
+      box(g, paint, 186, 60, 540, 0, 26, 0, { r: 12, seg: 4 });       // lower body
+      box(g, paint, 178, 34, 155, 0, 84, -190, { r: 10, seg: 3 });    // hood (lower than cab)
+      box(g, paint, 180, 76, 182, 0, 84, -34, { r: 15, seg: 4 });     // cab
+      box(g, darkGlass, 183, 30, 187, 0, 114, -34, { r: 11, seg: 3 }); // glass band (proud of the cab)
+      // open cargo bed
+      box(g, solid('#2b2d31', 0.75), 164, 6, 205, 0, 86, 162);
+      box(g, paint, 10, 40, 212, -88, 84, 162, { r: 3 });
+      box(g, paint, 10, 40, 212, 88, 84, 162, { r: 3 });
+      box(g, paint, 172, 40, 10, 0, 84, 265, { r: 3 });               // tailgate
+      // face: chrome grille bar + headlights; tail: vertical lamps
+      box(g, metal('#c9cdd2', 0.25), 128, 22, 5, 0, 74, -269, { r: 2 });
+      box(g, solid('#eef2f4', 0.2), 34, 10, 4, -66, 96, -268.5, { r: 2 });
+      box(g, solid('#eef2f4', 0.2), 34, 10, 4, 66, 96, -268.5, { r: 2 });
+      box(g, solid('#8a1f16', 0.35), 10, 26, 4, -80, 90, 270.5, { r: 2 });
+      box(g, solid('#8a1f16', 0.35), 10, 26, 4, 80, 90, 270.5, { r: 2 });
+      box(g, metal('#9aa0a6', 0.4), 172, 12, 10, 0, 30, -272);        // bumpers
+      box(g, metal('#9aa0a6', 0.4), 172, 12, 10, 0, 30, 272);
+      for (const s of [-1, 1]) {
+        box(g, trim, 10, 5, 150, s * 95, 34, -30, { r: 2 });          // running boards
+        box(g, paint, 8, 8, 14, s * 96, 118, -104, { r: 2 });         // mirrors
+      }
       return g;
     }
   },
@@ -2232,27 +2283,34 @@ export const ITEMS = [
     build: (p) => {
       const g = G();
       const wd = wood(p.wood, 0.7);
-      // hexagonal posts + railing + deck
-      cyl(g, wd, 160, 10, 0, 0, 0, { seg: 6 });
+      // round timber deck on a low plinth, posts just inside the deck edge
+      cyl(g, wood('#6b5949', 0.85), 152, 6, 0, 0, 0, { seg: 24 });
+      cyl(g, wd, 148, 8, 0, 6, 0, { seg: 24 });
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
-        const px = Math.cos(a) * 140, pz = Math.sin(a) * 140;
-        box(g, wd, 11, 240, 11, px, 8, pz);
-        // railing between posts (skip the entry side)
+        const px = Math.cos(a) * 130, pz = Math.sin(a) * 130;
+        box(g, wd, 11, 226, 11, px, 14, pz);
+        cyl(g, wd, 7.5, 4, px, 240, pz);                     // capital under the eave
+        // railing between posts (skip the entry side): rails + turned balusters
         if (i !== 4) {
           const a2 = ((i + 1) / 6) * Math.PI * 2 + Math.PI / 6;
-          const qx = Math.cos(a2) * 140, qz = Math.sin(a2) * 140;
-          const mx = (px + qx) / 2, mz = (pz + qz) / 2;
+          const qx = Math.cos(a2) * 130, qz = Math.sin(a2) * 130;
           const len = Math.hypot(qx - px, qz - pz);
           const rot = -Math.atan2(qz - pz, qx - px);
-          box(g, wd, len - 14, 6, 5, mx, 90, mz, { ry: rot });
-          box(g, wd, len - 14, 6, 5, mx, 40, mz, { ry: rot });
+          const mx = (px + qx) / 2, mz = (pz + qz) / 2;
+          box(g, wd, len - 12, 6, 6, mx, 92, mz, { ry: rot, r: 1.5 });
+          box(g, wd, len - 12, 5, 5, mx, 24, mz, { ry: rot, r: 1 });
+          for (let b = 1; b <= 4; b++) {
+            const t = b / 5;
+            cyl(g, wd, 2.2, 63, px + (qx - px) * t, 29, pz + (qz - pz) * t, { seg: 8 });
+          }
         }
       }
-      // hex roof + finial
-      const roofMesh = cyl(g, tex('shingle_brown', 4, 2), 205, 82, 0, 244, 0, { rTop: 3, seg: 6 });
-      roofMesh.rotation.y = Math.PI / 6;
-      sphere(g, wd, 8, 0, 330, 0);
+      // smooth shingled cone roof with a fascia ring and finial
+      cyl(g, solid('#4a3d33', 0.85), 186, 9, 0, 236, 0, { rTop: 182, seg: 24, open: true }); // fascia
+      cyl(g, tex('shingle_brown', 5, 1.5), 184, 78, 0, 240, 0, { rTop: 3, seg: 24 });
+      cyl(g, wd, 6, 12, 0, 314, 0, { rTop: 4 });
+      sphere(g, wd, 6.5, 0, 330, 0);
       return g;
     }
   },
@@ -2302,21 +2360,28 @@ export const ITEMS = [
       let s = 77;
       const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       // stone border
-      for (let i = 0; i < 18; i++) {
-        const t = i / 18;
-        const a = t * Math.PI * 2;
-        const rx = Math.cos(a) * 78, rz = Math.sin(a) * 36;
-        sphere(g, solid(rand() < 0.5 ? '#8a8478' : '#75705f', 0.9), 8 + rand() * 4, rx, 4, rz, { sy: 0.65, seg: 8 });
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        const rx = Math.cos(a) * 76, rz = Math.sin(a) * 34;
+        const rock = sphere(g, solid(rand() < 0.5 ? '#8a8478' : '#75705f', 0.9), 9 + rand() * 4, rx, 4, rz, { sy: 0.6, seg: 8 });
+        rock.rotation.y = rand() * Math.PI;
       }
-      const soil = cyl(g, solid('#4a3a28', 0.98), 74, 8, 0, 0, 0, { seg: 24 });
-      soil.scale.z = 0.46;
-      // flowers: stems + colored heads
-      const heads = ['#c94a63', '#e0a33c', '#9c6bbf', '#e8e4da', '#d3591f'];
-      for (let i = 0; i < 14; i++) {
-        const fx = (rand() - 0.5) * 130, fz = (rand() - 0.5) * 56;
-        const fh = 16 + rand() * 14;
-        cyl(g, solid('#4e6b34', 0.9), 1, fh, fx, 6, fz);
-        sphere(g, solid(heads[Math.floor(rand() * heads.length)], 0.7), 3.5 + rand() * 2, fx, 8 + fh, fz, { seg: 8 });
+      const soil = cyl(g, solid('#4a3a28', 0.98), 72, 8, 0, 0, 0, { seg: 24 });
+      soil.scale.z = 0.44;
+      // lumpy foliage bed the blooms rise out of
+      for (const [fx, fz, fr, sd] of [[-42, 0, 20, 130], [2, 4, 23, 133], [46, -3, 19, 137]]) {
+        const b = blob(g, '#33571f', '#54803a', fr, fx, 12, fz, { seed: sd, sy: 0.6 });
+        b.scale.z = 0.75;
+      }
+      // blooms: visible stems, a petal whorl and a bright center
+      const heads = ['#c94a63', '#e0a33c', '#9c6bbf', '#ece7dc', '#d3591f', '#c94a63', '#e0a33c'];
+      for (let i = 0; i < 7; i++) {
+        const fx = -60 + i * 20 + (rand() - 0.5) * 8, fz = (rand() - 0.5) * 40;
+        const fh = 20 + rand() * 14;
+        cyl(g, solid('#4e6b34', 0.9), 0.9, fh, fx, 10, fz);
+        const petals = sphere(g, solid(heads[i], 0.6), 4.6 + rand() * 1.6, fx, 11 + fh, fz, { sy: 0.42, seg: 10 });
+        petals.rotation.x = (rand() - 0.5) * 0.4;
+        sphere(g, solid('#e8c02e', 0.55), 1.7, fx, 12.5 + fh, fz, { seg: 8 });
       }
       return g;
     }
@@ -2459,10 +2524,24 @@ export const ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      const mound = sphere(g, tex('grass', 5, 3), 250, 0, 0, 0, { seg: 28 });
-      mound.scale.set(1.6, 0.8, 1.0);
-      mound.position.y = -18;   // settle into the ground for a soft edge
+      // displaced grassy dome: an undulating silhouette built by noising a
+      // sphere in-place and folding everything below grade flat (so the bbox
+      // honours the declared 200cm height — no buried half-sphere)
+      const mound = sphere(g, tex('grass', 5, 3), 250, 0, 0, 0, { seg: 30 });
       mound.receiveShadow = true;
+      const pos = mound.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i) * 1.55, y = pos.getY(i) * 0.78, z = pos.getZ(i) * 0.94;
+        // gentle low-amp undulation so the crown and shoulders roll
+        const n = Math.sin(x * 0.011 + 1.3) * Math.cos(z * 0.017 + 0.4) +
+                  Math.sin((x + z) * 0.008 + 2.1) * 0.7 +
+                  Math.cos(x * 0.021 - z * 0.012) * 0.4;
+        const f = 1 + n * 0.045;
+        x *= f; z *= f; y = y * f - 14;
+        if (y < 0) y = 0;         // fold the underside flat at grade
+        pos.setXYZ(i, x, y, z);
+      }
+      mound.geometry.computeVertexNormals();
       // boulders + a shrub so it reads as landscape, not a bump
       sphere(g, solid('#8a8478', 0.95), 26, -290, 0, 130, { sy: 0.6, seg: 10 });
       sphere(g, solid('#75705f', 0.95), 18, 250, 0, -150, { sy: 0.65, seg: 10 });
@@ -2514,19 +2593,28 @@ export const ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      cyl(g, solid('#4e3a26', 0.95), 3.5, 18, 0, 0, 0);
-      foliage(g, '#33571f', '#4a7030', 0, 100, 0, 40, 12, 51);
+      cyl(g, solid('#4e3a26', 0.95), 3.5, 20, 0, 0, 0, { rTop: 2.6 });
+      // layered leafy mound (deep interior -> sunlit crown)
+      blob(g, '#2c4d1c', '#4a7030', 34, 0, 42, 0, { seed: 51, sy: 1.0 });
+      blob(g, '#33571f', '#558038', 26, -20, 56, 10, { seed: 54, sy: 0.9 });
+      blob(g, '#30521e', '#517c34', 25, 21, 54, -12, { seed: 57, sy: 0.92 });
+      blob(g, '#365a22', '#5c8a3c', 20, 2, 68, 4, { seed: 60, sy: 0.85 });
       let s = 61;
       const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-      const bloomMat = solid(p.bloom, 0.65);
+      const bloomMat = solid(p.bloom, 0.55);
       const heartMat = solid('#3a2b1a', 0.8);
-      for (let i = 0; i < 12; i++) {
-        const a = rand() * Math.PI * 2;
-        const r = 18 + rand() * 24;
+      // roses sit ON the crown: cupped outer whorl + rising inner bud + heart
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + rand() * 0.5;
+        const r = 10 + rand() * 22;
         const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
-        const by = 82 + rand() * 42 - r * 0.3;
-        sphere(g, bloomMat, 5.5 + rand() * 3, bx, by, bz, { sy: 0.82, seg: 10 });
-        sphere(g, heartMat, 1.6, bx, by + 4, bz, { seg: 6 });
+        // blooms ride ON the mound's crown surface, standing proud on stems
+        const by = 90 - r * 0.55 + rand() * 5;
+        cyl(g, solid('#3f6b28', 0.9), 0.8, 14 + rand() * 5, bx, by - 15, bz); // stem into the bush
+        const rr = 4.8 + rand() * 2.2;
+        sphere(g, bloomMat, rr, bx, by, bz, { sy: 0.62, seg: 10 });          // outer whorl
+        sphere(g, bloomMat, rr * 0.62, bx, by + rr * 0.34, bz, { sy: 0.78, seg: 8 }); // inner bud
+        sphere(g, heartMat, rr * 0.22, bx, by + rr * 0.62, bz, { seg: 6 });  // dark heart
       }
       return g;
     }
@@ -2539,20 +2627,23 @@ export const ITEMS = [
       box(g, solid('#4a3a28', 0.98), 126, 10, 70, 0, 0, 0, { r: 4 });
       let s = 41;
       const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-      const colors = ['#c8283c', '#e0a33c', '#9c50b8', '#e05a7c', '#ece7dc'];
-      for (let ix = 0; ix < 6; ix++) {
-        for (let iz = 0; iz < 3; iz++) {
-          const tx = -50 + ix * 20 + (rand() - 0.5) * 8;
-          const tz = -22 + iz * 22 + (rand() - 0.5) * 8;
-          const th = 26 + rand() * 12;
-          cyl(g, solid('#3f6b28', 0.9), 1.1, th, tx, 8, tz);
-          // leaf blade
-          const leaf = sphere(g, solid('#4a7a30', 0.9), 5, tx + 3, 14, tz, { sy: 1.6, seg: 6 });
-          leaf.scale.x = 0.25;
-          // cupped bloom
-          sphere(g, solid(colors[Math.floor(rand() * colors.length)], 0.6),
-            4.6, tx, 8 + th + 3, tz, { sy: 1.3, seg: 10 });
-        }
+      const colors = ['#c8283c', '#e0a33c', '#9c50b8', '#e05a7c', '#ece7dc', '#c8283c', '#e0a33c', '#e05a7c'];
+      for (let i = 0; i < 8; i++) {
+        const tx = -47 + (i % 4) * 31 + (rand() - 0.5) * 10;
+        const tz = (i < 4 ? -16 : 16) + (rand() - 0.5) * 10;
+        const th = 26 + rand() * 12;
+        const lean = (rand() - 0.5) * 0.12;
+        const stem = cyl(g, solid('#3f6b28', 0.9), 1.2, th, tx, 8, tz);
+        stem.rotation.z = lean;
+        // broad strap leaf hugging the stem
+        const leaf = sphere(g, solid('#4a7a30', 0.9), 6, tx + 4, 15, tz - 1, { sy: 1.9, sz: 0.42, seg: 8 });
+        leaf.scale.x = 0.2;
+        leaf.rotation.z = 0.38;
+        leaf.rotation.y = rand() * Math.PI;
+        // tulip cup: egg-shaped outer petals + lighter inner petals peeking out
+        const bx = tx + Math.sin(lean) * th;
+        sphere(g, solid(colors[i], 0.55), 5.4, bx, 8 + th + 3.5, tz, { sy: 1.25, sx: 0.92, seg: 12 });
+        sphere(g, solid('#f2e4c0', 0.6), 3.1, bx, 8 + th + 7.5, tz, { sy: 1.05, seg: 8 });
       }
       return g;
     }
@@ -2752,8 +2843,12 @@ export const ITEMS = [
       box(g, wd, 30, 12, 40, -38, 60, 0); knob(g, -38, 66, 21);
       cyl(g, wood('#8a6a4a'), 28, 2.5, 0, 82, -19.5, { rx: Math.PI / 2, seg: 28 });
       cyl(g, mirror(), 26, 2, 0, 84, -18, { rx: Math.PI / 2, seg: 28 });
-      cyl(g, tex('fabric_beige', 1, 1), 17, 8, 30, 38, 34, { seg: 16 });
-      legs4(g, wd, 28, 28, 38, 2, 3);
+      // upholstered stool tucked under the tabletop (stays inside the footprint)
+      const stool = G();
+      stool.position.set(26, 0, 24);
+      g.add(stool);
+      cyl(stool, tex('fabric_beige', 1, 1), 15.5, 8, 0, 38, 0, { seg: 16 });
+      legs4(stool, wd, 26, 26, 38, 2, 3);
       return g;
     }
   },
@@ -2888,12 +2983,16 @@ export const ITEMS = [
     palettes: null, plan: { type: 'tableRound' },
     build: () => {
       const g = G();
-      const wh = solid('#f4f2ee', 0.25);
-      sphere(g, wh, 84, 0, 30, 0, { sy: 0.36, seg: 26 });
-      const wt = sphere(g, water(), 76, 0, 50, 0, { sy: 0.12, seg: 24 });
+      const wh = solid('#f4f2ee', 0.22);
+      // oval acrylic shell (true 170x80 footprint) with a rolled rim
+      sphere(g, wh, 82, 0, 28, 0, { sy: 0.36, sz: 0.45, seg: 26 });
+      torus(g, wh, 78, 4.5, 0, 55.5, 0, { sy: 0.45, seg: 36, tubeSeg: 12 }); // (local y = world z once laid flat)
+      const wt = sphere(g, water(160), 60, 0, 46, 0, { sy: 0.14, sz: 0.44, seg: 24 });
       wt.receiveShadow = true;
-      cyl(g, chrome(), 2.2, 60, 70, 0, -26);
-      cyl(g, chrome(), 2, 24, 70, 58, -32, { rx: Math.PI / 2 });
+      // freestanding floor-mounted filler at the foot end
+      cyl(g, chrome(), 2, 58, -74, 0, 0);
+      cyl(g, chrome(), 1.7, 20, -65, 57, 0, { rz: Math.PI / 2 });
+      cyl(g, chrome(), 1.5, 7, -56, 51, 0);
       return g;
     }
   },
@@ -3165,13 +3264,27 @@ export const ITEMS = [
       cyl(g, solid('#4a3626', 0.95), 14, 3, 0, 26, 0, { seg: 16 });
       let sd3 = 17;
       const rnd = () => { sd3 = (sd3 * 1664525 + 1013904223) >>> 0; return sd3 / 4294967296; };
-      for (let i = 0; i < 8; i++) {
-        const a = rnd() * Math.PI * 2;
-        cyl(g, solid('#3f6b2e', 0.9), 1.2, 60 + rnd() * 55, 0, 26, 0, { rz: Math.cos(a) * 0.45, rx: Math.sin(a) * 0.45 });
-        const leaf = sphere(g, solid(rnd() < 0.5 ? '#2f5b30' : '#3d7038', 0.85), 16 + rnd() * 9,
-          Math.cos(a) * (28 + rnd() * 18), 80 + rnd() * 55, Math.sin(a) * (28 + rnd() * 18), { sy: 0.16, seg: 10 });
-        leaf.rotation.z = (rnd() - 0.5) * 0.7;
-        leaf.rotation.x = (rnd() - 0.5) * 0.7;
+      const stemMat = solid('#456f30', 0.7);
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + rnd() * 0.6;
+        const dx = Math.cos(a), dz = Math.sin(a);
+        const reach = 16 + rnd() * 12;                  // leaf center distance
+        const top = 76 + rnd() * 48;                    // leaf height
+        // arched petiole: rises from the soil, bows outward to the leaf
+        segment(g, stemMat, [dx * 3, 27, dz * 3], [dx * reach * 0.55, top * 0.72, dz * reach * 0.55], 1.6, 1.3, 8);
+        segment(g, stemMat, [dx * reach * 0.55, top * 0.72, dz * reach * 0.55], [dx * reach, top - 3, dz * reach], 1.3, 0.9, 8);
+        // split leaf: two glossy side lobes + a drooping tip lobe, with the
+        // gaps between them reading as the monstera's cuts
+        const lg = G();
+        lg.position.set(dx * reach, top, dz * reach);
+        lg.rotation.y = -a;
+        lg.rotation.z = -(0.25 + rnd() * 0.3);          // leaf plane tips outward
+        g.add(lg);
+        const lm = solid(rnd() < 0.5 ? '#2c5a2e' : '#38703a', 0.35);
+        const L = 12 + rnd() * 5;                       // lobe size
+        sphere(lg, lm, L, L * 0.28, 0, -L * 0.58, { sy: 0.09, sz: 0.55, sx: 1.1, seg: 10 });
+        sphere(lg, lm, L, L * 0.28, 0, L * 0.58, { sy: 0.09, sz: 0.55, sx: 1.1, seg: 10 });
+        sphere(lg, lm, L * 0.66, L * 1.18, -1.5, 0, { sy: 0.08, sz: 0.62, sx: 1.5, seg: 10 });
       }
       return g;
     }
@@ -3192,7 +3305,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'mirror_leaning', name: 'Leaning Mirror', cat: 'decor', w: 70, d: 12, h: 180,
+    id: 'mirror_leaning', name: 'Leaning Mirror', cat: 'decor', w: 70, d: 20, h: 180,
     palettes: WOODS, plan: { type: 'box' },
     build: (p) => {
       const g = G();
@@ -3245,11 +3358,12 @@ export const ITEMS = [
       let sd4 = 3;
       const rnd = () => { sd4 = (sd4 * 1664525 + 1013904223) >>> 0; return sd4 / 4294967296; };
       for (let i = 0; i < 7; i++) {
-        const lg = cyl(g, wood('#4a3626'), 4, 34, (rnd() - 0.5) * 30, 46, (rnd() - 0.5) * 30, { rx: Math.PI / 2 });
+        const lg = cyl(g, wood('#4a3626'), 3.4, 32, (rnd() - 0.5) * 26, 41, (rnd() - 0.5) * 26, { rx: Math.PI / 2 });
         lg.rotation.y = rnd() * Math.PI;
       }
+      // low licking flames (stay near the declared 45cm profile)
       for (let i = 0; i < 4; i++) {
-        const f = cyl(g, solid('#ff8a2a', 0.8), 8 - i, 20 + i * 6, (rnd() - 0.5) * 16, 44, (rnd() - 0.5) * 16, { rTop: 0.5, seg: 8 });
+        const f = cyl(g, glow('#ff8a2a', 1.6, 0.6, '#ff6a1a'), 7 - i, 10 + i * 3.5, (rnd() - 0.5) * 14, 43, (rnd() - 0.5) * 14, { rTop: 0.5, seg: 8 });
         f.castShadow = false;
       }
       return g;
@@ -3279,16 +3393,39 @@ export const ITEMS = [
     palettes: null, plan: { type: 'rug' },
     build: () => {
       const g = G();
-      const st = metal('#5a5d60', 0.5);
-      box(g, st, 6, 110, 6, -130, 0, 0, { rz: 0.35 });
-      box(g, st, 6, 110, 6, 130, 0, 0, { rz: -0.35 });
-      box(g, st, 240, 6, 8, 0, 0, 0, { r: 2 });
-      const fabric = wavyPanel(g, tex('fabric_beige', 2, 1), 180, 90, 5, 8);
-      fabric.rotation.x = -Math.PI / 2 + 0.12;
-      fabric.position.set(0, 78, 0);
-      fabric.scale.y = 0.8;
-      cyl(g, solid('#c8c4ba', 0.8), 1, 42, -122, 78, 0, { rz: 1.05 });
-      cyl(g, solid('#c8c4ba', 0.8), 1, 42, 122, 78, 0, { rz: -1.05 });
+      const st = metal('#4c4f53', 0.45);
+      const cloth = tex('fabric_beige', 1.5, 1);
+      const rope = solid('#cfc9ba', 0.85);
+      const wdBar = wood('#8a6a4a', 0.6);
+      // steel stand: ground beam, splayed feet, arched arms rising to hooks
+      box(g, st, 236, 7, 9, 0, 0, 0, { r: 3 });
+      for (const s of [-1, 1]) {
+        box(g, st, 8, 6, 60, s * 108, 0, 0, { r: 2 });                  // cross feet
+        strut(g, st, s * 116, 4, 0, s * 138, 68, 0, 4, { rTop: 3.4 });  // arm lower
+        strut(g, st, s * 138, 68, 0, s * 128, 106, 0, 3.4, { rTop: 3 }); // arm upper (arches in)
+        sphere(g, st, 4, s * 128, 108, 0);                              // hook boss
+      }
+      // catenary-sagging bed: strip chain following the sag, wider amidships
+      const HX = 128, HY = 108;   // hook points
+      const BX = 78;              // spreader-bar x
+      const sagY = (t) => 62 + 26 * (t * t);   // t: 0 center -> 1 at spreader
+      const N = 7;
+      for (let i = 0; i < N; i++) {
+        const t0 = (i / N) * 2 - 1, t1 = ((i + 1) / N) * 2 - 1;   // -1..1
+        const x0 = t0 * BX, x1 = t1 * BX;
+        const y0 = sagY(Math.abs(t0)), y1 = sagY(Math.abs(t1));
+        const wZ = 96 - Math.max(Math.abs(t0), Math.abs(t1)) * 26; // taper toward ends
+        const len = Math.hypot(x1 - x0, y1 - y0) + 1.5;
+        const strip = box(g, cloth, len, 2.2, wZ, (x0 + x1) / 2, (y0 + y1) / 2 - 1.1, 0, { r: 1 });
+        strip.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+      }
+      for (const s of [-1, 1]) {
+        cyl(g, wdBar, 2.6, 92, s * BX, sagY(1), 0, { rx: Math.PI / 2 });  // spreader bar
+        // taut ropes fanning from the bed edge through the spreader to the hook
+        for (const rz of [-40, -14, 14, 40]) {
+          strut(g, rope, s * BX, sagY(1), rz, s * HX, HY, 0, 0.8);
+        }
+      }
       return g;
     }
   },
@@ -3387,19 +3524,45 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      for (let i = 0; i < 9; i++) {
-        const t = i / 8;
-        cyl(g, solid(i % 2 ? '#8a7050' : '#7a6244', 0.9), 11 - t * 4, 42, t * 34, i * 38, 0, { rTop: 10 - t * 4, seg: 10 });
+      // gently curving trunk built from ringed, tapering segments — the ring
+      // ledges come from alternating radii and tones stacking down the curve
+      const px = (t) => -16 + 42 * Math.pow(t, 1.7);
+      const py = (t) => 356 * t;
+      for (let i = 0; i < 10; i++) {
+        const t0 = i / 10, t1 = (i + 1) / 10;
+        const r0 = 12.5 - t0 * 5 + (i % 2 ? 1.1 : 0);
+        const r1 = 12 - t1 * 5;
+        segment(g, solid(i % 2 ? '#8a7050' : '#77624a', 0.92),
+          [px(t0), py(t0), 0], [px(t1), py(t1), 0], r0, r1, 10);
       }
+      const CX = px(1), CY = py(1) + 2;      // crown center
+      sphere(g, solid('#5f4a34', 0.9), 8, CX, CY - 4, 0, { sy: 1.1 });
+      blob(g, '#2a5a2c', '#4f8a38', 15, CX, CY + 7, 0, { seed: 55, sy: 0.55 }); // crown heart
+      // 9 fronds: arched rachis (two tapered segments bending down) carrying
+      // feathered leaflet blobs stretched along the rib
       for (let i = 0; i < 9; i++) {
-        const a = i / 9 * Math.PI * 2;
-        const fr = blob(g, '#2f6b30', '#63a842', 20, 34 + Math.cos(a) * 78, 344, Math.sin(a) * 78,
-          { seed: 60 + i, sy: 0.22, detail: 1 });
-        fr.scale.x = 3.4;
-        fr.rotation.y = -a;
-        fr.rotation.z = -0.35;
+        const a = (i / 9) * Math.PI * 2 + 0.35;
+        const dx = Math.cos(a), dz = Math.sin(a);
+        const v = (i % 3) * 9 + (i % 2) * 5;                 // per-frond droop
+        const rib = solid('#4f6b2c', 0.8);
+        segment(g, rib, [CX + dx * 4, CY + 5, dz * 4],
+          [CX + dx * 56, CY + 25 - v, dz * 56], 2.3, 1.4, 8);
+        segment(g, rib, [CX + dx * 56, CY + 25 - v, dz * 56],
+          [CX + dx * 112, CY - 12 - v * 1.7, dz * 112], 1.4, 0.5, 8);
+        const b1 = blob(g, '#24512a', '#4f8f38', 13, CX + dx * 52, CY + 20 - v, dz * 52,
+          { seed: 60 + i, sy: 0.24, detail: 2, amp: 0.12 });
+        b1.scale.x = 2.8; b1.scale.z = 0.85;
+        b1.rotation.y = -a; b1.rotation.z = -0.32 - v * 0.012;
+        const b2 = blob(g, '#20482a', '#468234', 10, CX + dx * 94, CY + 1 - v * 1.5, dz * 94,
+          { seed: 80 + i, sy: 0.2, detail: 2, amp: 0.12 });
+        b2.scale.x = 2.5; b2.scale.z = 0.66;
+        b2.rotation.y = -a; b2.rotation.z = -0.62 - v * 0.014;
       }
-      sphere(g, solid('#6a4f36', 0.9), 9, 34, 340, 0);
+      // coconut cluster tucked under the crown
+      const nut = solid('#6a4f36', 0.85);
+      sphere(g, nut, 7.5, CX - 9, CY - 12, 5);
+      sphere(g, nut, 6.5, CX + 8, CY - 14, -7);
+      sphere(g, nut, 6, CX + 1, CY - 16, 9);
       return g;
     }
   },
@@ -3527,16 +3690,18 @@ function buildSunflower(g, x, z, h, headR, seed) {
   g.add(head);
   const petalA = solid('#f4b81e', 0.6);
   const petalB = solid('#e29b12', 0.65);
-  const petals = Math.max(14, Math.round(headR * 1.1));
-  for (let ring = 0; ring < 2; ring++) {
-    const rr = headR * (ring ? 0.94 : 1.12);
-    for (let i = 0; i < petals; i++) {
-      const a = (i / petals) * Math.PI * 2 + ring * (Math.PI / petals);
-      const pm = sphere(head, ring ? petalB : petalA, headR * 0.34,
-        Math.cos(a) * rr, Math.sin(a) * rr, ring ? 1.5 : 0, { seg: 8 });
-      pm.scale.set(1.5, 0.5, 0.12);
-      pm.rotation.z = a;
-    }
+  // one ring of bold petals over a scalloped back-whorl disc (reads as the
+  // offset second ring at a fraction of the meshes)
+  const backDisk = cyl(head, petalB, headR * 1.02, headR * 0.08, 0, 0, 0, { seg: 14 });
+  backDisk.rotation.x = Math.PI / 2;
+  backDisk.position.z = -headR * 0.04;
+  const petals = Math.min(16, Math.max(11, Math.round(headR * 0.55)));
+  for (let i = 0; i < petals; i++) {
+    const a = (i / petals) * Math.PI * 2;
+    const pm = sphere(head, petalA, headR * 0.38,
+      Math.cos(a) * headR * 1.08, Math.sin(a) * headR * 1.08, 0.5, { seg: 8 });
+    pm.scale.set(1.65, 0.52, 0.12);
+    pm.rotation.z = a;
   }
   // seed disk: dark center with a lighter rim
   const disk = cyl(head, solid('#4a331c', 0.95), headR * 0.72, headR * 0.16, 0, 0, 0, { seg: 24 });

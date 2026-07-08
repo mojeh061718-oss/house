@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, pyramid, foliage, solid, wood, metal, chrome } from '../builders.js';
+import { G, box, cyl, sphere, pyramid, foliage, solid, wood, metal, chrome, netMaterial } from '../builders.js';
 
 // Shared catalog thumbnail for drawable fences: a short section in the palette's
 // style. The real 3D run is drawn by buildFenceModel via path.surface:'fence',
@@ -53,9 +53,36 @@ export const FENCING_ITEMS = [
   drawFence('fence_splitrail', 'Split Rail Ranch', [
     { name: 'Weathered', chip: '#7a5c3c', style: 'ranch', color: '#7a5c3c', post: '#63492f', h: 110 }
   ]),
-  drawFence('fence_chainlink', 'Galvanized Chain-Link', [
-    { name: 'Galvanized', chip: '#aeb2b6', style: 'slat', color: '#aeb2b6', post: '#8f9398', h: 125 }
-  ]),
+  // Chain-link gets a bespoke thumb build: thin round posts + top rail + a
+  // translucent woven-mesh panel (netMaterial) instead of horizontal slats.
+  // NOTE: drawn RUNS are still rendered by buildFenceModel (arch3d.js), which
+  // only knows ranch/slat/picket/privacy — the palette keeps style:'slat' so
+  // long runs stay functional until a 'chainlink' style exists there.
+  {
+    id: 'fence_chainlink', name: 'Galvanized Chain-Link', cat: 'yard', w: 240, d: 12, h: 125, noShadow: true,
+    palettes: [
+      { name: 'Galvanized', chip: '#aeb2b6', style: 'slat', color: '#aeb2b6', post: '#8f9398', h: 125 }
+    ],
+    plan: { type: 'path' },
+    path: { mat: 'pavement', width: 12, surface: 'fence' },
+    build: (p) => {
+      p = p || {};
+      const g = G();
+      const H = p.h || 125;
+      const pm = metal(p.post || '#8f9398', 0.35);
+      // thin round line posts with dome caps
+      for (const x of [-110, 0, 110]) {
+        cyl(g, pm, 3, H, x, 0, 0, { seg: 12 });
+        sphere(g, pm, 3.6, x, H, 0, { sy: 0.6 });
+      }
+      // top rail + bottom tension wire
+      cyl(g, pm, 2, 220, 0, H - 4, 0, { rz: Math.PI / 2, seg: 10 });
+      cyl(g, pm, 0.9, 220, 0, 8, 0, { rz: Math.PI / 2, seg: 8 });
+      // woven wire fabric: translucent high-repeat grid between the posts
+      box(g, netMaterial('#3a3f44', 7, 3.5), 220, H - 14, 0.4, 0, 6, 0);
+      return g;
+    }
+  },
   drawFence('fence_wrought_run', 'Wrought Iron Fence', [
     { name: 'Wrought Iron', chip: '#24262a', style: 'picket', color: '#24262a', post: '#1c1e21', h: 135 }
   ]),
@@ -192,8 +219,11 @@ export const FENCING_ITEMS = [
       // arched corner brackets (angled struts)
       box(g, wm, 34, 6, 6, -50, AH - 20, -16, { rz: Math.PI / 4 });
       box(g, wm, 34, 6, 6, 50, AH - 20, -16, { rz: -Math.PI / 4 });
-      // climbing greenery over the top
-      foliage(g, '#4a7a3a', '#38602c', 0, AH + 10, 0, 42, 12, 3);
+      // climbing greenery over the top — small clusters spread along x so the
+      // canopy stays inside the arbor's declared 44cm depth
+      foliage(g, '#4a7a3a', '#38602c', -40, AH + 8, 0, 18, 7, 3);
+      foliage(g, '#4a7a3a', '#38602c', 0, AH + 12, 0, 18, 7, 9);
+      foliage(g, '#4a7a3a', '#38602c', 40, AH + 8, 0, 18, 7, 17);
       // the small gate hung on the front face
       box(g, gm, 120, 8, 4, 0, H * 0.22, 16);
       box(g, gm, 120, 8, 4, 0, H * 0.8, 16);
@@ -340,10 +370,20 @@ export const FENCING_ITEMS = [
       box(g, wm, 182, 12, 8, 0, H - 12, 0);
       box(g, wm, 12, H, 8, -85, 0, 0);
       box(g, wm, 12, H, 8, 85, 0, 0);
-      // crisscross lattice slats (both diagonals)
-      for (let o = -150; o <= 150; o += 26) {
-        box(g, wm, 4, 150, 3, o * 0.55, H / 2, 2, { rz: Math.PI / 4 });
-        box(g, wm, 4, 150, 3, o * 0.55, H / 2, 3, { rz: -Math.PI / 4 });
+      // crisscross lattice slats (both diagonals), each clipped to the frame
+      // opening so nothing pokes past the stiles or rails
+      const X = 80, Y0 = 10, Y1 = H - 10;      // opening half-width / rail span
+      for (const dir of [1, -1]) {
+        // dir>0 → rz +45° slats along x+y=c; dir<0 → rz −45° slats along x−y=c
+        for (let c = -(X + Y1); c <= X + Y1; c += 22) {
+          const ya = Math.max(Y0, dir > 0 ? c - X : -X - c);
+          const yb = Math.min(Y1, dir > 0 ? c + X : X - c);
+          if (yb - ya < 16) continue;
+          const yc = (ya + yb) / 2;
+          const xc = dir > 0 ? c - yc : yc + c;
+          const L = (yb - ya) * Math.SQRT2;
+          box(g, wm, 4, L, 3, xc, yc - L / 2, dir > 0 ? 2 : 3, { rz: dir * Math.PI / 4 });
+        }
       }
       return g;
     }

@@ -119,7 +119,7 @@ export const CABINET_ITEMS = [
     build: (p) => {
       const g = G();
       box(g, wood(p.wood, 0.5), 90, 76, 34, 0, 0, -1, { r: 0.5 });
-      for (const s of [-1, 1]) shakerDoor(g, 42, 70, s * 22, -35, 16, p);
+      for (const s of [-1, 1]) shakerDoor(g, 42, 70, s * 22, 3, 16, p);
       return g;
     }
   },

@@ -223,7 +223,7 @@ export const BATHROOM_ITEMS = [
   },
   // ---- Wall-hung toilet ----------------------------------------------------
   {
-    id: 'bath_toilet_wallhung', name: 'Wall-Hung Toilet', cat: 'bathroom', w: 38, d: 58, h: 42,
+    id: 'bath_toilet_wallhung', name: 'Wall-Hung Toilet', cat: 'bathroom', w: 38, d: 58, h: 72,
     elevation: 34, mount: 'wall', palettes: null, plan: { type: 'toilet' },
     build: () => {
       const g = G();
