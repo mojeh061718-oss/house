@@ -35,17 +35,17 @@ export const POOLSIDE_ITEMS = [
       const glaze = solid(p.glaze, 0.55);
       // fried ring — one real smooth torus
       torus(g, dough, 40, 17, 0, 17, 0, { seg: 48, tubeSeg: 20 });
-      // frosting cap: a slightly fatter, vertically squashed torus riding the
-      // upper half so it reads as a poured glaze band with a proud edge
-      torus(g, glaze, 40, 18.5, 0, 22, 0, { seg: 48, tubeSeg: 16, sz: 0.7 });
-      // a dozen sprinkles resting on the glaze
+      // frosting cap: a squashed torus riding high so it caps the top half
+      // while the fried dough stays visible around the lower sides
+      torus(g, glaze, 40, 18, 0, 24, 0, { seg: 48, tubeSeg: 16, sz: 0.62 });
+      // a dozen sprinkles resting ON the glaze surface
       const r = rng(7);
       const cols = ['#ef4b4b', '#f4d03f', '#3ba7e6', '#4fbf6a', '#ffffff', '#c56bd6'];
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2 + r() * 0.4;
-        const rad = 40 + (r() - 0.5) * 16;
+        const rad = 40 + (r() - 0.5) * 18;
         box(g, solid(cols[i % cols.length], 0.5), 5, 1.6, 1.8,
-          Math.cos(a) * rad, 32.5 - Math.abs(rad - 40) * 0.3, Math.sin(a) * rad,
+          Math.cos(a) * rad, 34.2 - Math.abs(rad - 40) * 0.2, Math.sin(a) * rad,
           { ry: r() * Math.PI });
       }
       return g;
