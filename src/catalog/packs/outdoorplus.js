@@ -105,7 +105,7 @@ export const OUTDOORPLUS_ITEMS = [
       }
       // half-buried tires under both ends (bump stops)
       for (const sx of [-1, 1]) {
-        torus(g, rubber, 7.5, 3.6, sx * 120, 2, 0, { rx: 0, ry: Math.PI / 2, seg: 22, tubeSeg: 10 });
+        torus(g, rubber, 7, 3.4, sx * 120, 5.5, 0, { rx: 0, ry: Math.PI / 2, seg: 22, tubeSeg: 10 });
       }
       return g;
     }
@@ -431,34 +431,35 @@ export const OUTDOORPLUS_ITEMS = [
     build: () => {
       const g = G();
       const tones = [
-        ['#5e5952', '#7d7669'], ['#544f47', '#6e6759'],
-        ['#665f54', '#87806f'], ['#4c4841', '#655f55'],
-        ['#6b6152', '#8a7d66']
+        ['#3e3b35', '#5c574e'], ['#37342e', '#4e4a42'],
+        ['#46423a', '#665f52'], ['#312e29', '#484440'],
+        ['#4a4438', '#66604e']
       ];
       const R = rng(1234);
       // three tightly packed courses of rounded fieldstones
       for (let c = 0; c < 3; c++) {
-        const yc = 14 + c * 25;
-        let x = -112 + (c % 2) * 10;
+        const yc = 14 + c * 24;
+        let x = -114 + (c % 2) * 9;
         let i = 0;
-        while (x < 108) {
-          const r = 14 + R() * 4;
-          const sx = 1.1 + R() * 0.35;
+        while (x < 98) {
+          const r = 15 + R() * 4;
+          const sx = 1.1 + R() * 0.3;
           const tone = tones[(i * 2 + c * 3 + 1) % tones.length];
-          const b = blob(g, tone[0], tone[1], r, x + r * sx * 0.7, yc + (R() - 0.5) * 2.5,
-            (R() - 0.5) * 3, { seed: c * 17 + i * 3 + 2, sy: 0.66, amp: 0.07, detail: 2 });
+          const xc = Math.min(x + r * sx * 0.7, 104);
+          const b = blob(g, tone[0], tone[1], r, xc, yc + (R() - 0.5) * 2,
+            (R() - 0.5) * 2.5, { seed: c * 17 + i * 3 + 2, sy: 0.7, amp: 0.07, detail: 2 });
           b.scale.x = sx;
           b.scale.z = Math.min(1.25, 21 / r);
-          b.rotation.y = (R() - 0.5) * 0.3;
-          x += r * 2 * sx * 0.68;
+          b.rotation.y = (R() - 0.5) * 0.25;
+          x += r * 2 * sx * 0.6;
           i++;
         }
       }
       // flatter capstones
-      const capT = ['#57534b', '#645e54'];
+      const capT = ['#3a3731', '#454138'];
       for (let x = -102; x <= 102; x += 40.5) {
         box(g, solid(capT[(Math.round(x / 40.5) & 1) ? 0 : 1], 0.95), 41, 10, 44, x, 74,
-          (R() - 0.5) * 3, { r: 4, ry: (R() - 0.5) * 0.12 });
+          (R() - 0.5) * 3, { r: 3, ry: (R() - 0.5) * 0.12 });
       }
       return g;
     }
@@ -607,12 +608,12 @@ export const OUTDOORPLUS_ITEMS = [
       torus(g, trim, 18.5, 2.2, 0, 36, 48.4, { rx: 0, seg: 24, tubeSeg: 8 });
       for (const sx of [-1, 1]) box(g, trim, 4, 30, 3, sx * 18.5, 8, 47.6);
       // cedar-shake gable roof, ridge front-to-back, wood gable ends
-      const roof = prism(g, tex('cedar_shake', 1.2, 1.2), 118, 32, 104, 0, 70, 0, wood(p.wood, 0.68));
+      const roof = prism(g, tex('cedar_shake', 3.4, 3.4), 118, 32, 104, 0, 70, 0, wood(p.wood, 0.68));
       roof.rotation.y = Math.PI / 2;
       box(g, solid('#5c4632', 0.7), 6, 5, 120, 0, 99.5, 0, { r: 2 });
-      // name plaque over the door (clear of the roof slope)
-      box(g, textMaterial('REX', { bg: '#3a2f22', fg: '#ecdfc0', border: '#c9a86a', size: 130 }),
-        24, 9, 2.5, 0, 60, 47.8);
+      // name plaque on the sunlit front gable
+      box(g, textMaterial('REX', { bg: '#e9dfc6', fg: '#3a2f22', border: '#8a6a42', size: 130 }),
+        24, 9, 2, 0, 74, 58.6);
       // food bowl on the slab by the door
       cyl(g, metal('#c0453a', 0.45), 7.5, 5, 36, 8, 44, { rTop: 9, seg: 16 });
       blob(g, '#8a6a3c', '#b89258', 6, 36, 13.5, 44, { seed: 3, sy: 0.4, detail: 1 });
