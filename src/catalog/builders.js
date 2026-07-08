@@ -659,6 +659,115 @@ export function torus(parent, material, R, tube, x, y, z, opts = {}) {
   return mesh;
 }
 
+
+// ============================================================================
+// SHAPE-QUALITY PRIMITIVES (4.2) — the difference between "stacked boxes" and
+// a defined, intriguing silhouette. Prefer these over towers of cyl()/box():
+//   lathe()   any turned/rotational profile: vases, urns, columns, lamp bases,
+//             bottles, bowls, finials, table legs — ONE call, smooth section
+//   cushion() soft-body box: inflated faces, pinched corners, center dimple —
+//             pillows, seat/back cushions, mattresses, poufs
+//   drape()   hanging cloth: gravity sag + hem wave — curtains, tablecloths,
+//             towels, bed skirts
+//   sweep()   smooth tube along a curve: railings, hoses, vines, cables,
+//             curved chair arms, faucet necks (replaces chains of segments)
+// ============================================================================
+
+/** Surface of revolution. profile = [[radius, y], ...] bottom→top (radii ≥ 0).
+ *  Base sits at local y of the first profile point (usually 0). */
+export function lathe(parent, material, profile, x = 0, y = 0, z = 0, opts = {}) {
+  const pts = profile.map(([r, py]) => new THREE.Vector2(Math.max(0.01, r), py));
+  const geo = new THREE.LatheGeometry(pts, opts.seg ?? 40);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  if (opts.ry) mesh.rotation.y = opts.ry;
+  mesh.castShadow = !opts.noShadow;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Soft cushion: a subdivided box inflated outward, corners pinched in, a
+ *  gentle dimple in the top center. Centered on x/z, base at y. */
+export function cushion(parent, material, w, h, d, x = 0, y = 0, z = 0, opts = {}) {
+  const geo = new THREE.BoxGeometry(w, h, d, 6, 3, 6);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  const puff = opts.puff ?? 0.16;      // how inflated the faces are
+  const dimple = opts.dimple ?? 0.35;  // top-center compression
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const nx = v.x / (w / 2), ny = v.y / (h / 2), nz = v.z / (d / 2);
+    // inflate: push face centers out along their dominant axis
+    const edge = Math.max(Math.abs(nx), Math.abs(ny), Math.abs(nz));
+    const centerness = 1 - Math.min(1,
+      (Math.abs(nx) + Math.abs(ny) + Math.abs(nz) - edge) / 1.2);
+    v.x += Math.sign(nx) * Math.abs(nx) * centerness * puff * (w / 2) * (1 - Math.abs(ny) * 0.4);
+    v.y += Math.sign(ny) * Math.abs(ny) * centerness * puff * (h / 2);
+    v.z += Math.sign(nz) * Math.abs(nz) * centerness * puff * (d / 2) * (1 - Math.abs(ny) * 0.4);
+    // corner pinch (fabric gathers at the seams)
+    const corner = Math.abs(nx * ny * nz);
+    v.multiplyScalar(1 - corner * 0.10);
+    // top dimple where a body would sit
+    if (ny > 0.5) {
+      const cd = Math.max(0, 1 - (nx * nx + nz * nz));
+      v.y -= cd * dimple * (h / 6);
+    }
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y + h / 2, z);
+  if (opts.rx) mesh.rotation.x = opts.rx;
+  if (opts.ry) mesh.rotation.y = opts.ry;
+  if (opts.rz) mesh.rotation.z = opts.rz;
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Hanging cloth panel: top edge fixed, body sags toward the middle, hem
+ *  waves in and out of the plane. Faces ±z; centered on x, TOP at y. */
+export function drape(parent, material, w, h, x = 0, y = 0, z = 0, opts = {}) {
+  const geo = new THREE.PlaneGeometry(w, h, 12, 8);
+  const pos = geo.attributes.position;
+  const sagAmt = opts.sag ?? h * 0.04;
+  const waveAmt = opts.wave ?? Math.min(9, w * 0.06);
+  const folds = opts.folds ?? Math.max(3, Math.round(w / 34));
+  const seed = opts.seed ?? 1;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i), py = pos.getY(i);
+    const down = (h / 2 - py) / h;               // 0 at top → 1 at hem
+    const across = px / (w / 2);                 // -1..1
+    // hem folds: alternating in/out waves that grow toward the bottom
+    const wavePhase = across * folds * Math.PI + seed;
+    pos.setZ(i, Math.sin(wavePhase) * waveAmt * down * down);
+    // slight inward gather at the sides as it falls
+    pos.setX(i, px * (1 - down * 0.05));
+    // the middle of the hem hangs a touch lower than the fixed top corners
+    pos.setY(i, py - Math.max(0, (1 - across * across)) * sagAmt * down);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y - h / 2, z);
+  if (opts.ry) mesh.rotation.y = opts.ry;
+  mesh.castShadow = !opts.noShadow;
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Smooth tube along a Catmull-Rom curve through pts=[[x,y,z],...]. Use for
+ *  anything that BENDS: handrails, hoses, vines, faucet necks, cables. */
+export function sweep(parent, material, pts, radius, opts = {}) {
+  const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)),
+    false, 'catmullrom', opts.tension ?? 0.5);
+  const geo = new THREE.TubeGeometry(curve, opts.seg ?? Math.max(12, pts.length * 6),
+    radius, opts.radialSeg ?? 10, false);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = !opts.noShadow;
+  parent.add(mesh);
+  return mesh;
+}
+
 // ---- flags ----------------------------------------------------------------
 
 const flagTexCache = new Map();

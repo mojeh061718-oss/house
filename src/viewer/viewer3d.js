@@ -398,6 +398,41 @@ export class Viewer3D {
     return model;
   }
 
+  /** Shared soft radial "contact shadow" texture (built once). A gentle dark
+   *  pool under every grounded item sells contact with the floor far better
+   *  than the directional shadow map alone — the single cheapest realism win
+   *  per drawn triangle in the whole renderer. */
+  contactTexture() {
+    if (this._contactTex) return this._contactTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(64, 64, 8, 64, 64, 62);
+    grad.addColorStop(0, 'rgba(0,0,0,0.42)');
+    grad.addColorStop(0.55, 'rgba(0,0,0,0.20)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    this._contactTex = new THREE.CanvasTexture(c);
+    this._contactMat = new THREE.MeshBasicMaterial({
+      map: this._contactTex, transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -1
+    });
+    return this._contactTex;
+  }
+
+  addContactShadow(outer, it, def) {
+    if (def.noShadow || def.mount || def.path || def.areaDraw) return;
+    if (def.plan?.type === 'roof' || (it.h || 0) < 8) return;
+    this.contactTexture();
+    const w = (it.w || 40) * 1.18, d = (it.d || 40) * 1.18;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), this._contactMat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.45;   // just above the floor plane under the item base
+    mesh.renderOrder = 1;
+    outer.add(mesh);
+  }
+
   rebuildItems() {
     this.disposeGroup(this.itemsGroup);
     this.itemGroups.clear();
@@ -446,6 +481,7 @@ export class Viewer3D {
         outer.userData.photo = it.photo;
         outer.userData.sign = it.sign;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
+        this.addContactShadow(outer, it, def);
         if (def.light && this._litItems.has(it.id)) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
           l.position.set(0, def.mount === 'ceiling' ? wallH + def.light.y : def.light.y, 0);

@@ -224,6 +224,71 @@ If a seat, top, or handle is materially off these, fix the internal Y values —
 even when the overall bbox is correct. Always sanity-check the piece against a
 mental image of a person using it.
 
+
+## Shape-quality primitives (4.2) — use these FIRST
+
+Four builders exist specifically to kill the "stacked boxes" look. Reach for
+them before composing towers of cyl()/box():
+
+| Helper | Use for | Never again |
+|---|---|---|
+| `lathe(g, mat, [[r,y],...], x, y, z, {seg})` | vases, urns, columns, bottles, bowls, lamp bases, finials, turned table legs — any rotational profile in ONE smooth call | stacking 5 cylinders of different radii |
+| `cushion(g, mat, w, h, d, x, y, z, {puff, dimple})` | pillows, seat/back cushions, mattresses, poufs — inflated faces, pinched corners, a sit dimple | a rounded box pretending to be soft |
+| `drape(g, mat, w, h, x, topY, z, {sag, wave, folds, seed})` | curtains, tablecloths, towels, bed skirts — top edge fixed, hem waves and sags | flat planes / accordion wavyPanels as cloth |
+| `sweep(g, mat, [[x,y,z],...], r, {seg})` | handrails, hoses, vines, cables, faucet necks, curved chair arms — a smooth tube along a curve | chains of straight segments with visible elbows |
+
+Also available: `torus()` for rings/tubes, `segment()` for tapered
+point-to-point limbs, `blob()` (noise is radius-relative; small bushes are
+properly lumpy) and `water(sizeCm)` (ripples scale with the surface).
+
+The viewer merges same-material meshes per item (`mergeItemModel`), so a
+detailed build with shared materials costs a handful of draw calls. Budget
+≤ ~80 raw primitives; blobs/glow/net materials stay individual.
+
+The viewer also drops a soft contact-shadow disc under every grounded item
+automatically — do NOT bake your own floor-darkening geometry.
+
+## Failure catalog — every one of these shipped once and got rejected
+
+1. **Coplanar faces z-fight (white flashing).** A soil top at exactly the pot
+   rim height, a cushion top at exactly the arm height. Recess or overlap by
+   ≥1.5cm — never let two faces share a plane.
+2. **Blob-through-wall.** A foliage/cloth blob wider than its container pokes
+   through the side and shows raw facets. Keep organic masses INSIDE hard
+   shells; bury their equators, expose only crowns.
+3. **Protruding low-poly silhouette.** Any blob/sphere that BREAKS the outer
+   silhouette shows its polygons against the sky. detail:3 minimum there, or
+   keep it inside the outline.
+4. **Bead chains.** Necks/tubes built from visible sphere runs. Use `sweep`
+   or radius-blended `segment` chains with matching joint spheres.
+5. **Core swallows massing.** A connective core (barrel, trunk) larger than
+   the shaping masses around it reads as a tube with end rims. The core is
+   30% SMALLER than the silhouette masses, always.
+6. **Size lies.** Built bbox must be 0.35–1.45× of def w/d/h per axis —
+   verify-allbuild FAILS the build otherwise. Fix the def or the geometry,
+   whichever is dishonest.
+7. **Mutating cached materials.** solid/wood/metal/tex results are SHARED.
+   Emissive → `glow()`. Nets → `netMaterial()`. Per-instance color → a new
+   solid() with the actual hex.
+8. **Floating parts.** Every sub-part connects: ropes reach their hooks,
+   struts meet their frames, handles touch their doors. Feet/base at y=0.
+9. **Glass sorting artifacts.** Multi-pane glass boxes flicker; prefer single
+   panes, avoid nested transparent shells.
+10. **Texture scale lies.** A brick texture at the wrong repeat reads as
+    painted stripes. Match `tex(mat, rx, ry)` repeats to real-world module
+    size (a brick course is ~7cm, a plank ~14cm wide).
+
+## Definition of done (per asset — all six or it does not ship)
+
+- [ ] Silhouette reads as the real object from az=35 AND az=200 renders
+- [ ] No z-fighting, no clipping, no floating parts, base grounded at y=0
+- [ ] bbox within contract (run the in-page Box3 check)
+- [ ] Materials: cached helpers only, palette hexes honored, no mutations
+- [ ] ≤ ~80 raw primitives; organic masses at detail 3
+- [ ] At least one "intrigue detail" — the thing that makes it specific:
+      a lemon wheel in the pitcher, a worn brass spigot, stitching on a
+      cushion, a propped-open lid. Generic objects are the enemy.
+
 ## Hard constraints (do not regress)
 
 - **Procedural + lightweight.** No heavy glTF imports. A few dozen primitives per
