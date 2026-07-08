@@ -42,11 +42,11 @@ export const CABINET_ITEMS = [
       // L-shaped carcass + kick so the diagonal front is actually exposed
       box(g, solid('#2b2622', 0.7), 84, 8, 42, 0, 0, -21);
       box(g, solid('#2b2622', 0.7), 42, 8, 42, -21, 0, 21);
-      box(g, solid('#2b2622', 0.7), 58, 8, 4, 20.5, 0, 20.5, { ry: -Math.PI / 4 }); // kick under door
+      box(g, solid('#2b2622', 0.7), 58, 8, 4, 20.5, 0, 20.5, { ry: Math.PI / 4 }); // kick under door
       box(g, cab, 90, 78, 45, 0, 8, -22.5, { r: 0.5 });
       box(g, cab, 45, 78, 45, -22.5, 8, 22.5, { r: 0.5 });
       // diagonal door across the front-right (+x,+z) corner
-      box(g, wood(p.wood, 0.45), 62, 70, 2.5, 23, 12, 23, { ry: -Math.PI / 4 });
+      box(g, wood(p.wood, 0.45), 62, 70, 2.5, 23, 12, 23, { ry: Math.PI / 4 });
       turnedKnob(g, hw(p), 20, 52, 27.5, 2.4, Math.PI / 4);
       box(g, solid(p.top, 0.3), 98, 6, 98, 0, 86, 0, { r: 1 }); // counter overhang
       return g;
@@ -67,8 +67,6 @@ export const CABINET_ITEMS = [
         turnedKnob(g, hw(p), s * 8, 47, 48.4, 2.2);
       }
       box(g, solid(p.top, 0.3), 100, 6, 100, 0, 86, 0, { r: 1 });
-      // round turntable shelves peeking through
-      for (const sy of [30, 60]) cyl(g, solid('#cfcabd', 0.5), 30, 2, 0, sy, 0, { seg: 28 });
       return g;
     }
   },
@@ -82,7 +80,7 @@ export const CABINET_ITEMS = [
       // L-shaped carcass exposes the diagonal door
       box(g, cab, 64, 74, 32, 0, 0, -16, { r: 0.5 });
       box(g, cab, 32, 74, 32, -16, 0, 16, { r: 0.5 });
-      box(g, wood(p.wood, 0.45), 46, 70, 2.4, 16, 2, 16, { ry: -Math.PI / 4 });
+      box(g, wood(p.wood, 0.45), 46, 70, 2.4, 16, 2, 16, { ry: Math.PI / 4 });
       turnedKnob(g, hw(p), 13.5, 20, 20.5, 2.2, Math.PI / 4);
       return g;
     }
@@ -201,7 +199,7 @@ export const CABINET_ITEMS = [
       for (const x of [-52, 0, 52]) { box(g, wood(p.wood, 0.45), 44, 22, 2.4, x, 54, 24.2, { r: 0.5 }); handleBar(g, x, 55, 26.4, 18, false, hw(p)); } // drawer row
       for (const x of [-52, 0, 52]) { box(g, wood(p.wood, 0.45), 44, 36, 2.4, x, 16, 24.2, { r: 0.5 }); turnedKnob(g, hw(p), x, 34, 25.6, 2.2); } // door row
       // tapered legs
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, wood(p.wood, 0.5), 3, 10, sx * 70, 5, sz * 20, { rTop: 1.6 });
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, wood(p.wood, 0.5), 3, 11, sx * 70, 0, sz * 20, { rTop: 1.6 });
       box(g, solid(p.top, 0.3), 154, 4, 52, 0, 84, 0, { r: 1 });
       return g;
     }
@@ -213,7 +211,7 @@ export const CABINET_ITEMS = [
     build: (p) => {
       const g = G();
       const cab = wood(p.wood, 0.5);
-      box(g, cab, 120, 82, 46, 0, 4, 0, { r: 1 });                 // base
+      box(g, cab, 120, 86, 46, 0, 0, 0, { r: 1 });                 // base (grounded)
       for (const x of [-30, 30]) { box(g, wood(p.wood, 0.45), 54, 60, 2.4, x, 12, 22.2, { r: 0.5 }); turnedKnob(g, hw(p), x + (x > 0 ? -20 : 20), 40, 23.4, 2.2); }
       box(g, solid(p.top, 0.3), 124, 4, 50, 0, 86, 0, { r: 1 });   // mid counter
       // glass upper hutch — OPEN carcass so the china actually shows

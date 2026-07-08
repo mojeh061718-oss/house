@@ -107,11 +107,11 @@ export const KITCHEN_ITEMS = [
       // carcass built as an L so the diagonal door is actually exposed
       box(g, solid(KICK, 0.85), 94, 9, 47, 0, 0, -23.5);
       box(g, solid(KICK, 0.85), 47, 9, 47, -23.5, 0, 23.5);
-      box(g, solid(KICK, 0.85), 60, 9, 4, 21.5, 0, 21.5, { ry: -Math.PI / 4 }); // kick under the door
+      box(g, solid(KICK, 0.85), 60, 9, 4, 21.5, 0, 21.5, { ry: Math.PI / 4 }); // kick under the door
       box(g, carcass(p), 98, 77, 49, 0, 9, -24.5, { r: 0.8 });
       box(g, carcass(p), 49, 77, 49, -24.5, 9, 24.5, { r: 0.8 });
       // angled corner door face (diagonal front)
-      box(g, door(p), 62, 66, 1.6, 24, 14, 24, { ry: -Math.PI / 4 });
+      box(g, door(p), 62, 66, 1.6, 24, 14, 24, { ry: Math.PI / 4 });
       handleBar(g, 21, 22, 29, 12, true);
       // full square stone counter (one slab — no coplanar overlap, covers the corner)
       box(g, tex(p.top, 0.8, 0.8), 100, 4.5, 100, 0, 87, 0, { r: 0.6 });
@@ -178,6 +178,7 @@ export const KITCHEN_ITEMS = [
     build: () => {
       const g = G();
       const body = STEEL();
+      box(g, solid('#1a1c1e', 0.6), 70, 2.4, 54, 0, 0, -2);   // recessed plinth (grounded)
       box(g, body, 76, 84, 60, 0, 2, -2, { r: 1 });
       // big double oven glass door + full-width bar handle
       box(g, solid(DARKGLASS, 0.15), 66, 46, 2, 0, 16, 30, { r: 1 });
