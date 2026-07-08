@@ -64,6 +64,9 @@ const SHOTS = [
     run: async (p) => {
       await dismissPrompts(p);
       await p.click('[data-view="3d"]');
+      // the hint pill fades on its own timer — hide it so shot timing can't
+      // produce a phantom 2% diff at the bottom of the frame
+      await p.evaluate(() => document.getElementById('hintPill')?.classList.add('hidden'));
       await p.waitForTimeout(3800);
       await p.evaluate(() => homestudio.viewer.applyTimeOfDay(12));
       await p.waitForTimeout(2000); // let lighting/camera fully settle (day keyframe)

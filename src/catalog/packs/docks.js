@@ -278,28 +278,29 @@ export const DOCKS_ITEMS = [
     build: (p) => {
       const g = G();
       const hull = solid(p.hull, 0.45);
-      // slim hull: overlapping flattened sphere sections tapering to both tips
-      sphere(g, hull, 28, 0, 12, 0, { sy: 0.42, sz: 2.4, seg: 24 });        // midships
+      // slim hull: long overlapping flattened sections blending into the tips
+      sphere(g, hull, 28, 0, 12, 0, { sy: 0.42, sz: 3.4, seg: 26 });         // midships (long)
       for (const s of [-1, 1]) {
-        sphere(g, hull, 23, 0, 11.5, s * 85, { sx: 0.85, sy: 0.4, sz: 2.2, seg: 20 });
-        sphere(g, hull, 14, 0, 10, s * 132, { sx: 0.75, sy: 0.36, sz: 1.9, seg: 16 });
+        sphere(g, hull, 20, 0, 11, s * 105, { sx: 0.85, sy: 0.38, sz: 2.0, seg: 20 });
+        sphere(g, hull, 11, 0, 10, s * 140, { sx: 0.7, sy: 0.34, sz: 1.6, seg: 16 });
         // bow / stern points rising to the tips
-        segment(g, hull, [0, 9, s * 128], [0, 13, s * 158], 7.5, 1.8, 12);
+        segment(g, hull, [0, 10, s * 138], [0, 14, s * 159], 6, 1.5, 12);
       }
       // raised cockpit coaming (real torus rim, clearly proud of the deck)
-      torus(g, solid(p.hull, 0.35), 20, 3, 0, 23.5, -8, { sx: 0.95, sy: 1.4, seg: 36, tubeSeg: 10 });
+      torus(g, solid(p.hull, 0.35), 20, 3, 0, 24.5, -8, { sx: 0.95, sy: 1.4, seg: 36, tubeSeg: 10 });
       // dark cockpit well + seat with a low backband
-      const well = cyl(g, solid('#26282c', 0.7), 17, 7, 0, 17, -8, { seg: 24 });
+      const well = cyl(g, solid('#26282c', 0.7), 17, 8, 0, 17, -8, { seg: 24 });
       well.scale.z = 1.55;
-      box(g, solid('#3a3d42', 0.8), 24, 3, 26, 0, 18.5, -14, { r: 4 });
-      box(g, solid('#3a3d42', 0.8), 22, 8, 3, 0, 19, -27, { r: 1.5, rx: -0.2 });
-      // deck lines: two low bungee cleat dots on the foredeck
-      for (const z of [60, 92]) box(g, solid('#26282c', 0.6), 16, 1.4, 2, 0, 22 - (z - 60) * 0.045, z, { r: 0.7 });
-      // paddle stowed diagonally across the cockpit, inside the footprint
+      box(g, solid('#3a3d42', 0.8), 24, 3, 26, 0, 19.5, -14, { r: 4 });
+      box(g, solid('#3a3d42', 0.8), 22, 8, 3, 0, 20, -27, { r: 1.5, rx: -0.2 });
+      // deck bungee lines hugging the foredeck curve
+      box(g, solid('#26282c', 0.6), 16, 1.4, 2, 0, 21.0, 60, { r: 0.7 });
+      box(g, solid('#26282c', 0.6), 13, 1.4, 2, 0, 17.4, 84, { r: 0.7 });
+      // paddle resting across the cockpit coaming, inside the footprint
       const shaft = solid('#2b2d31', 0.5);
-      segment(g, shaft, [-21, 25, -74], [21, 25, 82], 1.7, 1.7, 10);
+      segment(g, shaft, [-20, 27, -70], [20, 27, 78], 2.1, 2.1, 10);
       for (const s of [-1, 1]) {
-        const bl = sphere(g, solid('#c9c4b6', 0.5), 10, s * 21, 25, s * 78 + s * 4, { sx: 0.42, sy: 0.14, sz: 1.7, seg: 14 });
+        const bl = sphere(g, solid('#c9c4b6', 0.5), 12, s * 20, 27, s * 82, { sx: 0.42, sy: 0.18, sz: 1.6, seg: 14 });
         bl.rotation.y = 0.26;
       }
       return g;
@@ -373,31 +374,33 @@ export const DOCKS_ITEMS = [
       const floor = wood('#c2a877', 0.6);
       const trim = wood('#6f4d31', 0.5);
       const seat = wood('#8a5a2b', 0.55);
-      // flat bottom board
-      box(g, floor, 88, 5, 248, 0, 0, -30, { r: 2 });
+      // flat bottom boards (main run + tapering bow boards)
+      box(g, floor, 82, 5, 200, 0, 0, -58, { r: 2 });
+      box(g, floor, 34, 5, 56, 0, 0, 88, { r: 2 });
+      box(g, floor, 16, 5, 30, 0, 0, 135, { r: 2 });
       for (const s of [-1, 1]) {
-        // flared side planks (tops lean outward)
-        box(g, hullm, 6, 46, 256, s * 47, 0, -30, { rz: -s * 0.2 });
-        // converging bow planks meeting at the stem
-        box(g, hullm, 6, 44, 86, s * 23, 2, 130, { ry: -s * 0.6, rz: -s * 0.12 });
-        // gunwale caps
-        box(g, trim, 7, 4, 256, s * 51.5, 44, -30, { r: 1 });
-        box(g, trim, 7, 4, 86, s * 26, 44, 130, { ry: -s * 0.6, r: 1 });
+        // flared side planks, slightly toed-in toward the stern
+        box(g, hullm, 6, 46, 200, s * 46, 0, -58, { ry: s * 0.05, rz: -s * 0.22 });
+        // long raked bow planks converging at the stem
+        box(g, hullm, 6, 44, 135, s * 27, 2, 105, { ry: -s * 0.364, rz: -s * 0.15 });
+        // gunwale caps following the sheer
+        box(g, trim, 7, 4, 202, s * 50.5, 44, -58, { ry: s * 0.05, r: 1 });
+        box(g, trim, 6, 4, 134, s * 30, 44, 105, { ry: -s * 0.364, r: 1 });
         // oarlock pins
-        cyl(g, chrome(), 1.2, 7, s * 51, 45, -6, { seg: 8 });
+        cyl(g, chrome(), 1.2, 7, s * 50, 45, -8, { seg: 8 });
         // oars shipped inboard, blades forward, resting on the thwarts
-        cyl(g, wood('#a9713c', 0.5), 2, 230, s * 22, 36, -10, { rx: Math.PI / 2, seg: 10 });
-        box(g, wood('#a9713c', 0.5), 8, 2.5, 40, s * 22, 34.5, 118, { r: 2 });
+        cyl(g, wood('#a9713c', 0.5), 2, 230, s * 21, 36, -12, { rx: Math.PI / 2, seg: 10 });
+        sphere(g, wood('#a9713c', 0.5), 11, s * 21, 36, 112, { sx: 0.35, sy: 0.14, sz: 1.6, seg: 12 });
       }
       // bow stem post
-      segment(g, trim, [0, 0, 160], [0, 50, 169], 4, 3, 10);
+      segment(g, trim, [0, 0, 162], [0, 52, 170], 4, 2.8, 10);
       // flat transom + cap rail
-      box(g, hullm, 98, 44, 6, 0, 1, -160, { r: 2 });
-      box(g, trim, 102, 4, 9, 0, 45, -160, { r: 1 });
+      box(g, hullm, 86, 44, 6, 0, 1, -156, { r: 2 });
+      box(g, trim, 90, 4, 9, 0, 45, -156, { r: 1 });
       // three bench thwarts
-      box(g, seat, 96, 5, 22, 0, 30, -105);
-      box(g, seat, 102, 5, 22, 0, 30, -10);
-      box(g, seat, 82, 5, 22, 0, 30, 85);
+      box(g, seat, 84, 5, 22, 0, 30, -105);
+      box(g, seat, 92, 5, 22, 0, 30, -12);
+      box(g, seat, 62, 5, 22, 0, 30, 85);
       return g;
     }
   },
@@ -415,29 +418,29 @@ export const DOCKS_ITEMS = [
       const g = G();
       const hull = solid(p.hull, 0.45);
       const deckm = wood('#c2a877', 0.55);
-      // hull: overlapping flattened sections tapering to a bow point (+Z)
+      // hull: overlapping flattened sections with ALIGNED tops for a smooth
+      // sheer line, tapering to a bow point (+Z)
       sphere(g, hull, 66, 0, 30, -10, { sx: 0.95, sy: 0.42, sz: 2.2, seg: 26 });
-      sphere(g, hull, 48, 0, 32, 90, { sx: 0.72, sy: 0.38, sz: 1.7, seg: 22 });
-      sphere(g, hull, 54, 0, 30, -110, { sx: 0.85, sy: 0.4, sz: 1.25, seg: 22 });
-      segment(g, hull, [0, 34, 150], [0, 48, 184], 10, 2, 14);       // bow point
-      box(g, hull, 64, 26, 6, 0, 12, -180, { r: 3, rx: 0.12 });      // flat transom
-      // teak deck caps
-      sphere(g, deckm, 60, 0, 51, -10, { sx: 0.8, sy: 0.15, sz: 2.2, seg: 24 });
-      sphere(g, deckm, 40, 0, 51, 95, { sx: 0.58, sy: 0.13, sz: 1.7, seg: 18 });
+      sphere(g, hull, 48, 0, 37.5, 90, { sx: 0.7, sy: 0.42, sz: 1.7, seg: 22 });
+      sphere(g, hull, 54, 0, 35, -115, { sx: 0.85, sy: 0.42, sz: 1.25, seg: 22 });
+      segment(g, hull, [0, 40, 145], [0, 52, 186], 9, 2, 14);        // bow point
+      // teak deck caps sealing the hull top
+      sphere(g, deckm, 62, 0, 56, -8, { sx: 0.78, sy: 0.1, sz: 2.35, seg: 24 });
+      sphere(g, deckm, 36, 0, 56, 100, { sx: 0.55, sy: 0.09, sz: 1.9, seg: 18 });
       // low cabin trunk with side ports, cockpit well aft, tiller
-      box(g, solid('#e8e2d4', 0.6), 54, 15, 66, 0, 56, 12, { r: 5 });
-      for (const s of [-1, 1]) box(g, solid('#2b3a44', 0.4), 2, 5, 40, s * 27.5, 63, 12, { r: 1 });
-      box(g, solid('#3a3d42', 0.7), 44, 6, 64, 0, 55, -95, { r: 8 });
-      segment(g, wood('#8a5a2b', 0.5), [0, 62, -122], [0, 68, -88], 1.4, 1.1, 8);
+      box(g, solid('#e8e2d4', 0.6), 54, 14, 66, 0, 61, 12, { r: 5 });
+      for (const s of [-1, 1]) box(g, solid('#2b3a44', 0.4), 2, 5, 40, s * 27.5, 67, 12, { r: 1 });
+      box(g, solid('#3a3d42', 0.7), 44, 6, 64, 0, 59, -95, { r: 8 });
+      segment(g, wood('#8a5a2b', 0.5), [0, 66, -122], [0, 72, -88], 1.4, 1.1, 8);
       // rig: mast (trimmed to an honest daysailer proportion) + boom + stays
       const mast = metal('#d2d5d8', 0.35);
-      cyl(g, mast, 3.2, 310, 0, 58, 40);
-      cyl(g, mast, 2.2, 140, 0, 74, -30, { rx: Math.PI / 2 });
-      segment(g, mast, [0, 364, 40], [0, 54, 174], 0.8, 0.8, 6);     // forestay
-      segment(g, mast, [0, 364, 40], [0, 44, -176], 0.8, 0.8, 6);    // backstay
+      cyl(g, mast, 3.2, 318, 0, 62, 40);
+      cyl(g, mast, 2.2, 140, 0, 82, -30, { rx: Math.PI / 2 });
+      segment(g, mast, [0, 376, 40], [0, 60, 178], 0.8, 0.8, 6);     // forestay
+      segment(g, mast, [0, 376, 40], [0, 58, -152], 0.8, 0.8, 6);    // backstay
       // sails: taut thin triangles — main on the boom, jib on the forestay
-      prism(g, solid('#f4f1e8', 0.9), 3, 288, 136, 0, 76, -28);
-      prism(g, solid('#ece9df', 0.9), 3, 145, 108, 0, 64, 108);
+      prism(g, solid('#f4f1e8', 0.9), 3, 282, 136, 0, 84, -28);
+      prism(g, solid('#ece9df', 0.9), 3, 145, 108, 0, 66, 108);
       return g;
     }
   },

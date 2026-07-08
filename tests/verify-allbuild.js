@@ -68,9 +68,10 @@ const URL = process.env.APP_URL || 'http://localhost:4173/';
   console.log('size contract violations (' + res.sizeLies.length + '):');
   for (const l of res.sizeLies) console.log('  ' + l);
   if (errs.length) console.log('PAGE ERRORS:', errs.join('\n'));
-  // size lies are reported but only enforced with STRICT_SIZE=1 — the backlog
-  // is being burned down item-by-item in the asset realism pass
-  const sizeFail = process.env.STRICT_SIZE === '1' && res.sizeLies.length > 0;
+  // the size contract is ENFORCED — the whole catalog reached zero violations
+  // in the 4.0 asset pass and must stay there (LENIENT_SIZE=1 to bypass while
+  // iterating locally)
+  const sizeFail = process.env.LENIENT_SIZE !== '1' && res.sizeLies.length > 0;
   console.log(res.throws.length || errs.length || sizeFail ? 'FAIL' : 'PASS');
   await b.close();
 })();

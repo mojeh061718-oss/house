@@ -309,17 +309,20 @@ export const DECKS_ITEMS = [
       // skirting band
       box(g, solid('#3a2f26', 0.85), 320, H - 8, 4, 0, 4, 145);
       box(g, solid('#3a2f26', 0.85), 320, H - 8, 4, 0, 4, -145);
-      // deck surface with a square opening left-of-center for the tub
-      deckBand(g, 320, 300, 12, p, 0, 0, { hole: { w: 150, d: 150, x: 70, z: 0 } });
-      // recessed hot tub in the opening
+      // deck surface RAISED onto the platform, with a square tub opening
+      const band = G();
+      deckBand(band, 320, 300, 12, p, 0, 0, { hole: { w: 150, d: 150, x: 70, z: 0 } });
+      band.position.y = H - 12;
+      g.add(band);
+      // sunken hot tub filling the opening, brim proud of the deck
       const cx = 70;
       box(g, solid('#2b2d31', 0.6), 150, H, 150, cx, 0, 0);      // shell
       box(g, tex('tile_white', 0.8, 0.8), 138, H - 2, 138, cx, 2, 0);
-      box(g, solid('#1d4a63', 0.4), 132, H - 1, 132, cx, 3, 0);      // dark basin tint
+      box(g, solid('#1d4a63', 0.4), 132, H - 1, 132, cx, 3, 0);  // dark basin tint
       const wt = box(g, water(150), 130, H, 130, cx, 4, 0);
       wt.receiveShadow = true;
-      // a few jets / bubbles
-      for (const jz of [-40, 0, 40]) sphere(g, glow('#dff2f6', 0.3), 4, cx, H - 2, jz, { seg: 8 });
+      // a few jets / bubbles at the water surface
+      for (const jz of [-40, 0, 40]) sphere(g, glow('#dff2f6', 0.3), 4, cx, H + 3, jz, { seg: 8 });
       return g;
     }
   },

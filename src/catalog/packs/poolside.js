@@ -61,8 +61,9 @@ export const POOLSIDE_ITEMS = [
     build: (p) => {
       const g = G();
       const pink = solid(p.body, 0.6);
-      // inflatable ring base the rider sits in
-      torus(g, pink, 34, 13, 0, 13, 0, { seg: 44, tubeSeg: 16, sy: 1.25 });
+      // inflatable ring base the rider sits in (settled a touch into the water
+      // plane so the tube never z-fights the ground)
+      torus(g, pink, 34, 13, 0, 12.4, 0, { seg: 44, tubeSeg: 16, sy: 1.25 });
       // massed body: overlapping spheres so the union reads as one smooth form
       sphere(g, pink, 26, 0, 30, -6, { sx: 1.05, sy: 0.8, sz: 1.5, seg: 20 });  // body core
       sphere(g, pink, 20, 0, 28, 28, { sz: 1.1, seg: 18 });                     // chest
@@ -96,8 +97,8 @@ export const POOLSIDE_ITEMS = [
     build: () => {
       const g = G();
       const white = solid('#f4f4f2', 0.6);
-      // inflatable ring base
-      torus(g, white, 34, 13, 0, 13, 0, { seg: 44, tubeSeg: 16, sy: 1.25 });
+      // inflatable ring base (settled slightly so it never z-fights the ground)
+      torus(g, white, 34, 13, 0, 12.4, 0, { seg: 44, tubeSeg: 16, sy: 1.25 });
       // massed body
       sphere(g, white, 28, 0, 30, -4, { sy: 0.85, sz: 1.6, seg: 20 });   // body core
       sphere(g, white, 20, 0, 32, 30, { sz: 1.05, seg: 18 });            // breast
@@ -106,8 +107,9 @@ export const POOLSIDE_ITEMS = [
         sphere(g, white, 20, s * 19, 38, -12, { sx: 0.45, sy: 0.85, sz: 1.5, seg: 16 });
         sphere(g, white, 14, s * 14, 50, -30, { sx: 0.36, sy: 0.7, sz: 1.2, seg: 14 });
       }
-      // upswept pointed tail
-      segment(g, white, [0, 36, -42], [0, 58, -62], 9, 2.5, 12);
+      // upswept tail: soft base puff + gently pointed tip
+      sphere(g, white, 10, 0, 38, -44, { sx: 0.6, sz: 1.1, seg: 14 });
+      segment(g, white, [0, 40, -46], [0, 56, -60], 6, 2, 12);
       // tall smooth S-neck: tapered segment chain
       chain(g, white, [
         [0, 36, 36, 8.5], [0, 56, 46, 7.5], [0, 72, 46, 6.8],
@@ -116,8 +118,8 @@ export const POOLSIDE_ITEMS = [
       // head + orange bill with the black basal knob
       sphere(g, white, 8.5, 0, 93, 23, { sz: 1.2, seg: 18 });
       for (const s of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 1.6, s * 4.6, 95.5, 27, { seg: 10 });
-      segment(g, solid('#e8862e', 0.5), [0, 92, 30], [0, 89, 42], 3.4, 1.3, 12);
-      sphere(g, solid('#1c1c1e', 0.5), 2.8, 0, 94, 30.5, { seg: 10 });
+      segment(g, solid('#e8862e', 0.5), [0, 92, 29], [0, 88, 44], 3.6, 1.3, 12);
+      sphere(g, solid('#1c1c1e', 0.5), 2.7, 0, 94.5, 30, { seg: 10 });
       return g;
     }
   },
@@ -431,7 +433,7 @@ export const POOLSIDE_ITEMS = [
     }
   },
   {
-    id: 'pool_volley_net', name: 'Pool Volleyball Net', cat: 'outdoor', w: 470, d: 16, h: 118,
+    id: 'pool_volley_net', name: 'Pool Volleyball Net', cat: 'outdoor', w: 470, d: 32, h: 118,
     palettes: null,
     plan: { type: 'box' },
     build: () => {
@@ -454,26 +456,27 @@ export const POOLSIDE_ITEMS = [
     build: () => {
       const g = G();
       const post = wood('#7a5a3c', 0.7);
+      const rope = solid('#d8cdb4', 0.8);
       box(g, solid('#3a3d42', 0.6), 44, 6, 30, 0, 0, 0, { r: 3 });    // base
-      cyl(g, post, 4, 120, 0, 6, 0);                                  // post
-      box(g, post, 40, 5, 5, 0, 92, 0);                              // hanging arm
-      // life ring mounted vertically facing +Z: one smooth white torus
-      const cy = 62, R = 26, r = 7;
-      torus(g, solid('#f2f2ee', 0.55), R, r, 0, cy, 8, { rx: 0, seg: 44, tubeSeg: 14 });
+      cyl(g, post, 4, 122, 0, 6, 0);                                  // post
+      box(g, post, 5, 5, 26, 0, 104, 9);                              // hanging arm toward +Z
+      // ring hangs off the +Z face of the post, lashed to the arm end
+      const cy = 60, R = 26, r = 7;
+      segment(g, rope, [0, 107, 19], [0, 93.5, 9], 1.2, 1.2, 8);      // hanging lashing
+      // life ring: one smooth white torus facing +Z
+      torus(g, solid('#f2f2ee', 0.55), R, r, 0, cy, 9, { rx: 0, seg: 44, tubeSeg: 14 });
       // four red rescue bands wrapping the tube at the diagonals
       const band = solid('#d63a3a', 0.55);
       for (let i = 0; i < 4; i++) {
         const a = Math.PI / 4 + (i / 4) * Math.PI * 2;
-        box(g, band, 16.5, 13, 16.5, Math.cos(a) * R, cy + Math.sin(a) * R - 6.5, 8,
-          { r: 6.2, seg: 4, rz: a });
+        box(g, band, 15.6, 11, 15.6, Math.cos(a) * R, cy + Math.sin(a) * R - 5.5, 9,
+          { r: 5.6, seg: 4, rz: a });
       }
-      // four rope-wrap marks at top/bottom/sides (grab line lashings)
-      const rope = solid('#d8cdb4', 0.8);
-      torus(g, rope, r + 0.9, 0.9, R, cy, 8, {});                        // side: tangent vertical
-      torus(g, rope, r + 0.9, 0.9, -R, cy, 8, {});
-      torus(g, rope, r + 0.9, 0.9, 0, cy + R, 8, { rx: 0, ry: Math.PI / 2 }); // top: tangent along x
-      torus(g, rope, r + 0.9, 0.9, 0, cy - R, 8, { rx: 0, ry: Math.PI / 2 });
-      for (const sx of [-1, 1]) cyl(g, post, 1.5, 34, sx * 12, 92, 8, { rx: 0.5 }); // support ropes
+      // four rope-wrap marks at top/bottom/sides (grab-line lashings)
+      torus(g, rope, r + 0.9, 0.9, R, cy, 9, {});                        // sides: tangent vertical
+      torus(g, rope, r + 0.9, 0.9, -R, cy, 9, {});
+      torus(g, rope, r + 0.9, 0.9, 0, cy + R, 9, { rx: 0, ry: Math.PI / 2 }); // top/bottom
+      torus(g, rope, r + 0.9, 0.9, 0, cy - R, 9, { rx: 0, ry: Math.PI / 2 });
       return g;
     }
   },

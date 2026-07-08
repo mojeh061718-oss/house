@@ -77,15 +77,16 @@ export const LOUNGE_ITEMS = [
       strut(g, fr, 0, 184, -18, 0, 195, 4, 3.6, { rTop: 3 });
       sphere(g, fr, 3.6, 0, 195, 4, { seg: 10 });
       // hanging chain from hook to pod crown
-      strut(g, fr, 0, 195, 4, 0, 156, 5, 1.1);
-      // egg shell + warm dark interior placed so a real opening reads at +Z
-      sphere(g, wick, 46, 0, 108, 4, { sy: 1.1, seg: 26 });
-      sphere(g, solid('#453a2c', 0.9), 39, 0, 106, 18, { sy: 1.05, seg: 22 });
-      // woven rim lip framing the opening
-      torus(g, wickDark, 36, 3, 0, 104, 32, { rx: 0.15, seg: 40, tubeSeg: 10 });
-      // cushions inside the shell
-      box(g, fab, 56, 14, 44, 0, 84, 10, { r: 10 });
-      box(g, fab, 52, 38, 12, 0, 94, -14, { r: 10, rx: -0.18 });
+      strut(g, fr, 0, 195, 4, 0, 160, -12, 1.1);
+      // open-basket pod: squashed bowl + tall back shell form an egg with a
+      // REAL front-top opening, so the cushions genuinely show
+      sphere(g, wick, 43, 0, 86, 4, { sy: 0.62, seg: 26 });          // basket bowl
+      sphere(g, wick, 40, 0, 118, -18, { sy: 1.2, sz: 0.9, seg: 26 }); // wrapping back shell
+      // woven lip running the basket rim
+      torus(g, wickDark, 41, 2.5, 0, 111, 4, { seg: 44, tubeSeg: 10 });
+      // cushions in the opening
+      box(g, fab, 46, 12, 40, 0, 106, 2, { r: 8 });                  // seat pad
+      box(g, fab, 42, 34, 10, 0, 114, 2, { r: 8, rx: -0.22 });       // back pad
       return g;
     }
   },
@@ -94,7 +95,7 @@ export const LOUNGE_ITEMS = [
     palettes: FAB, plan: { type: 'lounger' },
     build: (p) => {
       const g = G();
-      const fr = metal('#3a3d40', 0.4);
+      const fr = metal('#4c4f53', 0.45);
       const fab = solid(p.fabric, 0.95);
       const rope = solid('#cfc9ba', 0.85);
       // steel stand: ground beam, cross feet, arched arms rising to hooks
@@ -119,7 +120,7 @@ export const LOUNGE_ITEMS = [
         strip.rotation.z = Math.atan2(y1 - y0, x1 - x0);
       }
       for (const s of [-1, 1]) {
-        cyl(g, wood(p.frame, 0.6), 2.4, 78, s * BX, sagY(1), 0, { rx: Math.PI / 2, seg: 10 }); // spreader bar
+        cyl(g, wood('#a9825a', 0.6), 2.6, 78, s * BX, sagY(1), 0, { rx: Math.PI / 2, seg: 10 }); // spreader bar
         // taut ropes fanning from the spreader bar to the stand hooks
         for (const rz of [-34, -12, 12, 34]) strut(g, rope, s * BX, sagY(1), rz, s * HX, HY, 0, 0.8);
       }
