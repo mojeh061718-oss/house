@@ -924,20 +924,30 @@ export const ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      // clipped hedge: a squared leafy core block with lumpy two-tone foliage
-      // masses breaking up every face (deep shade sides -> sunlit top)
-      box(g, solid('#35592c', 0.95), 188, 76, 42, 0, 5, 0, { r: 12, seg: 3 });
-      for (const [bx, bz, sd] of [[-72, 3, 90], [-25, -4, 95], [25, 4, 100], [72, -3, 105]]) {
-        const m = blob(g, '#2e5b2e', '#54823a', 26, bx, 40, bz, { seed: sd, sy: 1.35 });
-        m.scale.x = 1.3; m.scale.z = 0.66;
+      // Clipped hedge: a rounded leafy core block, its top and faces broken by
+      // MANY small high-detail foliage tufts that stay INSIDE the silhouette —
+      // big stretched blobs poked out of the ends and read as faceted lumps.
+      box(g, solid('#3a602e', 0.95), 188, 74, 44, 0, 3, 0, { r: 14, seg: 4 });
+      let sd = 90;
+      // large half-BURIED tufts: only their crowns break the clipped surface,
+      // so the hedge reads as one undulating leafy mass (small surface-mounted
+      // tufts read as warts; big protruding blobs read as faceted lumps)
+      for (let bx = -76; bx <= 76; bx += 19) {
+        blob(g, '#3a632c', '#548238', 20 + (sd % 3) * 3, bx, 62 - (sd % 2) * 5, ((sd % 2) ? 5 : -5),
+          { seed: sd++, sy: 0.75, detail: 3, amp: 0.07 });
       }
-      for (const [bx, sd] of [[-55, 108], [0, 112], [55, 116]]) {
-        const m = blob(g, '#417034', '#6fa049', 24, bx, 74, 0, { seed: sd, sy: 0.55 });
-        m.scale.x = 1.5; m.scale.z = 0.85;
+      for (const zs of [1, -1]) {
+        for (let bx = -64; bx <= 64; bx += 32) {
+          blob(g, '#345a2a', '#4e7c35', 17 + (sd % 3) * 3, bx + (sd % 2) * 7, 34 + (sd % 3) * 10, zs * 8,
+            { seed: sd++, sy: 0.9, detail: 3, amp: 0.07 });
+        }
+      }
+      for (const xs of [1, -1]) {
+        blob(g, '#38602c', '#54823a', 18, xs * 80, 40, 0, { seed: sd++, sy: 1.0, detail: 3, amp: 0.06 });
       }
       // woody trunk stubs peeking out under the foliage skirt
       const bark = solid('#4a3826', 0.95);
-      for (const bx of [-62, 0, 62]) cyl(g, bark, 2.6, 14, bx, 0, 0, { rTop: 2 });
+      for (const bx of [-62, 0, 62]) cyl(g, bark, 2.6, 12, bx, 0, 0, { rTop: 2 });
       return g;
     }
   },
