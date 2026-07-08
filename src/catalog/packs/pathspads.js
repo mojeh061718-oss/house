@@ -25,8 +25,8 @@ function paint(g, mat, w, d, x, z, topY, ry = 0) {
 // palettes
 
 const CONCRETE_PADS = [
-  { name: 'Broom Grey', chip: '#bdb9b1', mat: 'concrete_broom', scale: 150, joint: '#8f8b82' },
   { name: 'Panel Smooth', chip: '#a5a29b', mat: 'pavement', scale: 200, joint: '#7d7a73' },
+  { name: 'Broom Grey', chip: '#bdb9b1', mat: 'concrete_broom', scale: 150, joint: '#8f8b82' },
   { name: 'Warm Buff', chip: '#c9c0ae', mat: 'real_tumbled_cream', scale: 220, joint: '#95896f' }
 ];
 const PAVER_PADS = [
@@ -45,9 +45,9 @@ const SPORT_PADS = [
   { name: 'Asphalt / Gold', chip: '#3a3c40', base: '#3b3d42', key: '#7d3b31', line: '#f3d05a' }
 ];
 const PLAY_PADS = [
-  { name: 'Meadow Green', chip: '#5b9068', base: '#5b9068', band: '#83b285', dot: '#cfe3c4' },
-  { name: 'Harbor Blue', chip: '#4d7fae', base: '#4d7fae', band: '#7fa9cc', dot: '#d3e3ef' },
-  { name: 'Terracotta', chip: '#bf7350', base: '#bf7350', band: '#d69a72', dot: '#f0dbc0' }
+  { name: 'Meadow Green', chip: '#5b9068', base: '#33684a', band: '#4c8862', dot: '#a8cba4' },
+  { name: 'Harbor Blue', chip: '#4d7fae', base: '#2e567e', band: '#45749e', dot: '#a9c6dd' },
+  { name: 'Terracotta', chip: '#bf7350', base: '#96543a', band: '#b5744f', dot: '#e3c39c' }
 ];
 const PARKING_PADS = [
   { name: 'Asphalt / White', chip: '#3a3c40', mat: 'asphalt', scale: 320, line: '#e8e6df', stop: '#b8b4ab' },
@@ -55,8 +55,8 @@ const PARKING_PADS = [
   { name: 'Concrete / Yellow', chip: '#a5a29b', mat: 'pavement', scale: 200, line: '#d9b846', stop: '#8f8b82' }
 ];
 const FIREPIT_PADS = [
-  { name: 'Grey / Slate', chip: '#9a938a', mat: 'gravel', scale: 140, stone: '#6d6a64', stone2: '#7d7a72', core: '#57534d' },
-  { name: 'White / Cream', chip: '#cfccc4', mat: 'real_gravel_white', scale: 220, stone: '#b3a488', stone2: '#c2b498', core: '#8a8276' }
+  { name: 'Grey / Slate', chip: '#9a938a', mat: 'gravel', scale: 140, stone: '#4e4b46', stone2: '#5f5b54', core: '#38342f' },
+  { name: 'White / Cream', chip: '#cfccc4', mat: 'real_gravel_white', scale: 220, stone: '#8f8065', stone2: '#a2916f', core: '#5c554a' }
 ];
 const HOTTUB_PADS = [
   { name: 'Broom Concrete', chip: '#bdb9b1', mat: 'concrete_broom', scale: 150, cap: 'pavement', cscale: 200 },
@@ -73,8 +73,8 @@ function buildConcretePad(p, w, d, h) {
   const joint = solid(p.joint, 0.92);
   const nx = Math.min(4, Math.max(1, Math.round(w / 170) - 1));
   const nz = Math.min(3, Math.max(0, Math.round(d / 170) - 1));
-  for (let i = 1; i <= nx; i++) paint(g, joint, 1.6, d - 5, -w / 2 + (w * i) / (nx + 1), 0, h + 0.1);
-  for (let i = 1; i <= nz; i++) paint(g, joint, w - 5, 1.6, 0, -d / 2 + (d * i) / (nz + 1), h + 0.1);
+  for (let i = 1; i <= nx; i++) paint(g, joint, 2.4, d - 5, -w / 2 + (w * i) / (nx + 1), 0, h + 0.1);
+  for (let i = 1; i <= nz; i++) paint(g, joint, w - 5, 2.4, 0, -d / 2 + (d * i) / (nz + 1), h + 0.1);
   return g;
 }
 
@@ -115,24 +115,24 @@ function buildSportPad(p, w, d, h) {
   const iw = w - 2 * inset, idp = d - 2 * inset;
   const top = h;
   // boundary
-  paint(g, line, iw, 3, 0, -idp / 2, top + 0.1);
-  paint(g, line, iw, 3, 0, idp / 2, top + 0.1);
-  paint(g, line, 3, idp, -iw / 2, 0, top + 0.1);
-  paint(g, line, 3, idp, iw / 2, 0, top + 0.1);
+  paint(g, line, iw, 4, 0, -idp / 2, top + 0.1);
+  paint(g, line, iw, 4, 0, idp / 2, top + 0.1);
+  paint(g, line, 4, idp, -iw / 2, 0, top + 0.1);
+  paint(g, line, 4, idp, iw / 2, 0, top + 0.1);
   // painted key against the -z baseline
   const kw = Math.min(120, iw * 0.4);
   const kl = Math.min(idp * 0.45, 180);
   const keyFill = box(g, solid(p.key, 0.85), kw, 0.25, kl, 0, top, -idp / 2 + kl / 2);
   keyFill.castShadow = false;
-  paint(g, line, 3, kl, -kw / 2, -idp / 2 + kl / 2, top + 0.35);
-  paint(g, line, 3, kl, kw / 2, -idp / 2 + kl / 2, top + 0.35);
-  paint(g, line, kw + 3, 3, 0, -idp / 2 + kl, top + 0.35);
-  // free-throw arc: short tangent segments over the key top
-  const r = kw / 2, cx = 0, cz = -idp / 2 + kl, segs = 7;
+  paint(g, line, 4, kl, -kw / 2, -idp / 2 + kl / 2, top + 0.35);
+  paint(g, line, 4, kl, kw / 2, -idp / 2 + kl / 2, top + 0.35);
+  paint(g, line, kw + 4, 4, 0, -idp / 2 + kl, top + 0.35);
+  // free-throw arc: overlapping tangent segments so it reads as one stroke
+  const r = kw / 2, cx = 0, cz = -idp / 2 + kl, segs = 10;
   for (let i = 0; i < segs; i++) {
     const a = (Math.PI * (i + 0.5)) / segs;
-    const segLen = ((Math.PI * r) / segs) * 1.06;
-    paint(g, line, segLen, 3, cx + Math.cos(a) * r, cz + Math.sin(a) * r, top + 0.35, a + Math.PI / 2);
+    const segLen = ((Math.PI * r) / segs) * 1.3;
+    paint(g, line, segLen, 4, cx + Math.cos(a) * r, cz + Math.sin(a) * r, top + 0.35, Math.PI / 2 - a);
   }
   return g;
 }
@@ -162,8 +162,8 @@ function buildHottubPad(p, w, d, h) {
   const plate = metal('#9aa0a6', 0.45);
   const ix = w / 2 - Math.min(30, w / 5), iz = d / 2 - Math.min(30, d / 5);
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    box(g, plate, 12, 0.8, 12, sx * ix, h, sz * iz, { r: 0.4 });
-    cyl(g, metal('#6d7278', 0.4), 1.3, 1.5, sx * ix, h, sz * iz, { seg: 10 });
+    box(g, plate, 12, 0.7, 12, sx * ix, h, sz * iz, { r: 0.3 });
+    cyl(g, metal('#6d7278', 0.4), 1.3, 0.5, sx * ix, h + 0.7, sz * iz, { seg: 10 });
   }
   cyl(g, metal('#6d7278', 0.5), 4, 0.6, 0, h, 0, { seg: 16 }); // conduit stub cap
   return g;
@@ -179,7 +179,7 @@ function buildParkingPad(p, w, d, h) {
   const len = d * 0.86;
   for (let i = 0; i <= stalls; i++) {
     const x = -w / 2 + i * sw;
-    paint(g, line, 3.5, len, Math.max(-w / 2 + 2, Math.min(w / 2 - 2, x)), -d / 2 + len / 2 + 4, h + 0.1);
+    paint(g, line, 3.5, len, Math.max(-w / 2 + 7, Math.min(w / 2 - 7, x)), -d / 2 + len / 2 + 4, h + 0.1);
   }
   const stopM = solid(p.stop, 0.85);
   for (let i = 0; i < stalls; i++) {
@@ -294,13 +294,13 @@ export const PATHSPADS_ITEMS = [
     buildSized: (p, w, d) => buildPlayPad(p, w, d, 10)
   },
   {
-    id: 'padp_hottub', name: 'Hot Tub Pad', cat: 'paths', w: 260, d: 260, h: 12,
+    id: 'padp_hottub', name: 'Hot Tub Pad', cat: 'paths', w: 260, d: 260, h: 13,
     noShadow: true, areaDraw: true, palettes: HOTTUB_PADS, plan: { type: 'slab' },
     build: (p) => buildHottubPad(p, 260, 260, 12),
     buildSized: (p, w, d) => buildHottubPad(p, w, d, 12)
   },
   {
-    id: 'padp_parking', name: 'Parking Pad', cat: 'paths', w: 500, d: 520, h: 8,
+    id: 'padp_parking', name: 'Parking Pad', cat: 'paths', w: 500, d: 520, h: 12,
     noShadow: true, areaDraw: true, palettes: PARKING_PADS, plan: { type: 'slab' },
     build: (p) => buildParkingPad(p, 500, 520, 8),
     buildSized: (p, w, d) => buildParkingPad(p, w, d, 8)
