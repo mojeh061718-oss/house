@@ -218,7 +218,16 @@ export class Viewer3D {
     if (!this.sun) return;
     const focus = this.walkMode ? this.walk.pos : this.orbit.target;
     const half = clamp((this.orbit?.radius ?? 900) * 1.15, 500, 2600);
-    this.sun.target.position.set(focus.x, 0, focus.z);
+    // SNAP the tracked target to whole shadow-texel steps: retargeting the
+    // frustum continuously re-rasterized the map with sub-texel offsets every
+    // orbit frame, which shimmered ("white flashing") on bright surfaces
+    const texel = (half * 2) / 2048;
+    const step = Math.max(texel * 8, 4);
+    const tx = Math.round(focus.x / step) * step;
+    const tz = Math.round(focus.z / step) * step;
+    if (this.sun.target.position.x !== tx || this.sun.target.position.z !== tz) {
+      this.sun.target.position.set(tx, 0, tz);
+    }
     const s = this.sun.shadow.camera;
     if (Math.abs(s.right - half) > half * 0.15) { // resize on meaningful change only
       s.left = -half; s.right = half; s.top = half; s.bottom = -half;

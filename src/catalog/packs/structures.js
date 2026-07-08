@@ -226,7 +226,9 @@ export const STRUCTURES_ITEMS = [
       const pot = solid(p.chip, 0.85);
       // tapered vessel
       box(g, pot, 52, 58, 52, 0, 0, 0, { r: 4 });
-      box(g, solid('#2b2016', 0.98), 44, 6, 44, 0, 52, 0);
+      // soil sits RECESSED below the rim — a soil top coplanar with the pot
+      // top z-fights (white flashing as the camera moves)
+      box(g, solid('#2b2016', 0.98), 44, 6, 44, 0, 50, 0);
       // slim modern shrub: trunk + foliage crown
       cyl(g, wood('#6a533a', 0.6), 3, 40, 0, 56, 0);
       foliage(g, '#3f5f2c', '#88b04c', 0, 108, 0, 30, 12, 42);

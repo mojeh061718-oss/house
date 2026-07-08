@@ -270,7 +270,7 @@ export const DECKS_ITEMS = [
       for (const sz of [-1, 1]) box(g, dm, 90, 44, 4, 0, 6, sz * 19);
       for (const sx of [-1, 1]) box(g, dm, 4, 44, 42, sx * 43, 6, 0);
       box(g, dm, 92, 5, 44, 0, 46, 0, { r: 1 }); // top cap rail
-      box(g, solid('#3a2c20', 0.95), 82, 6, 34, 0, 40, 0); // soil
+      box(g, solid('#3a2c20', 0.95), 82, 6, 34, 0, 38, 0); // soil (recessed, no rim z-fight)
       // foliage crowns ABOVE the cap rail, contained to the box depth — the
       // old wide low clusters bulged straight through the slatted walls
       foliage(g, '#3d5a2e', '#7ba05a', 0, 58, 0, 20, 9, 5);

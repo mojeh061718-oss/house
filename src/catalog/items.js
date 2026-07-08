@@ -2412,7 +2412,7 @@ export const ITEMS = [
     build: (p) => {
       const g = G();
       box(g, wood(p.wood, 0.75), 110, 40, 42, 0, 0, 0, { r: 2 });
-      box(g, solid('#4a3a28', 0.98), 100, 4, 34, 0, 36, 0);
+      box(g, solid('#4a3a28', 0.98), 100, 4, 34, 0, 34.5, 0); // recessed below rim (no z-fight)
       // crowns clear of the rim and inside the footprint (no wall clipping)
       foliage(g, '#4e6b34', '#5f8040', -28, 58, 0, 12, 5, 41);
       foliage(g, '#5d7a4c', '#728f5e', 6, 60, 2, 13, 5, 42);

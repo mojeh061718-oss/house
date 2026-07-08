@@ -29,6 +29,12 @@ function el(tag, cls = '', html = '') {
 
 const deg = rad => { let d = Math.round((rad * 180 / Math.PI) % 360); if (d < 0) d += 360; return d; };
 
+/** Overlays must live INSIDE #app: the forced-landscape rotation transforms
+ *  #app only, so anything appended to <body> renders unrotated (the Studio
+ *  Keys panel showed up portrait across a landscape studio). position:fixed
+ *  resolves against the transformed #app, which is exactly what we want. */
+const overlayRoot = () => document.getElementById('app') || document.body;
+
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -976,7 +982,7 @@ export class UI {
         <div class="offline-sub" id="offSub">Starting…</div>
         <div class="offline-track"><div class="offline-fill" id="offFill"></div></div>
       </div>`;
-    document.body.appendChild(ov);
+    overlayRoot().appendChild(ov);
     const fill = ov.querySelector('#offFill');
     const sub = ov.querySelector('#offSub');
     try {
@@ -2165,7 +2171,7 @@ export class UI {
         const r = e.target.closest('[data-r]')?.dataset.r;
         if (r) { scrim.remove(); resolve(r); }
       });
-      document.body.appendChild(scrim);
+      overlayRoot().appendChild(scrim);
     });
   }
 
@@ -2213,7 +2219,7 @@ export class UI {
         if (e.key === 'Enter') done(true);
         else if (e.key === 'Escape') done(false);
       });
-      document.body.appendChild(scrim);
+      overlayRoot().appendChild(scrim);
       setTimeout(() => { input.focus(); input.select(); }, 30);
     });
   }
@@ -2236,7 +2242,7 @@ export class UI {
       scrim.addEventListener('click', e => {
         if (e.target.closest('[data-r]')) { scrim.remove(); resolve(); }
       });
-      document.body.appendChild(scrim);
+      overlayRoot().appendChild(scrim);
     });
   }
 
@@ -2261,7 +2267,7 @@ export class UI {
         const r = e.target.closest('[data-r]')?.dataset.r;
         if (r != null) { scrim.remove(); resolve(r === '1'); }
       });
-      document.body.appendChild(scrim);
+      overlayRoot().appendChild(scrim);
     });
   }
 
@@ -2305,7 +2311,7 @@ export class UI {
         </div>
       </div>`;
     scrim.addEventListener('click', e => { if (e.target.closest('[data-r]') || e.target === scrim) scrim.remove(); });
-    document.body.appendChild(scrim);
+    overlayRoot().appendChild(scrim);
   }
 
   /** Print-ready plan sheet: render, preview, then print (→ PDF via the iOS
@@ -2351,7 +2357,7 @@ export class UI {
         window.print();
       }
     });
-    document.body.appendChild(scrim);
+    overlayRoot().appendChild(scrim);
   }
 
   /** STUDIO KEYS — the in-app keyboard for touch devices. iOS's system
@@ -2376,6 +2382,7 @@ export class UI {
     panel.id = 'gameKeys';
     this._keysTarget = input;
     input.classList.add('keys-active');
+    const readout = `<div class="gk-val" id="gkVal">${escapeHtml(input.value || '')}</div>`;
     const key = (label, val, cls = '') =>
       `<button class="gk ${cls}" data-k="${escapeHtml(val ?? label)}">${escapeHtml(label)}</button>`;
     const rows = (defs) => defs.map(r => `<div class="gk-row">${r}</div>`).join('');
@@ -2398,7 +2405,9 @@ export class UI {
     ]);
     let upper = true;
     const paint = (layout) => {
-      panel.innerHTML = layout === 'len' ? LEN : layout === 'nums' ? NUMS : textRows(upper);
+      panel.innerHTML = readout + (layout === 'len' ? LEN : layout === 'nums' ? NUMS : textRows(upper));
+      const v = panel.querySelector('#gkVal');
+      if (v) v.textContent = input.value || '';
     };
     paint(mode);
     panel.addEventListener('pointerdown', e => e.preventDefault()); // keep field "focus"
@@ -2421,8 +2430,10 @@ export class UI {
         if (inp.value.length < max) inp.value += k;
       }
       inp.dispatchEvent(new Event('input', { bubbles: true }));
+      const v = panel.querySelector('#gkVal');
+      if (v) v.textContent = inp.value || '';
     });
-    document.body.appendChild(panel);
+    overlayRoot().appendChild(panel);
     // tapping anywhere outside commits and closes (like the system keyboard)
     this._keysOutside = (e) => {
       if (panel.contains(e.target) || e.target === input) return;

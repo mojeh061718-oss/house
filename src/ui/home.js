@@ -30,7 +30,7 @@ function confirmModal({ title, message, okLabel = 'OK', danger = false }) {
       const r = e.target.closest('[data-r]')?.dataset.r;
       if (r != null) { scrim.remove(); resolve(r === '1'); }
     });
-    document.body.appendChild(scrim);
+    (document.getElementById('app') || document.body).appendChild(scrim);
   });
 }
 
@@ -51,7 +51,7 @@ function noticeModal(message, title = 'Home Studio') {
     scrim.addEventListener('click', e => {
       if (e.target.closest('[data-r]')) { scrim.remove(); resolve(); }
     });
-    document.body.appendChild(scrim);
+    (document.getElementById('app') || document.body).appendChild(scrim);
   });
 }
 
