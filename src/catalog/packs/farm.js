@@ -19,12 +19,12 @@ function leg(g, mat, x, z, h, r) {
 function leg2(g, mat, hoofMat, x, zTop, topY, r, front = true) {
   const dir = front ? 1 : -1;
   const kneeY = topY * 0.46;
-  const kneeZ = zTop + dir * topY * 0.11;
-  const footZ = zTop - dir * topY * 0.05;
+  const kneeZ = zTop + dir * topY * 0.07;
+  const footZ = zTop - dir * topY * 0.02;
   segment(g, mat, [x, topY, zTop], [x, kneeY, kneeZ], r, r * 0.72, 10);      // upper leg
-  segment(g, mat, [x, kneeY, kneeZ], [x, r * 1.2, footZ], r * 0.66, r * 0.5, 10); // cannon
+  segment(g, mat, [x, kneeY, kneeZ], [x, r * 1.1, footZ], r * 0.66, r * 0.5, 10); // cannon
   sphere(g, mat, r * 0.78, x, kneeY, kneeZ, { sy: 1.15, seg: 10 });           // knee
-  cyl(g, hoofMat, r * 0.6, r * 2.4, x, 0, footZ, { rTop: r * 0.52, seg: 10 }); // hoof
+  cyl(g, hoofMat, r * 0.62, r * 1.7, x, 0, footZ, { rTop: r * 0.5, seg: 10 }); // hoof
 }
 // a couple of galvanised carry-handles used on troughs / cans
 function ring(g, mat, r, x, y, z) {
@@ -61,13 +61,11 @@ export const FARM_ITEMS = [
       leg2(g, legMat, HOOF, -28, -70, 80, 11, false);
       leg2(g, legMat, HOOF, 28, -70, 80, 11, false);
       // slim connective core — the flattened masses SHAPE the silhouette
-      segment(g, hide, [0, 104, -78], [0, 108, 66], 27, 24, 18);
-      sphere(g, hide, 50, 0, 94, -10, { sx: 0.8, sy: 0.78, sz: 1.3 });    // deep sagging belly
-      sphere(g, hide, 42, 0, 106, 56, { sx: 0.8, sy: 0.82, sz: 0.9 });    // shoulder mass
-      sphere(g, hide, 43, 0, 106, -74, { sx: 0.86, sy: 0.84, sz: 0.82 }); // hindquarters
-      sphere(g, hide, 24, 0, 122, 56, { sx: 0.62, sy: 0.72, sz: 0.95 });  // withers hump
-      sphere(g, hide, 25, 0, 122, -74, { sx: 0.7, sy: 0.68, sz: 0.85 });  // hip/rump ridge
-      sphere(g, hide, 14, 0, 84, 88, { sx: 0.6, sy: 1.3, sz: 0.65 });     // dewlap
+      segment(g, hide, [0, 102, -80], [0, 106, 68], 30, 27, 18);
+      sphere(g, hide, 48, 0, 96, -8, { sx: 0.82, sy: 0.82, sz: 1.35 });   // deep sagging belly
+      sphere(g, hide, 40, 0, 104, 50, { sx: 0.82, sy: 0.9, sz: 0.9 });    // shoulder mass
+      sphere(g, hide, 41, 0, 104, -70, { sx: 0.88, sy: 0.92, sz: 0.85 }); // hindquarters
+      sphere(g, hide, 12, 0, 90, 82, { sx: 0.55, sy: 1.1, sz: 0.55 });    // dewlap
       // arched neck → head
       segment(g, hide, [0, 112, 68], [0, 122, 108], 17, 11, 12);
       sphere(g, hide, 17, 0, 124, 112, { sx: 0.78, sy: 0.92, sz: 1.0 });
@@ -179,10 +177,10 @@ export const FARM_ITEMS = [
       leg2(g, hide, HOOF, -16, -32, 27, 7, false);
       leg2(g, hide, HOOF, 16, -32, 27, 7, false);
       // slim connective core; big low round masses make the silhouette
-      segment(g, hide, [0, 34, -40], [0, 36, 36], 16, 14, 14);
-      sphere(g, hide, 28, 0, 32, -4, { sx: 0.86, sy: 0.8, sz: 1.2 });   // low round belly
-      sphere(g, hide, 23, 0, 36, -36, { sx: 0.9, sy: 0.86, sz: 0.85 }); // hams
-      sphere(g, hide, 22, 0, 36, 28, { sx: 0.9, sy: 0.86, sz: 0.9 });   // shoulders
+      segment(g, hide, [0, 34, -40], [0, 36, 36], 18, 16, 14);
+      sphere(g, hide, 28, 0, 32, -4, { sx: 0.86, sy: 0.8, sz: 1.3 });   // low round belly
+      sphere(g, hide, 23, 0, 33, -32, { sx: 0.9, sy: 0.82, sz: 0.9 });  // hams
+      sphere(g, hide, 22, 0, 33, 26, { sx: 0.9, sy: 0.82, sz: 0.95 });  // shoulders
       // head blends straight off the shoulders (no neck)
       sphere(g, hide, 17, 0, 38, 48, { sx: 0.92, sy: 0.88, sz: 0.95 });
       sphere(g, hide, 9, 0, 34, 58, { sx: 0.85, sy: 0.8, sz: 0.9 });    // snout bridge
@@ -194,8 +192,8 @@ export const FARM_ITEMS = [
       sphere(g, solid('#1a1512', 0.35), 1.7, 8, 44, 55);
       // floppy triangular ears drooping forward over the eyes
       for (const s of [-1, 1]) {
-        const e = pyramid(g, hide, 11, 14, 3.5, s * 10, 46, 51);
-        e.rotation.x = 2.45; e.rotation.z = s * -0.35;
+        const e = pyramid(g, hide, 9, 13, 3, s * 9, 43, 50);
+        e.rotation.x = 2.6; e.rotation.z = s * -0.25;
       }
       // curly corkscrew tail — a loop of tiny tapered segments
       segment(g, hide, [0, 42, -46], [3, 46, -50], 2.2, 1.8, 8);
@@ -235,18 +233,18 @@ export const FARM_ITEMS = [
       blob(g, wool, '#ffffff', 33, 0, 60, -4, { seed: 5, sy: 0.92, detail: 3 });
       blob(g, wool, '#ffffff', 28, 0, 62, 26, { seed: 8, sy: 0.94, detail: 3 });
       blob(g, wool, '#ffffff', 26, 0, 60, -36, { seed: 3, sy: 0.92, detail: 3 });
-      blob(g, wool, '#ffffff', 20, 0, 68, 42, { seed: 11, sy: 0.9, detail: 3 }); // chest/neck wool
-      // bare head + face out in front of the fleece
-      sphere(g, face, 13, 0, 68, 52, { sx: 0.78, sy: 1.0, sz: 1.05 });
-      segment(g, face, [0, 66, 56], [0, 61, 66], 8, 5, 10);             // muzzle
-      sphere(g, face, 5.5, 0, 60, 66, { sx: 0.8, sy: 0.75, sz: 0.85 });
-      blob(g, wool, '#ffffff', 9.5, 0, 78, 49, { seed: 2, detail: 2, sy: 0.8 }); // lambs-wool crown
+      blob(g, wool, '#ffffff', 17, 0, 64, 38, { seed: 11, sy: 0.9, detail: 3 }); // chest/neck wool
+      // bare head + face held up clear of the fleece
+      sphere(g, face, 12.5, 0, 76, 56, { sx: 0.76, sy: 1.0, sz: 1.05 });
+      segment(g, face, [0, 74, 60], [0, 68, 70], 7.5, 4.5, 10);         // muzzle
+      sphere(g, face, 5, 0, 67, 70, { sx: 0.8, sy: 0.75, sz: 0.85 });
+      blob(g, wool, '#ffffff', 9, 0, 86, 53, { seed: 2, detail: 2, sy: 0.75 }); // lambs-wool crown
       for (const s of [-1, 1]) {
-        const ear = sphere(g, face, 6.5, s * 13, 68, 48, { sx: 1.0, sy: 0.4, sz: 0.55 });
+        const ear = sphere(g, face, 6.5, s * 12, 76, 52, { sx: 1.0, sy: 0.4, sz: 0.55 });
         ear.rotation.z = s * -0.3;
       }
-      sphere(g, solid('#141210', 0.4), 1.8, -6, 71, 59);               // eyes
-      sphere(g, solid('#141210', 0.4), 1.8, 6, 71, 59);
+      sphere(g, solid('#141210', 0.4), 1.8, -5.8, 79, 63);             // eyes
+      sphere(g, solid('#141210', 0.4), 1.8, 5.8, 79, 63);
       blob(g, wool, '#ffffff', 8, 0, 56, -50, { seed: 6, detail: 2 });  // tail tuft
       return g;
     }
@@ -269,10 +267,10 @@ export const FARM_ITEMS = [
       leg2(g, hide, HOOF, -14, -34, 47, 4.8, false);
       leg2(g, hide, HOOF, 14, -34, 47, 4.8, false);
       // slim connective core; compact masses make the silhouette
-      segment(g, hide, [0, 58, -38], [0, 60, 34], 14, 12, 14);
-      sphere(g, hide, 23, 0, 54, -2, { sx: 0.7, sy: 0.8, sz: 1.15 });    // belly
-      sphere(g, hide, 19, 0, 60, 28, { sx: 0.74, sy: 0.86, sz: 0.9 });   // shoulders
-      sphere(g, hide, 19, 0, 60, -32, { sx: 0.78, sy: 0.86, sz: 0.85 }); // hindquarters
+      segment(g, hide, [0, 58, -38], [0, 60, 34], 16, 14, 14);
+      sphere(g, hide, 23, 0, 55, -2, { sx: 0.7, sy: 0.82, sz: 1.25 });   // belly
+      sphere(g, hide, 19, 0, 58, 26, { sx: 0.74, sy: 0.9, sz: 0.95 });   // shoulders
+      sphere(g, hide, 19, 0, 58, -30, { sx: 0.78, sy: 0.9, sz: 0.9 });   // hindquarters
       // neck up to a wedge head
       segment(g, hide, [0, 64, 32], [0, 80, 50], 10, 7.5, 12);
       sphere(g, hide, 10.5, 0, 82, 52, { sx: 0.74, sy: 0.92, sz: 1.0 });
@@ -371,15 +369,22 @@ export const FARM_ITEMS = [
       segment(g, beakM, [0, 52, 18], [0, 50, 25], 2.6, 0.3, 8);
       sphere(g, eye, 1.3, -5, 54, 16);
       sphere(g, eye, 1.3, 5, 54, 16);
-      // grand arched sickle tail — tapered segments rising then curving down
+      // grand arched sickle tail — each feather is a smooth 3-segment arc
+      // rising from the tail base, cresting, then draping down and back
       for (let i = 0; i < 5; i++) {
         const s = i % 2 ? 1 : -1;
-        const dx = 1 + i * 0.9;
-        segment(g, tailc, [s * 1.5, 40, -12], [s * dx, 57 - i * 3.5, -22 - i * 2.5], 2.1 - i * 0.15, 1.4, 8);
-        segment(g, tailc, [s * dx, 57 - i * 3.5, -22 - i * 2.5], [s * (dx + 1.5), 34 - i * 3.5, -31 - i * 1.2], 1.4, 0.3, 8);
+        const f = 1 - i * 0.13;                 // outer feathers shorter
+        const dx = 1.6 + i * 0.7;
+        const a = [s * 1.2, 39, -13];
+        const b = [s * dx * 0.7, 39 + 17 * f, -13 - 8 * f];
+        const c = [s * dx, 39 + 19 * f, -13 - 16 * f];
+        const d = [s * (dx + 1), 39 + 5 * f, -13 - 22 * f];
+        segment(g, tailc, a, b, 2.3, 1.7, 8);
+        segment(g, tailc, b, c, 1.7, 1.1, 8);
+        segment(g, tailc, c, d, 1.1, 0.25, 8);
       }
-      // short covert tuft at the tail base
-      sphere(g, tailc, 5, 0, 40, -14, { sx: 0.8, sy: 1.0, sz: 1.2 });
+      // short covert tuft filling the tail base
+      sphere(g, tailc, 6, 0, 38, -13, { sx: 0.75, sy: 1.1, sz: 1.2 });
       return g;
     }
   },

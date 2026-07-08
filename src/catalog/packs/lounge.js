@@ -1,7 +1,7 @@
 // Modern outdoor lounge & entertainment pack. Built only from primitive
 // helpers; all dimensions in cm, origin at footprint center on the floor,
 // front faces +Z.
-import { G, box, cyl, sphere, glass, glow, tex, solid, wood, metal } from '../builders.js';
+import { G, box, cyl, sphere, glass, glow, tex, solid, wood, metal, strut, torus } from '../builders.js';
 
 // fabric/frame palettes for cushioned seating
 const FAB = [
@@ -68,15 +68,24 @@ export const LOUNGE_ITEMS = [
       const g = G();
       const fr = metal('#2e3033', 0.4);
       const wick = solid('#b89a6a', 0.85);
+      const wickDark = solid('#93744c', 0.85);
       const fab = solid(p.fabric, 0.95);
-      box(g, fr, 26, 8, 90, 0, 0, -40, { r: 4 });        // base plate
-      cyl(g, fr, 4, 190, 0, 8, -40);                      // pole
-      cyl(g, fr, 4, 56, 0, 188, -14, { rx: Math.PI / 2 }); // top arm to center
-      for (const s of [-1, 1]) cyl(g, fr, 0.8, 34, s * 16, 154, 6); // chains
-      sphere(g, wick, 46, 0, 110, 6, { sy: 1.05, seg: 18 });        // pod shell
-      sphere(g, solid('#2a2620', 0.7), 39, 0, 108, 22, { sy: 1.05, seg: 16 }); // hollow opening
-      box(g, fab, 62, 16, 46, 0, 92, 14, { r: 12 });      // seat cushion
-      box(g, fab, 58, 40, 14, 0, 104, -18, { r: 12, rx: -0.1 }); // back cushion
+      // weighted round base + arched stand curving over the pod
+      cyl(g, fr, 30, 6, 0, 0, -42, { seg: 28 });
+      strut(g, fr, 0, 5, -42, 0, 148, -40, 4.4, { rTop: 4 });
+      strut(g, fr, 0, 148, -40, 0, 184, -18, 4, { rTop: 3.6 });
+      strut(g, fr, 0, 184, -18, 0, 195, 4, 3.6, { rTop: 3 });
+      sphere(g, fr, 3.6, 0, 195, 4, { seg: 10 });
+      // hanging chain from hook to pod crown
+      strut(g, fr, 0, 195, 4, 0, 156, 5, 1.1);
+      // egg shell + warm dark interior placed so a real opening reads at +Z
+      sphere(g, wick, 46, 0, 108, 4, { sy: 1.1, seg: 26 });
+      sphere(g, solid('#453a2c', 0.9), 39, 0, 106, 18, { sy: 1.05, seg: 22 });
+      // woven rim lip framing the opening
+      torus(g, wickDark, 36, 3, 0, 104, 32, { rx: 0.15, seg: 40, tubeSeg: 10 });
+      // cushions inside the shell
+      box(g, fab, 56, 14, 44, 0, 84, 10, { r: 10 });
+      box(g, fab, 52, 38, 12, 0, 94, -14, { r: 10, rx: -0.18 });
       return g;
     }
   },
@@ -87,13 +96,33 @@ export const LOUNGE_ITEMS = [
       const g = G();
       const fr = metal('#3a3d40', 0.4);
       const fab = solid(p.fabric, 0.95);
-      box(g, fr, 250, 8, 14, 0, 0, 0, { r: 4 });          // base bar
+      const rope = solid('#cfc9ba', 0.85);
+      // steel stand: ground beam, cross feet, arched arms rising to hooks
+      box(g, fr, 210, 7, 9, 0, 0, 0, { r: 3 });
       for (const s of [-1, 1]) {
-        cyl(g, fr, 5, 120, s * 125, 0, 0, { rz: -s * 0.5 });
-        cyl(g, fr, 4, 60, s * 88, 104, 0, { rz: -s * 1.0 });
+        box(g, fr, 8, 6, 56, s * 96, 0, 0, { r: 2 });
+        strut(g, fr, s * 103, 4, 0, s * 122, 62, 0, 3.8, { rTop: 3.2 });
+        strut(g, fr, s * 122, 62, 0, s * 112, 98, 0, 3.2, { rTop: 2.8 });
+        sphere(g, fr, 3.8, s * 112, 100, 0, { seg: 10 });
       }
-      sphere(g, fab, 66, 0, 54, 0, { sx: 1.7, sy: 0.32, sz: 0.62, seg: 18 }); // sagging bed
-      for (const s of [-1, 1]) for (const z of [-1, 1]) cyl(g, fr, 0.6, 60, s * 96, 62, z * 18, { rz: s * 0.5 }); // ropes
+      // catenary-sagging bed: strip chain following the sag, wider amidships
+      const HX = 112, HY = 100, BX = 66;
+      const sagY = (t) => 52 + 24 * t * t;
+      const N = 7;
+      for (let i = 0; i < N; i++) {
+        const t0 = (i / N) * 2 - 1, t1 = ((i + 1) / N) * 2 - 1;
+        const x0 = t0 * BX, x1 = t1 * BX;
+        const y0 = sagY(Math.abs(t0)), y1 = sagY(Math.abs(t1));
+        const wZ = 80 - Math.max(Math.abs(t0), Math.abs(t1)) * 22;
+        const len = Math.hypot(x1 - x0, y1 - y0) + 1.5;
+        const strip = box(g, fab, len, 2.2, wZ, (x0 + x1) / 2, (y0 + y1) / 2 - 1.1, 0, { r: 1 });
+        strip.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+      }
+      for (const s of [-1, 1]) {
+        cyl(g, wood(p.frame, 0.6), 2.4, 78, s * BX, sagY(1), 0, { rx: Math.PI / 2, seg: 10 }); // spreader bar
+        // taut ropes fanning from the spreader bar to the stand hooks
+        for (const rz of [-34, -12, 12, 34]) strut(g, rope, s * BX, sagY(1), rz, s * HX, HY, 0, 0.8);
+      }
       return g;
     }
   },

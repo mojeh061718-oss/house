@@ -241,10 +241,10 @@ export const DECOR_ITEMS = [
       // shelves shrink toward the top, each set back a bit
       const shelves = [[58, 36, 20, 12], [50, 30, 62, 6], [42, 24, 104, 0], [34, 18, 146, -6]];
       shelves.forEach(([w2, d2, y, z]) => box(g, wd, w2, 4, d2, 0, y, z, { r: 1 }));
-      // props: books + a plant
-      for (let i = 0; i < 4; i++) box(g, solid(['#c24a3a', '#3d6b8a', '#d8b24a', '#4a7a4a'][i], 0.7), 4, 16 + i, 22, -20 + i * 5, 24, 20);
-      cyl(g, solid('#c9c0ae', 0.7), 6, 9, 12, 66, 60, { rTop: 7 });
-      foliage(g, '#55763f', '#68894e', 12, 78, 60, 9, 7, 9);
+      // props: books on the bottom shelf + a plant on the second shelf
+      for (let i = 0; i < 4; i++) box(g, solid(['#c24a3a', '#3d6b8a', '#d8b24a', '#4a7a4a'][i], 0.7), 4, 16 + i, 20, -20 + i * 5, 24, 12);
+      cyl(g, solid('#c9c0ae', 0.7), 6, 9, 12, 66, 6, { rTop: 7 });
+      foliage(g, '#55763f', '#68894e', 12, 78, 6, 9, 7, 9);
       return g;
     }
   },
@@ -459,7 +459,7 @@ export const DECOR_ITEMS = [
     }
   },
   {
-    id: 'decor_vase_trio', name: 'Ceramic Vase Trio', cat: 'decor', w: 60, d: 30, h: 46,
+    id: 'decor_vase_trio', name: 'Ceramic Vase Trio', cat: 'decor', w: 60, d: 30, h: 58,
     palettes: [
       { name: 'Cream', chip: '#e7ddc8', a: '#e7ddc8', b: '#c9b89a', c: '#d8cbb0' },
       { name: 'Sage', chip: '#9aa885', a: '#9aa885', b: '#7d8c6a', c: '#b3bfa0' },
@@ -476,9 +476,9 @@ export const DECOR_ITEMS = [
       cyl(g, solid(b, 0.6), 5, 8, 2, 24, 0, { rTop: 4, seg: 16 });
       // short wide
       cyl(g, solid(c, 0.6), 10, 18, 22, 0, 2, { rTop: 8, seg: 20 });
-      // a few dried stems in the tall one
+      // a few short dried stems in the tall one (kept within the item height)
       for (let i = 0; i < 4; i++) {
-        const st = cyl(g, wood('#a89268', 0.7), 0.5, 30, -20, 44, 0, { seg: 5 });
+        const st = cyl(g, wood('#a89268', 0.7), 0.5, 18, -20, 42, 0, { seg: 5 });
         st.rotation.z = (i - 1.5) * 0.16; st.rotation.x = (i % 2 ? 0.12 : -0.12);
       }
       return g;

@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, prism, foliage, solid, glow, wood, metal, glass, tex } from '../builders.js';
+import { G, box, cyl, sphere, prism, foliage, solid, glow, wood, metal, glass, tex, water } from '../builders.js';
 
 // Backyard deck options — platforms, raised decks, railings, stairs & trim.
 // All built from primitive helpers; origin at footprint center on the ground;
@@ -141,9 +141,9 @@ export const DECKS_ITEMS = [
       const g = G();
       // deck framing a rectangular water opening in the middle
       deckBand(g, 460, 360, 14, p, 0, 0, { hole: { w: 280, d: 180, x: 0, z: 0 } });
-      // recessed water pool in the opening
+      // recessed pool: dark basin + real rippled water surface
       box(g, solid('#1d4a63', 0.4), 280, 6, 180, 0, 0, 0);
-      const wt = box(g, solid('#2f86ac', 0.2, 0.1), 274, 9, 174, 0, 3, 0);
+      const wt = box(g, water(280), 274, 9, 174, 0, 3, 0);
       wt.receiveShadow = true;
       return g;
     }
@@ -315,7 +315,8 @@ export const DECKS_ITEMS = [
       const cx = 70;
       box(g, solid('#2b2d31', 0.6), 150, H, 150, cx, 0, 0);      // shell
       box(g, tex('tile_white', 0.8, 0.8), 138, H - 2, 138, cx, 2, 0);
-      const wt = box(g, solid('#3a8fb0', 0.15, 0.1), 130, H, 130, cx, 4, 0);
+      box(g, solid('#1d4a63', 0.4), 132, H - 1, 132, cx, 3, 0);      // dark basin tint
+      const wt = box(g, water(150), 130, H, 130, cx, 4, 0);
       wt.receiveShadow = true;
       // a few jets / bubbles
       for (const jz of [-40, 0, 40]) sphere(g, glow('#dff2f6', 0.3), 4, cx, H - 2, jz, { seg: 8 });
@@ -339,11 +340,20 @@ export const DECKS_ITEMS = [
       box(g, fr, 122, 6, 6, 0, 0, 0);
       box(g, fr, 122, 6, 6, 0, 74, 0);
       for (const x of [-58, 58]) box(g, fr, 6, 74, 6, x, 6, 0);
-      // criss-cross lattice slats
+      // criss-cross lattice slats, clipped to stay inside the frame
       const slat = wood(p.wood, 0.65);
-      for (let i = -6; i <= 6; i++) {
-        box(g, slat, 3, 150, 2.5, i * 16, 6, 1.5, { rz: 0.72 });
-        box(g, slat, 3, 150, 2.5, i * 16, 6, -1.5, { rz: -0.72 });
+      for (const a of [0.72, -0.72]) {
+        const dx = -Math.sin(a), dy = Math.cos(a);
+        for (let i = -8; i <= 8; i++) {
+          const xc = i * 12;                       // slat centerline at mid-height
+          const t1 = (56 - xc) / dx, t2 = (-56 - xc) / dx;
+          const tP = Math.min(Math.max(t1, t2), 33 / dy);
+          const tM = Math.max(Math.min(t1, t2), -33 / dy);
+          if (tP - tM < 12) continue;
+          const L = tP - tM, tMid = (tP + tM) / 2;
+          box(g, slat, 3, L, 2.5, xc + dx * tMid, 40 + dy * tMid - L / 2, a > 0 ? 1.2 : -1.2,
+            { rz: a });
+        }
       }
       return g;
     }

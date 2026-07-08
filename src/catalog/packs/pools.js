@@ -314,9 +314,9 @@ export const POOLS_ITEMS = [
     palettes: null, plan: { type: 'hottub' }, light: { color: '#59c3e6', intensity: 0.6, distance: 170, y: 48 },
     build: () => {
       const g = G();
-      cyl(g, metal('#8a9099', 0.5), 100, 56, 0, 0, 0, { seg: 8 });              // galvanized tank
-      for (const y of [12, 30, 46]) cyl(g, metal('#c9ced4', 0.4), 101, 4, 0, y, 0, { seg: 8 }); // ribs
-      cyl(g, metal('#b7bcc2', 0.4), 102, 5, 0, 52, 0, { seg: 8 });              // top rail (below the water)
+      cyl(g, metal('#8a9099', 0.5), 100, 56, 0, 0, 0, { seg: 40 });             // galvanized tank (round!)
+      for (const y of [12, 30, 46]) cyl(g, metal('#c9ced4', 0.4), 101, 4, 0, y, 0, { seg: 40 }); // ribs
+      cyl(g, metal('#b7bcc2', 0.4), 102, 5, 0, 52, 0, { seg: 40 });             // top rail (below the water)
       cyl(g, solid('#1d4a63', 0.4), 92, 58, 0, 0, 0, { seg: 40 });              // basin
       const wt = cyl(g, water(), 88, 59, 0, 0, 0, { seg: 40 });                 // water surface on top
       wt.receiveShadow = true;
