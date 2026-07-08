@@ -17,18 +17,24 @@ const PLAQUE_TONES = [
   { name: 'Black / Brass', chip: '#1c1c1e', bg: '#1c1c1e', fg: '#d9b45a' }
 ];
 
-/** A framed picture: moulding, mat board, and the photo (or a placeholder). */
+/** A framed picture with a REAL moulding profile: back panel, four proud
+ *  trim rails, mat board, and the photo recessed ~1.6cm behind the rail
+ *  fronts (no coplanar faces anywhere, nothing flush with the wall). */
 function pictureFrame(g, w, h, p) {
   const fr = wood(p.wood || '#5a3d28', 0.4);
-  box(g, fr, w, h, 4, 0, 0, -1, { r: 1.5 });               // moulding
-  box(g, solid('#f4f1ea', 0.6), w - 8, h - 8, 1.5, 0, 0, 1); // mat board
+  box(g, fr, w - 4, h - 4, 1.6, 0, 2, -1.2);                     // back panel
+  box(g, fr, w, 5, 4.4, 0, h - 5, 0.2, { r: 1.2 });              // top rail
+  box(g, fr, w, 5, 4.4, 0, 0, 0.2, { r: 1.2 });                  // bottom rail
+  box(g, fr, 5, h - 8, 4.4, -(w - 5) / 2, 4, 0.2, { r: 1.2 });   // left rail
+  box(g, fr, 5, h - 8, 4.4, (w - 5) / 2, 4, 0.2, { r: 1.2 });    // right rail
+  box(g, solid('#f4f1ea', 0.6), w - 9, h - 9, 1, 0, 4.5, -0.3);  // mat board
   const picW = w - 16, picH = h - 16;
   const pic = p.photo ? photoMaterial(p.photo) : solid('#aebac2', 0.55);
-  box(g, pic, picW, picH, 0.6, 0, 0, 1.9);
+  box(g, pic, picW, picH, 0.8, 0, 8, 0.35);
   if (!p.photo) {
     // faint "photo" placeholder marks so an empty frame reads as a frame
-    box(g, solid('#96a4ad', 0.6), picW * 0.5, picH * 0.28, 0.7, 0, -picH * 0.12, 2.1);
-    box(g, solid('#c7cfd4', 0.6), picW * 0.22, picW * 0.22, 0.7, picW * 0.22, picH * 0.22, 2.1);
+    box(g, solid('#96a4ad', 0.6), picW * 0.5, picH * 0.28, 0.4, 0, h / 2 - picH * 0.2, 0.8);
+    box(g, solid('#c7cfd4', 0.6), picW * 0.22, picW * 0.22, 0.4, picW * 0.22, h / 2 + picH * 0.14, 0.8);
   }
 }
 
@@ -51,9 +57,11 @@ export const FRAMES_ITEMS = [
     elevation: 145, mount: 'wall', photo: true, palettes: FRAME_TONES, plan: { type: 'wallDecor' },
     build: (p) => {
       const g = G();
-      box(g, solid('#e9e6df', 0.6), 90, 64, 4, 0, 0, -1, { r: 1 });
+      // gallery-wrapped stretcher body; the print face floats slightly smaller
+      // so the wrap edge reads (no shared planes with the body)
+      box(g, solid('#e9e6df', 0.6), 90, 64, 3.4, 0, 0, -1.2, { r: 1 });
       const pic = p.photo ? photoMaterial(p.photo) : solid('#b3c0c8', 0.55);
-      box(g, pic, 90, 64, 0.6, 0, 0, 1.6);
+      box(g, pic, 88.6, 62.6, 0.8, 0, 0.7, 0.7);
       return g;
     }
   },
@@ -63,9 +71,14 @@ export const FRAMES_ITEMS = [
     elevation: 150, mount: 'wall', photo: true, palettes: FRAME_TONES, plan: { type: 'wallDecor' },
     build: (p) => {
       const g = G();
-      for (const x of [-52, 0, 52]) {
-        const sub = G(); pictureFrame(sub, 44, 52, p); sub.position.x = x; g.add(sub);
-      }
+      // intrigue: the middle frame hangs a touch crooked
+      const tilts = [0, 0.04, 0];
+      [-52, 0, 52].forEach((x, i) => {
+        const sub = G(); pictureFrame(sub, 44, 52, p);
+        sub.position.x = x;
+        if (tilts[i]) sub.rotation.z = tilts[i];
+        g.add(sub);
+      });
       return g;
     }
   },
@@ -79,9 +92,9 @@ export const FRAMES_ITEMS = [
       box(g, fr, 22, 26, 2.5, 0, 0, 3, { r: 1 });
       box(g, solid('#f4f1ea', 0.6), 18, 22, 1, 0, 2, 4.4);
       const pic = p.photo ? photoMaterial(p.photo) : solid('#aebac2', 0.55);
-      box(g, pic, 15, 19, 0.6, 0, 2, 5.1);
-      // fold-out easel leg
-      box(g, fr, 3, 22, 1.5, 0, 0, -1.5, { ry: 0.3 });
+      box(g, pic, 15, 19, 0.6, 0, 3.5, 5.1);
+      // fold-out easel leg: hinged at the frame back, foot on the surface
+      box(g, fr, 3.5, 24, 1.2, 0, -0.8, -3.2, { rx: 0.42, r: 0.4 });
       return g;
     }
   },

@@ -46,11 +46,19 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const fm = p?.metal ? metal(p.frame, 0.35) : wood(p?.frame || '#b79363');
-      // stadium-profile frame leaning back slightly reads as an arch;
-      // three separated depth steps (slab → moulding → glass), no coplanar faces
-      box(g, fm, 74, 184, 3.5, 0, 0, -0.8, { r: 34, rx: -0.06 });   // outer slab
-      box(g, fm, 66, 176, 2, 0, 4, 1.9, { r: 30, rx: -0.06 });      // moulding step
-      box(g, mirror(), 58, 166, 1, 0, 9, 3.2, { r: 26, rx: -0.06 }); // glass
+      // a TRUE arch: rectangular body + semicircular crown, in three depth
+      // steps (slab → moulding step → glass), leaning back as one group.
+      // Disc depths are 0.1–0.16 shy of their slabs so no faces are coplanar.
+      const lean = G();
+      box(lean, fm, 74, 147, 3.5, 0, 0, -0.8);
+      cyl(lean, fm, 37, 3.34, 0, 147, -0.8, { rx: Math.PI / 2, seg: 48 });
+      box(lean, fm, 66, 143, 2, 0, 4, 1.9);
+      cyl(lean, fm, 33, 1.86, 0, 147, 1.9, { rx: Math.PI / 2, seg: 44 });
+      box(lean, mirror(), 58, 138, 1, 0, 9, 3.2);
+      cyl(lean, mirror(), 29, 0.88, 0, 147, 3.2, { rx: Math.PI / 2, seg: 40 });
+      lean.rotation.x = -0.06;
+      lean.position.z = 4.5;
+      g.add(lean);
       return g;
     }
   },
@@ -204,8 +212,12 @@ export const DECOR_ITEMS = [
         [2.4, 0], [4.9, 1.6], [5.7, 5.5], [4.9, 9.5], [2.6, 12], [1.5, 13.5],
         [1.5, 17], [2.3, 17.8], [2.1, 18.6]
       ], 0, sy, 6, { seg: 24 });
-      cyl(g, solid('#9a5c20', 0.3), 3.4, 4, 0, sy + 1.6, 6, { seg: 16, rTop: 4.4 });
-      sphere(g, glass(), 2, 0, sy + 20.4, 6, { seg: 14 });
+      lathe(g, solid('#9a5c20', 0.3), [
+        [1.9, 0], [4.3, 1.2], [5, 4.9], [4.3, 7.9], [2.7, 9.4], [0.01, 9.2]
+      ], 0, sy + 0.7, 6, { seg: 20 });                        // the whisky inside
+      lathe(g, solid('#d8cfc2', 0.25), [
+        [0.9, 0], [2, 0.9], [2.2, 2.2], [1.1, 3.4], [0.05, 4]
+      ], 0, sy + 17.6, 6, { seg: 16 });                       // faceted stopper
       // two lowball glasses (real inner wall), one already poured
       for (const [gx, gz, fill] of [[13, 8, 1], [20, 0, 0]]) {
         lathe(g, glass(), [
@@ -423,14 +435,14 @@ export const DECOR_ITEMS = [
       const g = G();
       const fab = solid(p?.fab || '#d8a63a', 0.85);
       // one heavily-stuffed soft body with a real sit dimple
-      cushion(g, fab, 44, 36, 44, 0, 0, 0, { puff: 0.4, dimple: 1.6 });
-      sphere(g, solid('#2a2118', 0.9), 1.6, 0, 34.6, 0, { seg: 10 }); // center button in the dip
+      cushion(g, fab, 45, 35, 45, 0, 0, 0, { puff: 0.3, dimple: 1.3 });
+      sphere(g, solid('#2a2118', 0.9), 1.6, 0, 32.4, 0, { seg: 10 }); // center button in the dip
       // intrigue: a little ceramic tray with a lit candle resting in the dimple
       lathe(g, solid('#efe9dc', 0.5), [
         [7.2, 0], [7.8, 0.5], [8, 1.8], [7.2, 1.8], [7, 0.6]
-      ], 1, 35.2, -1, { seg: 24 });
-      cyl(g, solid('#e8ddc8', 0.6), 2.2, 3.4, 3, 36.2, -3, { seg: 14 });
-      sphere(g, glow('#ffca6a', 1.6, 0.4), 0.7, 3, 40.2, -3, { seg: 8 });
+      ], 1.5, 33, -1.5, { seg: 24 });
+      cyl(g, solid('#e8ddc8', 0.6), 2.2, 3.4, 3.5, 34, -3.5, { seg: 14 });
+      sphere(g, glow('#ffca6a', 1.6, 0.4), 0.7, 3.5, 38, -3.5, { seg: 8 });
       return g;
     }
   },
@@ -446,10 +458,14 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const a = p?.fab || '#4a6a8a', b = p?.fab2 || '#37506a';
-      const base = blob(g, b, a, 42, 0, 24, 0, { seed: 5, sy: 0.62, detail: 3 });
-      base.scale.set(1.05, 1, 1.05);
-      const top = blob(g, b, a, 30, 4, 52, -6, { seed: 9, sy: 0.7, detail: 3 }); // slumped back rest
-      top.scale.set(1.1, 1, 0.9);
+      const fa = solid(a, 0.9), fb = solid(b, 0.9);
+      // one continuous slumped mass: heavy wide base with a sat-in dimple,
+      // and a backrest lobe leaning away, deeply overlapped so they read as
+      // a single bag of beans
+      cushion(g, fa, 78, 40, 78, 0, 0, 2, { puff: 0.42, dimple: 0.7, ry: 0.15 });
+      cushion(g, fa, 60, 42, 48, 0, 24, -14, { puff: 0.45, dimple: 0.25, rx: -0.34, ry: -0.1 });
+      // intrigue: the little carry-handle tab on the side seam
+      box(g, fb, 9, 2.6, 1.4, 26, 30, 18, { r: 0.7, ry: 0.55, rz: 0.2 });
       return g;
     }
   },
@@ -523,19 +539,31 @@ export const DECOR_ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      const a = p?.a || '#e7ddc8', b = p?.b || '#c9b89a', c = p?.c || '#d8cbb0';
-      // tall slim
-      cyl(g, solid(a, 0.6), 6, 44, -20, 0, 0, { rTop: 4, seg: 20 });
-      // round bulbous
-      sphere(g, solid(b, 0.6), 12, 2, 14, 0, { sy: 1.05, seg: 20 });
-      cyl(g, solid(b, 0.6), 5, 8, 2, 24, 0, { rTop: 4, seg: 16 });
-      // short wide
-      cyl(g, solid(c, 0.6), 10, 18, 22, 0, 2, { rTop: 8, seg: 20 });
-      // a few short dried stems in the tall one (kept within the item height)
-      for (let i = 0; i < 4; i++) {
-        const st = cyl(g, wood('#a89268', 0.7), 0.5, 18, -20, 42, 0, { seg: 5 });
-        st.rotation.z = (i - 1.5) * 0.16; st.rotation.x = (i % 2 ? 0.12 : -0.12);
-      }
+      const a = solid(p?.a || '#e7ddc8', 0.55), b = solid(p?.b || '#c9b89a', 0.55), c = solid(p?.c || '#d8cbb0', 0.55);
+      // tall bottle vase: foot, gentle belly, long neck, flared lip, inner wall
+      lathe(g, a, [
+        [4.2, 0], [5.6, 0.7], [6.4, 5], [6.6, 12], [5.6, 20], [3, 27], [2, 33],
+        [1.9, 40], [2.6, 42.5], [2.7, 44], [1.8, 44], [1.7, 41.5]
+      ], -20, 0, 0, { seg: 32 });
+      // bulbous urn: tight foot, fat belly, pinched neck, rolled lip
+      lathe(g, b, [
+        [5, 0], [7.4, 1], [10.8, 6], [12.2, 12], [11, 19], [7, 24.5], [4.6, 26.5],
+        [5.6, 28.5], [5.8, 30], [4.6, 30], [4.4, 27], [0.01, 26.4]
+      ], 3, 0, 1, { seg: 36 });
+      // low wide vase: flared silhouette, thick rolled rim, real inner bowl
+      lathe(g, c, [
+        [6.6, 0], [8.8, 0.8], [10.6, 5], [11.2, 11], [10.6, 15.5], [11.6, 16.8],
+        [11.6, 18], [10.2, 18], [9.6, 13], [7.4, 9.6], [0.01, 9]
+      ], 22, 0, 1, { seg: 36 });
+      // dried stems arching naturally out of the tall vase's mouth
+      const stem = wood('#a89268', 0.7);
+      segment(g, stem, [-20, 41, 0], [-26, 54, 3], 0.5, 0.32, 6);
+      segment(g, stem, [-20, 41, 0], [-15.5, 55, -2], 0.5, 0.32, 6);
+      segment(g, stem, [-20, 41, 0], [-21.5, 56, 1.5], 0.5, 0.3, 6);
+      // the showy one: a seeded stem sweeping over in a true arc
+      sweep(g, stem, [[-20, 40, 0], [-19, 50, 0.8], [-15, 55.5, 1.6], [-10.4, 54, 2.4]], 0.42, { seg: 16, radialSeg: 6 });
+      const seedHead = blob(g, '#c9b184', '#e0cf9f', 2.1, -10, 54, 2.5, { seed: 7, sy: 1.5, detail: 3 });
+      seedHead.rotation.z = -0.5;
       return g;
     }
   },
@@ -609,23 +637,36 @@ export const DECOR_ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      const vase = solid(p?.vase || '#e7ddc8', 0.6);
-      cyl(g, vase, 10, 8, 0, 0, 0, { rTop: 7, seg: 22 });
-      cyl(g, vase, 7, 48, 0, 8, 0, { rTop: 11, seg: 22 });    // tall tapered vase
+      const vase = solid(p?.vase || '#e7ddc8', 0.55);
+      // one turned profile: footed base, waisted body, swelling shoulder,
+      // rolled lip, inner wall turning back down into the mouth
+      lathe(g, vase, [
+        [7, 0], [9.6, 0.8], [10.4, 4], [9, 10], [7.4, 20], [7.8, 34],
+        [9.4, 46], [10.2, 52], [10.6, 55], [9.2, 55], [8.9, 51], [7.6, 45]
+      ], 0, 0, 0, { seg: 36 });
       const plume = p?.plume || '#e8dcc0';
+      const stemMat = solid('#c7b88f', 0.7);
       let sd = 61;
       const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
-      for (let i = 0; i < 9; i++) {
-        const a = rnd() * Math.PI * 2;
-        const lean = 0.1 + rnd() * 0.32;
-        const tx = Math.sin(a) * 30 * lean, tz = Math.cos(a) * 30 * lean;
-        const top = 56 + rnd() * 40;
-        // stem
-        const st = cyl(g, solid('#c7b88f', 0.7), 0.7, top, 0, 56, 0, { seg: 5 });
-        st.rotation.z = -Math.sin(a) * lean; st.rotation.x = Math.cos(a) * lean;
-        // fluffy elongated plume head
-        const ph = blob(g, plume, plume, 7, tx, 56 + top - 4, tz, { seed: 20 + i, sy: 2.0, detail: 2 });
-        ph.rotation.z = -Math.sin(a) * lean; ph.rotation.x = Math.cos(a) * lean;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + rnd() * 0.5;
+        const lean = 0.12 + rnd() * 0.5;
+        const h = 62 + rnd() * 30;
+        const bx = Math.sin(a) * 3, bz = Math.cos(a) * 3;          // rooted inside the mouth
+        const mx = Math.sin(a) * lean * 13, mz = Math.cos(a) * lean * 13;
+        const tx = Math.sin(a) * lean * 34, tz = Math.cos(a) * lean * 34;
+        const ty = 50 + h - lean * 16;                             // taller stems droop more
+        if (i % 3 === 0) {
+          // the showy ones arch in one smooth sweep
+          sweep(g, stemMat, [[bx, 50, bz], [mx, 50 + h * 0.55, mz], [tx, ty, tz]], 0.55, { seg: 12, radialSeg: 5 });
+        } else {
+          segment(g, stemMat, [bx, 50, bz], [mx, 50 + h * 0.55, mz], 0.65, 0.5, 5);
+          segment(g, stemMat, [mx, 50 + h * 0.55, mz], [tx, ty, tz], 0.5, 0.35, 5);
+        }
+        // fluffy elongated plume aligned with the stem tip direction
+        const ph = blob(g, '#d6c5a2', plume, 6 + rnd() * 1.5, tx, ty + 6, tz, { seed: 20 + i, sy: 2.1, detail: 3 });
+        ph.rotation.z = -Math.sin(a) * lean * 0.8;
+        ph.rotation.x = Math.cos(a) * lean * 0.8;
       }
       return g;
     }
