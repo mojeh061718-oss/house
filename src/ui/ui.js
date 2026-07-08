@@ -1672,7 +1672,7 @@ export class UI {
         this.bindLen('pD', v => commit(() => it.d = Math.min(800, Math.max(10, Math.round(v)))));
         this.bindLen('pH', v => commit(() => it.h = Math.min(800, Math.max(10, Math.round(v)))));
         this.bindNum('pRot', v => commit(() => it.rotation = v * Math.PI / 180));
-        this.bindLen('pElev', v => commit(() => it.elevation = Math.max(0, Math.round(v))));
+        this.bindLen('pElev', v => commit(() => { it.elevation = Math.max(0, Math.round(v)); delete it.autoElev; }));
       }
       if (def?.palettes && !surfacePick) {
         const row = $('#palRow');
@@ -1702,6 +1702,7 @@ export class UI {
       }
       if (def?.sign) {
         const si = $('#pSign');
+        this.attachKeys(si, 'text'); // house numbers/signs use Studio Keys on touch
         // commit on blur/enter so typing a number is one undo step, not one per key
         si.onchange = () => commit(() => { it.sign = si.value; });
         si.onkeydown = (e) => { if (e.key === 'Enter') si.blur(); };
@@ -1886,6 +1887,7 @@ export class UI {
           </div>
         </div>`;
       $('#roomDup').onclick = () => this.duplicateRoom(sel.id);
+      this.attachKeys($('#roomName'), 'text');
       $('#roomName').addEventListener('change', e => {
         store.checkpoint();
         store.roomStyle(sel.id).name = e.target.value;
@@ -2059,6 +2061,7 @@ export class UI {
   bindLen(id, fn) {
     const inp = document.getElementById(id);
     if (!inp) return;
+    this.attachKeys(inp, 'len');
     // live echo: show what the typed text parses to ("30" → = 30 ft) BEFORE
     // commit, so a mistyped unit can't silently become a 30-foot sofa
     inp.addEventListener('input', () => {
@@ -2126,6 +2129,7 @@ export class UI {
   }
 
   closeDrawer(which) {
+    this.closeKeys();
     $('#' + which)?.classList.remove('open');
   }
 
@@ -2198,7 +2202,8 @@ export class UI {
           </div>
         </div>`;
       const input = scrim.querySelector('.modal-input');
-      const done = (ok) => { scrim.remove(); resolve(ok ? input.value.trim() : null); };
+      this.attachKeys(input, 'text');
+      const done = (ok) => { this.closeKeys(); scrim.remove(); resolve(ok ? input.value.trim() : null); };
       scrim.addEventListener('pointerdown', e => e.stopPropagation());
       scrim.addEventListener('click', e => {
         const r = e.target.closest('[data-r]')?.dataset.r;
@@ -2347,6 +2352,91 @@ export class UI {
       }
     });
     document.body.appendChild(scrim);
+  }
+
+  /** STUDIO KEYS — the in-app keyboard for touch devices. iOS's system
+   *  keyboard fights the forced-landscape studio (it opens portrait, covers
+   *  the field, and scrolls the canvas), so on coarse-pointer devices every
+   *  measurement/sign/name field is made readOnly (which iOS never opens a
+   *  keyboard for) and tapping it opens this panel instead. Two layouts:
+   *  'len' (digits + ft/in marks) and 'text' (A–Z / digits). */
+  attachKeys(input, mode) {
+    if (!this.coarse || !input || input.dataset.keys) return;
+    input.dataset.keys = mode;
+    input.readOnly = true;
+    input.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.openKeys(input, input.dataset.keys);
+    });
+  }
+
+  openKeys(input, mode = 'len') {
+    this.closeKeys();
+    const panel = document.createElement('div');
+    panel.id = 'gameKeys';
+    this._keysTarget = input;
+    input.classList.add('keys-active');
+    const key = (label, val, cls = '') =>
+      `<button class="gk ${cls}" data-k="${escapeHtml(val ?? label)}">${escapeHtml(label)}</button>`;
+    const rows = (defs) => defs.map(r => `<div class="gk-row">${r}</div>`).join('');
+    const LEN = rows([
+      [key('7'), key('8'), key('9'), key('⌫', '@bs', 'gk-dim')].join(''),
+      [key('4'), key('5'), key('6'), key("'")].join(''),
+      [key('1'), key('2'), key('3'), key('"')].join(''),
+      [key('0'), key('.'), key('␣', ' '), key('Done', '@done', 'gk-go')].join('')
+    ]);
+    const textRows = (upper) => rows([
+      'QWERTYUIOP'.split('').map(c => key(upper ? c : c.toLowerCase())).join('') + key('⌫', '@bs', 'gk-dim'),
+      'ASDFGHJKL'.split('').map(c => key(upper ? c : c.toLowerCase())).join('') + key(upper ? 'abc' : 'ABC', '@case', 'gk-dim'),
+      'ZXCVBNM'.split('').map(c => key(upper ? c : c.toLowerCase())).join('') + key('123', '@nums', 'gk-dim') + key('Done', '@done', 'gk-go'),
+      [key('␣  space  ␣', ' ', 'gk-space')].join('')
+    ]);
+    const NUMS = rows([
+      '1234567890'.split('').map(c => key(c)).join(''),
+      ['-', '&', '.', ',', '#', '/', "'"].map(c => key(c)).join('') + key('⌫', '@bs', 'gk-dim'),
+      [key('ABC', '@text', 'gk-dim'), key('␣  space  ␣', ' ', 'gk-space'), key('Done', '@done', 'gk-go')].join('')
+    ]);
+    let upper = true;
+    const paint = (layout) => {
+      panel.innerHTML = layout === 'len' ? LEN : layout === 'nums' ? NUMS : textRows(upper);
+    };
+    paint(mode);
+    panel.addEventListener('pointerdown', e => e.preventDefault()); // keep field "focus"
+    panel.addEventListener('click', (e) => {
+      const k = e.target.closest('[data-k]')?.dataset.k;
+      if (k == null) return;
+      const inp = this._keysTarget;
+      if (!inp) return;
+      if (k === '@done') {
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        this.closeKeys();
+        return;
+      }
+      if (k === '@bs') inp.value = inp.value.slice(0, -1);
+      else if (k === '@case') { upper = !upper; paint('text'); return; }
+      else if (k === '@nums') { paint('nums'); return; }
+      else if (k === '@text') { paint('text'); return; }
+      else {
+        const max = inp.maxLength > 0 ? inp.maxLength : Infinity;
+        if (inp.value.length < max) inp.value += k;
+      }
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    document.body.appendChild(panel);
+    // tapping anywhere outside commits and closes (like the system keyboard)
+    this._keysOutside = (e) => {
+      if (panel.contains(e.target) || e.target === input) return;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      this.closeKeys();
+    };
+    setTimeout(() => document.addEventListener('pointerdown', this._keysOutside, true), 50);
+  }
+
+  closeKeys() {
+    document.getElementById('gameKeys')?.remove();
+    if (this._keysOutside) { document.removeEventListener('pointerdown', this._keysOutside, true); this._keysOutside = null; }
+    this._keysTarget?.classList.remove('keys-active');
+    this._keysTarget = null;
   }
 
   showHint() {

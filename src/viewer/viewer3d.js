@@ -1080,6 +1080,7 @@ export class Viewer3D {
       it.x = pose.x; it.y = pose.y;
     }
     anchorWallItem(store.project.walls, it, def); // wall pieces re-remember their host
+    store.settleSurface(it, def);                 // rest on any pad/deck under it
     store.commit(true);
     store.select({ kind: 'item', id: it.id }); // keep it selected & in move mode
     return true;
@@ -1561,6 +1562,10 @@ export class Viewer3D {
       if (!this.drag.moved) {
         this.store.undoStack.pop();
         this.store.emit('history');
+      } else {
+        const it = this.store.item(this.drag.id);
+        const def = it && ITEM_MAP.get(it.defId);
+        if (def) this.store.settleSurface(it, def); // rest on any pad/deck under it
       }
       this.drag = null;
       this.store.commit(false);

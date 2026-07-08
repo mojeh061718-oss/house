@@ -2,6 +2,7 @@
 // and the 3D viewer. Items dragged near a wall seat their back against it and
 // align their rotation, like mainstream home-design apps.
 import { pointSegDist, wallAngle } from './geometry.js';
+import { ITEM_MAP } from '../catalog/items.js';
 
 const GRID = 10;
 const NO_WALL_SNAP = new Set([
@@ -168,4 +169,24 @@ export function snapPose(walls, def, x, y, opts = {}) {
     }
   }
   return free;
+}
+
+
+/** Height of the tallest drag-to-size surface (pad, deck, patio) under a
+ *  point — so a welcome mat dropped on a paver pad SITS ON the pavers
+ *  instead of being buried inside the slab. */
+export function surfaceTopAt(items, x, y, excludeId = null) {
+  let top = 0;
+  for (const it of items) {
+    if (it.id === excludeId || it.path) continue;
+    const def = ITEM_MAP.get(it.defId);
+    if (!def?.areaDraw) continue;
+    const cos = Math.cos(-(it.rotation || 0)), sin = Math.sin(-(it.rotation || 0));
+    const dx = x - it.x, dy = y - it.y;
+    const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+    if (Math.abs(lx) <= (it.w || 0) / 2 && Math.abs(ly) <= (it.d || 0) / 2) {
+      top = Math.max(top, it.h || 0);
+    }
+  }
+  return top;
 }

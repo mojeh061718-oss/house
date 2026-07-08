@@ -2,6 +2,7 @@
 import { detectRooms, roomKey, uid, pointInPolygon, collinearOverlapUnion } from './geometry.js';
 import { openingDefaults, isDoorType } from './openings.js';
 import { saveProject, saveDraft, clearDraft } from './projects.js';
+import { surfaceTopAt } from './placement.js';
 
 export const DEFAULTS = {
   wallHeight: 260,      // cm
@@ -328,7 +329,25 @@ export class Store {
       palette: def.palettes ? 0 : undefined
     };
     this.project.items.push(it);
+    this.settleSurface(it, def);
     return it;
+  }
+
+  /** Rest an item on whatever pad/deck/patio is under it. A welcome mat
+   *  dropped on a paver pad sits ON the pavers, not buried inside the slab —
+   *  and it follows along when moved on or off the surface. Only elevations
+   *  this method set are ever auto-adjusted (`autoElev`); typing an elevation
+   *  in the props panel clears the flag and wins permanently. */
+  settleSurface(it, def) {
+    if (!it || !def) return;
+    if (def.mount || def.areaDraw || def.path || it.path) return;
+    if ((def.elevation ?? 0) !== 0 || def.plan?.type === 'roof') return;
+    const base = surfaceTopAt(this.project.items, it.x, it.y, it.id);
+    const cur = it.elevation || 0;
+    if (cur === 0 || it.autoElev) {
+      if (base > 0.01) { it.elevation = base; it.autoElev = true; }
+      else if (it.autoElev) { it.elevation = 0; delete it.autoElev; }
+    }
   }
 
   /** Clone an item (including a drawn path stroke), offset by (dx, dy). */

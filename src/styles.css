@@ -1502,3 +1502,35 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   #printSheet { display: block !important; position: static; }
   #printSheet img { width: 100%; }
 }
+
+/* ---- Studio Keys: in-app keyboard (no iOS keyboard in the studio) ---- */
+#gameKeys {
+  position: fixed;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom, 10px));
+  transform: translateX(-50%);
+  z-index: 210;
+  background: rgba(21, 24, 31, 0.97);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  max-width: 96vw;
+}
+.gk-row { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+.gk-row:first-child { margin-top: 0; }
+.gk {
+  min-width: 46px; height: 46px;
+  padding: 0 10px;
+  border: 0; border-radius: 10px;
+  background: #2b303a;
+  color: var(--text);
+  font: 600 17px system-ui, sans-serif;
+  touch-action: manipulation;
+}
+.gk:active { background: #3a4150; }
+.gk-dim { background: #232730; color: var(--text-dim); }
+.gk-go { background: var(--accent); color: #fff; }
+.gk-space { flex: 1; min-width: 160px; }
+input.keys-active { outline: 2px solid var(--accent); border-radius: 6px; }

@@ -1487,6 +1487,7 @@ export class Editor2D {
         if (dx || dy) {
           it.x = pose.x; it.y = pose.y;
           if (it.path) for (const p of it.path) { p.x += dx; p.y += dy; }
+          store.settleSurface(it, def);
           store.commit(false);
         } else {
           store.undoStack.pop(); store.emit('history'); // tapped its own spot: no-op
@@ -1515,6 +1516,7 @@ export class Editor2D {
       const it = store.item(m.id);
       const def = it && ITEM_MAP.get(it.defId);
       if (def?.mount === 'wall') anchorWallItem(store.project.walls, it, def);
+      if (def) store.settleSurface(it, def); // rest on any pad/deck under it
     }
     if (['dragItem', 'rotateItem', 'resizeItem', 'dragMulti'].includes(m.name)) {
       store.commit(false);
