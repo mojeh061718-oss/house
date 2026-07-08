@@ -1,6 +1,6 @@
 // Poolside gear & pool floats — playful outdoor pack.
 // Built only from primitive helpers; no external assets, no THREE import.
-import { G, box, cyl, sphere, pyramid, legs4, shade, solid, wood, metal, chrome, glass, glow, netMaterial } from '../builders.js';
+import { G, box, cyl, sphere, pyramid, legs4, shade, solid, wood, metal, chrome, glass, glow, netMaterial, torus, segment } from '../builders.js';
 
 // small deterministic RNG factory for scattered detail (sprinkles, etc.)
 const rng = (seed) => {
@@ -8,11 +8,14 @@ const rng = (seed) => {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 };
 
-// ring of tube-spheres approximating a torus lying flat (donuts, inner tubes)
-function tube(g, mat, R, r, cy, seg = 26) {
-  for (let i = 0; i < seg; i++) {
-    const a = (i / seg) * Math.PI * 2;
-    sphere(g, mat, r, Math.cos(a) * R, cy, Math.sin(a) * R, { seg: 12 });
+// Smooth tapered chain through [x,y,z,r] points: segments whose radii blend,
+// with matching joint spheres so the elbows round off (no visible balls).
+function chain(g, mat, pts) {
+  sphere(g, mat, pts[0][3], pts[0][0], pts[0][1], pts[0][2], { seg: 14 });
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    segment(g, mat, [a[0], a[1], a[2]], [b[0], b[1], b[2]], a[3], b[3], 14);
+    sphere(g, mat, b[3], b[0], b[1], b[2], { seg: 14 });
   }
 }
 
@@ -30,20 +33,20 @@ export const POOLSIDE_ITEMS = [
       const g = G();
       const dough = solid(p.body, 0.7);
       const glaze = solid(p.glaze, 0.55);
-      tube(g, dough, 40, 17, 17, 26);           // fried ring
-      // dripping icing cap sitting on the upper half
-      for (let i = 0; i < 26; i++) {
-        const a = (i / 26) * Math.PI * 2;
-        sphere(g, glaze, 15 + (i % 2) * 1.5, Math.cos(a) * 40, 24, Math.sin(a) * 40,
-          { seg: 12, sy: 0.62 });
-      }
-      // sprinkles
+      // fried ring — one real smooth torus
+      torus(g, dough, 40, 17, 0, 17, 0, { seg: 48, tubeSeg: 20 });
+      // frosting cap: a slightly fatter, vertically squashed torus riding the
+      // upper half so it reads as a poured glaze band with a proud edge
+      torus(g, glaze, 40, 18.5, 0, 22, 0, { seg: 48, tubeSeg: 16, sz: 0.7 });
+      // a dozen sprinkles resting on the glaze
       const r = rng(7);
       const cols = ['#ef4b4b', '#f4d03f', '#3ba7e6', '#4fbf6a', '#ffffff', '#c56bd6'];
-      for (let i = 0; i < 60; i++) {
-        const a = r() * Math.PI * 2, rad = 40 + (r() - 0.5) * 22;
-        box(g, solid(cols[i % cols.length], 0.5), 5, 1.8, 1.8,
-          Math.cos(a) * rad, 30 + r() * 3, Math.sin(a) * rad, { ry: r() * Math.PI });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + r() * 0.4;
+        const rad = 40 + (r() - 0.5) * 16;
+        box(g, solid(cols[i % cols.length], 0.5), 5, 1.6, 1.8,
+          Math.cos(a) * rad, 32.5 - Math.abs(rad - 40) * 0.3, Math.sin(a) * rad,
+          { ry: r() * Math.PI });
       }
       return g;
     }
@@ -58,16 +61,30 @@ export const POOLSIDE_ITEMS = [
     build: (p) => {
       const g = G();
       const pink = solid(p.body, 0.6);
-      sphere(g, pink, 46, 0, 16, -8, { sy: 0.42, sz: 0.92 });      // body pontoon
-      sphere(g, pink, 24, 0, 20, -48, { sy: 0.7 });                 // raised tail
-      for (const sx of [-1, 1]) sphere(g, pink, 22, sx * 30, 22, -6, { sy: 0.45, sx: 0.7 }); // wings
-      // curving neck (stacked spheres) toward the front (+Z)
-      const neck = [[0, 32, 30, 10], [0, 48, 40, 9], [0, 62, 44, 8], [0, 74, 40, 7.5], [0, 82, 32, 7]];
-      for (const [x, y, z, r] of neck) sphere(g, pink, r, x, y, z);
-      sphere(g, pink, 12, 0, 86, 24);                               // head
-      for (const sx of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 2, sx * 5, 90, 30); // eyes
-      cyl(g, solid('#f4c542', 0.5), 5, 16, 0, 82, 34, { rTop: 1.5, rx: 1.5, seg: 12 }); // beak
-      cyl(g, solid('#1c1c1e', 0.4), 1.8, 6, 0, 79, 42, { rx: 1.5, seg: 10 });          // beak tip
+      // inflatable ring base the rider sits in
+      torus(g, pink, 34, 13, 0, 13, 0, { seg: 44, tubeSeg: 16, sy: 1.25 });
+      // massed body: overlapping spheres so the union reads as one smooth form
+      sphere(g, pink, 26, 0, 30, -6, { sx: 1.05, sy: 0.8, sz: 1.5, seg: 20 });  // body core
+      sphere(g, pink, 20, 0, 28, 28, { sz: 1.1, seg: 18 });                     // chest
+      // kicked-up tail feathers
+      segment(g, pink, [0, 34, -38], [0, 56, -60], 10, 3, 12);
+      segment(g, pink, [0, 32, -42], [0, 48, -64], 8, 2.5, 12);
+      // wing hints: flattened spheres hugging the flanks
+      for (const s of [-1, 1]) {
+        sphere(g, pink, 17, s * 21, 33, -8, { sx: 0.5, sy: 0.65, sz: 1.45, seg: 16 });
+        sphere(g, pink, 12, s * 25, 28, 0, { sx: 0.4, sy: 0.55, sz: 1.2, seg: 14 });
+      }
+      // smooth S-curve neck: tapered segment chain, radii blending
+      chain(g, pink, [
+        [0, 32, 38, 9.2], [0, 50, 54, 8.2], [0, 66, 60, 7.2],
+        [0, 78, 56, 6.5], [0, 86, 46, 6]
+      ]);
+      // head elongated toward the bill
+      sphere(g, pink, 9.5, 0, 87, 41, { sz: 1.2, seg: 18 });
+      for (const s of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 1.9, s * 6, 90, 45, { seg: 10 });
+      // downcurved bill, pale base with a black tip
+      segment(g, solid('#f2ddd2', 0.5), [0, 86, 49], [0, 79, 57], 4.2, 2.6, 12);
+      segment(g, solid('#1c1c1e', 0.4), [0, 79, 57], [0, 73, 60], 2.6, 1.1, 10);
       return g;
     }
   },
@@ -78,16 +95,28 @@ export const POOLSIDE_ITEMS = [
     build: () => {
       const g = G();
       const white = solid('#f4f4f2', 0.6);
-      sphere(g, white, 46, 0, 16, -8, { sy: 0.42, sz: 0.92 });
-      sphere(g, white, 26, 0, 26, -46, { sy: 0.85, sz: 0.7 });      // fan tail
-      for (const sx of [-1, 1]) sphere(g, white, 24, sx * 30, 24, -6, { sy: 0.5, sx: 0.72 }); // wings
-      // tall S-neck
-      const neck = [[0, 34, 28, 10], [0, 52, 34, 8.5], [0, 68, 34, 7.5], [0, 82, 30, 7], [0, 90, 24, 6.5]];
-      for (const [x, y, z, r] of neck) sphere(g, white, r, x, y, z);
-      sphere(g, white, 11, 0, 92, 18);                              // head
-      for (const sx of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 1.8, sx * 4.5, 95, 25);
-      cyl(g, solid('#e8862e', 0.5), 4.5, 15, 0, 90, 26, { rTop: 1.4, rx: 1.6, seg: 12 }); // beak
-      cyl(g, solid('#1c1c1e', 0.5), 4.8, 4, 0, 91, 20, { seg: 12 });                       // black brow
+      // inflatable ring base
+      torus(g, white, 34, 13, 0, 13, 0, { seg: 44, tubeSeg: 16, sy: 1.25 });
+      // massed body
+      sphere(g, white, 28, 0, 30, -4, { sy: 0.85, sz: 1.6, seg: 20 });   // body core
+      sphere(g, white, 20, 0, 32, 30, { sz: 1.05, seg: 18 });            // breast
+      // raised folded wings sweeping up toward the tail
+      for (const s of [-1, 1]) {
+        sphere(g, white, 20, s * 19, 38, -12, { sx: 0.45, sy: 0.85, sz: 1.5, seg: 16 });
+        sphere(g, white, 14, s * 14, 50, -30, { sx: 0.36, sy: 0.7, sz: 1.2, seg: 14 });
+      }
+      // upswept pointed tail
+      segment(g, white, [0, 36, -42], [0, 58, -62], 9, 2.5, 12);
+      // tall smooth S-neck: tapered segment chain
+      chain(g, white, [
+        [0, 36, 36, 8.5], [0, 56, 46, 7.5], [0, 72, 46, 6.8],
+        [0, 84, 38, 6.2], [0, 92, 28, 5.8]
+      ]);
+      // head + orange bill with the black basal knob
+      sphere(g, white, 8.5, 0, 93, 23, { sz: 1.2, seg: 18 });
+      for (const s of [-1, 1]) sphere(g, solid('#1c1c1e', 0.4), 1.6, s * 4.6, 95.5, 27, { seg: 10 });
+      segment(g, solid('#e8862e', 0.5), [0, 92, 30], [0, 89, 42], 3.4, 1.3, 12);
+      sphere(g, solid('#1c1c1e', 0.5), 2.8, 0, 94, 30.5, { seg: 10 });
       return g;
     }
   },
@@ -103,11 +132,15 @@ export const POOLSIDE_ITEMS = [
       const g = G();
       const mat = solid(p.body, 0.5);
       const accent = solid('#f4f4f2', 0.5);
-      const seg = 24;
-      for (let i = 0; i < seg; i++) {
-        const a = (i / seg) * Math.PI * 2;
-        sphere(g, i % 4 === 0 ? accent : mat, 15, Math.cos(a) * 42, 15, Math.sin(a) * 42, { seg: 12 });
+      // one real smooth torus tube
+      torus(g, mat, 39, 15, 0, 15, 0, { seg: 48, tubeSeg: 18 });
+      // white sticker stripes wrapping the top of the tube
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.4;
+        box(g, accent, 9, 1.6, 20, Math.cos(a) * 39, 29.2, Math.sin(a) * 39, { r: 0.8, ry: -a });
       }
+      // inflation valve on the inner shoulder
+      cyl(g, solid('#2b2d31', 0.5), 2.2, 4, 0, 27, -26, { seg: 10 });
       return g;
     }
   },
@@ -423,14 +456,22 @@ export const POOLSIDE_ITEMS = [
       box(g, solid('#3a3d42', 0.6), 44, 6, 30, 0, 0, 0, { r: 3 });    // base
       cyl(g, post, 4, 120, 0, 6, 0);                                  // post
       box(g, post, 40, 5, 5, 0, 92, 0);                              // hanging arm
-      // life ring mounted vertically facing +Z (ring in X-Y plane)
-      const cy = 62, R = 26, r = 7, seg = 20;
-      for (let i = 0; i < seg; i++) {
-        const a = (i / seg) * Math.PI * 2;
-        const on = (i % 5) < 2;
-        sphere(g, solid(on ? '#d63a3a' : '#f2f2ee', 0.55), r,
-          Math.cos(a) * R, cy + Math.sin(a) * R, 8, { seg: 10 });
+      // life ring mounted vertically facing +Z: one smooth white torus
+      const cy = 62, R = 26, r = 7;
+      torus(g, solid('#f2f2ee', 0.55), R, r, 0, cy, 8, { rx: 0, seg: 44, tubeSeg: 14 });
+      // four red rescue bands wrapping the tube at the diagonals
+      const band = solid('#d63a3a', 0.55);
+      for (let i = 0; i < 4; i++) {
+        const a = Math.PI / 4 + (i / 4) * Math.PI * 2;
+        box(g, band, 16.5, 13, 16.5, Math.cos(a) * R, cy + Math.sin(a) * R - 6.5, 8,
+          { r: 6.2, seg: 4, rz: a });
       }
+      // four rope-wrap marks at top/bottom/sides (grab line lashings)
+      const rope = solid('#d8cdb4', 0.8);
+      torus(g, rope, r + 0.9, 0.9, R, cy, 8, {});                        // side: tangent vertical
+      torus(g, rope, r + 0.9, 0.9, -R, cy, 8, {});
+      torus(g, rope, r + 0.9, 0.9, 0, cy + R, 8, { rx: 0, ry: Math.PI / 2 }); // top: tangent along x
+      torus(g, rope, r + 0.9, 0.9, 0, cy - R, 8, { rx: 0, ry: Math.PI / 2 });
       for (const sx of [-1, 1]) cyl(g, post, 1.5, 34, sx * 12, 92, 8, { rx: 0.5 }); // support ropes
       return g;
     }

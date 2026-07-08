@@ -2,8 +2,8 @@
 // from primitive helpers (no external models). Animals face +Z (head forward),
 // origin centered on the ground, all dimensions in centimeters.
 import {
-  G, box, cyl, sphere, prism, pyramid, blob, foliage, segment,
-  solid, wood, metal, glass, tex
+  G, box, cyl, sphere, prism, pyramid, blob, foliage, segment, torus,
+  solid, wood, metal, glass, water, tex
 } from '../builders.js';
 
 // ---- local helpers --------------------------------------------------------
@@ -30,12 +30,22 @@ function leg2(g, mat, hoofMat, x, zTop, topY, r, front = true) {
 function ring(g, mat, r, x, y, z) {
   cyl(g, mat, 0.9, r * 2, x, y, z, { rz: Math.PI / 2, seg: 10 });
 }
+// lighten/darken a #rrggbb hex toward white (f>0) or black (f<0)
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v) => {
+    const t = f >= 0 ? v + (255 - v) * f : v * (1 + f);
+    return Math.max(0, Math.min(255, Math.round(t)));
+  };
+  return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map((v) => ch(v).toString(16).padStart(2, '0')).join('');
+}
 
 export const FARM_ITEMS = [
   // ============================ ANIMALS ============================
   {
     id: 'farm_cow', name: 'Cow', cat: 'farm', w: 84, d: 244, h: 152,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'Holstein', chip: '#f2efe9', body: '#f3f0ea', spot: '#26221e', horn: '#d8cfbf' },
       { name: 'Jersey Brown', chip: '#9c6b3f', body: '#9c6b3f', spot: null, horn: '#cdbfa6' },
@@ -46,49 +56,58 @@ export const FARM_ITEMS = [
       const hide = solid(p.body, 0.82);
       const legMat = solid(p.spot ? '#efece6' : p.body, 0.82);
       // jointed legs — fores forward, hinds back and hocked
-      leg2(g, legMat, HOOF, -28, 64, 74, 10, true);
-      leg2(g, legMat, HOOF, 28, 64, 74, 10, true);
-      leg2(g, legMat, HOOF, -30, -72, 76, 11, false);
-      leg2(g, legMat, HOOF, 30, -72, 76, 11, false);
-      // deep barrel: a tapered core from ribs to hips, fleshed with masses
-      segment(g, hide, [0, 108, -82], [0, 112, 78], 43, 39, 22);
-      sphere(g, hide, 50, 0, 104, -18, { sx: 0.8, sy: 0.92, sz: 1.12 });  // belly
-      sphere(g, hide, 44, 0, 112, 58, { sx: 0.78, sy: 0.9, sz: 0.95 });   // shoulders
-      sphere(g, hide, 41, 0, 114, -76, { sx: 0.82, sy: 0.94, sz: 0.82 }); // hindquarters
-      sphere(g, hide, 15, 0, 92, 92, { sx: 0.7, sy: 1.15, sz: 0.7 });     // dewlap
+      leg2(g, legMat, HOOF, -26, 62, 78, 10, true);
+      leg2(g, legMat, HOOF, 26, 62, 78, 10, true);
+      leg2(g, legMat, HOOF, -28, -70, 80, 11, false);
+      leg2(g, legMat, HOOF, 28, -70, 80, 11, false);
+      // slim connective core — the flattened masses SHAPE the silhouette
+      segment(g, hide, [0, 104, -78], [0, 108, 66], 27, 24, 18);
+      sphere(g, hide, 50, 0, 94, -10, { sx: 0.8, sy: 0.78, sz: 1.3 });    // deep sagging belly
+      sphere(g, hide, 42, 0, 106, 56, { sx: 0.8, sy: 0.82, sz: 0.9 });    // shoulder mass
+      sphere(g, hide, 43, 0, 106, -74, { sx: 0.86, sy: 0.84, sz: 0.82 }); // hindquarters
+      sphere(g, hide, 24, 0, 122, 56, { sx: 0.62, sy: 0.72, sz: 0.95 });  // withers hump
+      sphere(g, hide, 25, 0, 122, -74, { sx: 0.7, sy: 0.68, sz: 0.85 });  // hip/rump ridge
+      sphere(g, hide, 14, 0, 84, 88, { sx: 0.6, sy: 1.3, sz: 0.65 });     // dewlap
       // arched neck → head
-      segment(g, hide, [0, 118, 82], [0, 120, 116], 18, 12, 12);
-      sphere(g, hide, 19, 0, 122, 120, { sx: 0.82, sy: 0.92, sz: 1.05 });
-      sphere(g, solid('#e6c9c2', 0.7), 12.5, 0, 114, 138, { sx: 0.95, sy: 0.85, sz: 0.75 }); // muzzle
-      sphere(g, solid('#2b2622', 0.4), 2.1, -6, 111, 146);
-      sphere(g, solid('#2b2622', 0.4), 2.1, 6, 111, 146);
-      for (const s of [-1, 1]) sphere(g, solid('#26201c', 0.35), 2.6, s * 9, 126, 128); // eyes
-      // ears + horns
+      segment(g, hide, [0, 112, 68], [0, 122, 108], 17, 11, 12);
+      sphere(g, hide, 17, 0, 124, 112, { sx: 0.78, sy: 0.92, sz: 1.0 });
+      // blocky muzzle with broad pale nose pad + nostrils
+      box(g, hide, 22, 17, 20, 0, 106, 122, { r: 7 });
+      sphere(g, solid('#d8c3bb', 0.7), 11.5, 0, 113, 130, { sx: 1.0, sy: 0.7, sz: 0.6 }); // nose pad
+      sphere(g, solid('#2b2622', 0.4), 2.1, -5.5, 111, 135, { sy: 1.3 });
+      sphere(g, solid('#2b2622', 0.4), 2.1, 5.5, 111, 135, { sy: 1.3 });
+      for (const s of [-1, 1]) sphere(g, solid('#26201c', 0.35), 2.6, s * 11, 128, 116); // eyes
+      // ears stick OUT from the poll; short curved horns above
       for (const s of [-1, 1]) {
-        sphere(g, hide, 7, s * 20, 128, 116, { sx: 0.5, sy: 0.7, sz: 1.3 });
-        segment(g, solid(p.horn, 0.5), [s * 10, 132, 120], [s * 17, 143, 116], 3, 0.6, 8);
+        const ear = sphere(g, hide, 9, s * 21, 130, 108, { sx: 1.1, sy: 0.4, sz: 0.6 });
+        ear.rotation.z = s * 0.25;
+        segment(g, solid(p.horn, 0.5), [s * 8, 135, 108], [s * 16, 143, 105], 2.8, 0.8, 8);
       }
       // switch tail to a dark tuft
-      segment(g, hide, [0, 112, -84], [4, 42, -94], 3, 1.4, 8);
-      sphere(g, solid('#2b2622', 0.9), 6, 4, 34, -95, { sy: 1.4 });
-      // udder
-      sphere(g, solid('#e7b9b4', 0.7), 15, 0, 54, -30, { sy: 0.8 });
+      segment(g, hide, [0, 130, -86], [3, 92, -98], 3.4, 2.2, 8);
+      segment(g, hide, [3, 92, -98], [5, 46, -99], 2.2, 1.4, 8);
+      sphere(g, solid('#2b2622', 0.9), 5.5, 5, 38, -99, { sy: 1.6 });
+      // udder tucked ahead of the hind legs, with teats
+      sphere(g, solid('#e7b9b4', 0.7), 16, 0, 56, -36, { sx: 0.9, sy: 0.72, sz: 1.05 });
+      for (const [tx, tz] of [[-7, -28], [7, -28], [-7, -44], [7, -44]])
+        cyl(g, solid('#e7b9b4', 0.7), 1.8, 8, tx, 41, tz, { rTop: 1.3, seg: 8 });
       // Holstein patches — sit on the barrel surface (flattened along the
       // outward axis so they read as markings, not lumps inside the body)
       if (p.spot) {
         const sp = solid(p.spot, 0.82);
-        sphere(g, sp, 20, 36, 114, 14, { sx: 0.35, sy: 1.0, sz: 1.15 });   // right flank
-        sphere(g, sp, 17, -37, 110, -40, { sx: 0.35, sy: 1.0, sz: 1.0 });  // left haunch
-        sphere(g, sp, 22, 6, 140, 4, { sx: 1.1, sy: 0.3, sz: 1.2 });       // topline (seen from above)
-        sphere(g, sp, 13, -20, 132, -58, { sx: 0.9, sy: 0.5, sz: 0.9 });   // rump
-        sphere(g, sp, 8, 0, 128, 126, { sx: 0.8, sy: 0.7 });               // forehead
+        sphere(g, sp, 22, 34, 100, 8, { sx: 0.3, sy: 0.95, sz: 1.2 });    // right flank
+        sphere(g, sp, 18, -35, 96, -42, { sx: 0.3, sy: 0.95, sz: 1.05 }); // left haunch
+        sphere(g, sp, 24, 5, 126, -6, { sx: 0.95, sy: 0.28, sz: 1.25 });  // topline (seen from above)
+        sphere(g, sp, 15, -18, 118, -66, { sx: 0.85, sy: 0.5, sz: 0.85 });// rump
+        sphere(g, sp, 15, 26, 104, 52, { sx: 0.4, sy: 0.85, sz: 0.9 });   // shoulder
+        sphere(g, sp, 7, 0, 131, 116, { sx: 0.85, sy: 0.6, sz: 0.6 });    // forehead
       }
       return g;
     }
   },
   {
     id: 'farm_horse', name: 'Horse', cat: 'farm', w: 68, d: 240, h: 172,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'Chestnut', chip: '#7c4a2a', body: '#7c4a2a', mane: '#3a241a' },
       { name: 'Black', chip: '#241f1c', body: '#241f1c', mane: '#141110' },
@@ -99,43 +118,51 @@ export const FARM_ITEMS = [
       const g = G();
       const hide = solid(p.body, 0.72);
       const mane = solid(p.mane, 0.85);
-      // jointed legs — long & slender, fores forward, hinds hocked back
-      leg2(g, hide, HOOF, -20, 62, 100, 8, true);
-      leg2(g, hide, HOOF, 20, 62, 100, 8, true);
-      leg2(g, hide, HOOF, -22, -66, 102, 8.5, false);
-      leg2(g, hide, HOOF, 22, -66, 102, 8.5, false);
-      // deep sleek barrel from a tapered core, fleshed with masses
-      segment(g, hide, [0, 120, -76], [0, 126, 70], 33, 29, 20);
-      sphere(g, hide, 34, 0, 116, -6, { sx: 0.72, sy: 0.94, sz: 1.2 });   // belly
-      sphere(g, hide, 33, 0, 128, 52, { sx: 0.74, sy: 0.98, sz: 0.9 });   // chest/shoulder
-      sphere(g, hide, 32, 0, 128, -66, { sx: 0.78, sy: 0.98, sz: 0.86 }); // hindquarters
-      // long arched neck
-      segment(g, hide, [0, 132, 64], [0, 150, 104], 17, 12, 14);
-      sphere(g, hide, 15, 0, 140, 84, { sx: 0.82, sy: 1.12, sz: 0.9 });   // crest fill
-      // head — skull + long tapered muzzle
-      sphere(g, hide, 14, 0, 152, 108, { sx: 0.8, sy: 1.05, sz: 1.12 });
-      segment(g, hide, [0, 150, 110], [0, 137, 130], 11, 7, 12);
-      sphere(g, solid('#3a2c24', 0.6), 6, 0, 135, 131, { sx: 0.95, sy: 0.85 }); // nose
-      sphere(g, solid('#201a16', 0.4), 1.5, -4, 133, 131);
-      sphere(g, solid('#201a16', 0.4), 1.5, 4, 133, 131);
-      for (const s of [-1, 1]) sphere(g, solid('#1a1512', 0.35), 2.4, s * 11, 156, 107); // eyes
-      // upright ears
-      for (const s of [-1, 1]) segment(g, hide, [s * 8, 161, 100], [s * 11, 173, 96], 4, 0.5, 8);
-      // mane crest — row of tufts down the back of the neck
-      for (let i = 0; i <= 8; i++) {
-        const t = i / 8;
-        sphere(g, mane, 6.5, 0, 150 - t * 18, 104 - t * 40, { sx: 0.42, sy: 1.0, sz: 0.72 });
+      // jointed legs — long & slender (leg length ≈ body depth), hinds hocked
+      leg2(g, hide, HOOF, -18, 60, 106, 7.5, true);
+      leg2(g, hide, HOOF, 18, 60, 106, 7.5, true);
+      leg2(g, hide, HOOF, -20, -64, 108, 8, false);
+      leg2(g, hide, HOOF, 20, -64, 108, 8, false);
+      // slim connective core; sleek masses shape the barrel
+      segment(g, hide, [0, 126, -72], [0, 132, 60], 22, 19, 16);
+      sphere(g, hide, 34, 0, 122, -8, { sx: 0.72, sy: 0.82, sz: 1.3 });    // barrel/belly
+      sphere(g, hide, 32, 0, 130, 48, { sx: 0.74, sy: 0.92, sz: 0.95 });   // chest/shoulder
+      sphere(g, hide, 32, 0, 130, -62, { sx: 0.8, sy: 0.94, sz: 0.95 });   // hindquarters
+      sphere(g, hide, 18, 0, 148, 46, { sx: 0.56, sy: 0.72, sz: 0.9 });    // withers
+      sphere(g, hide, 20, 0, 148, -66, { sx: 0.66, sy: 0.62, sz: 0.95 });  // croup
+      // long arched neck — tapered segment chain up to the poll
+      segment(g, hide, [0, 138, 52], [0, 158, 82], 16, 12, 14);
+      segment(g, hide, [0, 158, 82], [0, 170, 100], 12, 8.5, 12);
+      // head — skull + long face tapering to a fine muzzle
+      sphere(g, hide, 12, 0, 172, 102, { sx: 0.76, sy: 1.0, sz: 1.1 });
+      segment(g, hide, [0, 170, 105], [0, 152, 126], 9.5, 5.8, 12);
+      sphere(g, solid('#3a2c24', 0.6), 6, 0, 150, 127, { sx: 0.85, sy: 0.8 }); // nose
+      sphere(g, solid('#201a16', 0.4), 1.4, -3.6, 149, 129);
+      sphere(g, solid('#201a16', 0.4), 1.4, 3.6, 149, 129);
+      // jaw cheek
+      sphere(g, hide, 8, 0, 163, 104, { sx: 0.95, sy: 0.9, sz: 1.1 });
+      for (const s of [-1, 1]) sphere(g, solid('#1a1512', 0.35), 2.2, s * 9, 174, 102); // eyes
+      // small upright ears
+      for (const s of [-1, 1]) segment(g, hide, [s * 5, 178, 96], [s * 8, 189, 92], 3.4, 0.5, 8);
+      // mane — tufts falling down the crest from poll to withers
+      for (let i = 0; i <= 9; i++) {
+        const t = i / 9;
+        sphere(g, mane, 6.5 - t * 1.2, 0,
+          176 - t * 22 - Math.sin(t * Math.PI) * 4, 98 - t * 50,
+          { sx: 0.4, sy: 1.15, sz: 0.75 });
       }
-      sphere(g, mane, 5, 0, 161, 106, { sx: 0.5, sy: 0.9, sz: 0.5 });     // forelock
-      // flowing tail
-      segment(g, mane, [0, 124, -76], [0, 58, -96], 7, 4, 10);
-      sphere(g, mane, 7, 0, 56, -98, { sx: 0.7, sy: 1.6 });
+      sphere(g, mane, 4.5, 0, 180, 100, { sx: 0.5, sy: 1.1, sz: 0.5 });    // forelock
+      // full flowing tail from the croup
+      segment(g, mane, [0, 152, -76], [0, 108, -96], 6, 5, 10);
+      segment(g, mane, [0, 108, -96], [0, 54, -100], 5.5, 3, 10);
+      sphere(g, mane, 8, 0, 120, -92, { sx: 0.75, sy: 1.9, sz: 0.85 });
+      sphere(g, mane, 7, 0, 70, -99, { sx: 0.65, sy: 2.0, sz: 0.75 });
       return g;
     }
   },
   {
     id: 'farm_pig', name: 'Pig', cat: 'farm', w: 56, d: 120, h: 66,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'Pink', chip: '#e7a99e', body: '#e7a99e' },
       { name: 'Spotted', chip: '#d8b8a8', body: '#d8b8a8', spot: '#4a3f3a' },
@@ -146,47 +173,49 @@ export const FARM_ITEMS = [
       const hide = solid(p.body, 0.7);
       const dark = p.body === '#33302e';
       const snoutC = solid(dark ? '#5a4f4a' : '#d98f84', 0.6);
-      // short jointed legs
-      leg2(g, hide, HOOF, -16, 32, 28, 7, true);
-      leg2(g, hide, HOOF, 16, 32, 28, 7, true);
-      leg2(g, hide, HOOF, -17, -34, 29, 7.5, false);
-      leg2(g, hide, HOOF, 17, -34, 29, 7.5, false);
-      // rotund barrel from a tapered core, fleshed round
-      segment(g, hide, [0, 40, -42], [0, 42, 40], 25, 21, 18);
-      sphere(g, hide, 27, 0, 40, -6, { sx: 0.82, sy: 0.86, sz: 1.12 });  // belly
-      sphere(g, hide, 24, 0, 44, -38, { sx: 0.82, sy: 0.9, sz: 0.82 });  // hams
-      sphere(g, hide, 24, 0, 43, 30, { sx: 0.84, sy: 0.9, sz: 0.85 });   // shoulders
+      // stubby jointed legs — the belly nearly brushes the ground between them
+      leg2(g, hide, HOOF, -15, 30, 26, 6.5, true);
+      leg2(g, hide, HOOF, 15, 30, 26, 6.5, true);
+      leg2(g, hide, HOOF, -16, -32, 27, 7, false);
+      leg2(g, hide, HOOF, 16, -32, 27, 7, false);
+      // slim connective core; big low round masses make the silhouette
+      segment(g, hide, [0, 34, -40], [0, 36, 36], 16, 14, 14);
+      sphere(g, hide, 28, 0, 32, -4, { sx: 0.86, sy: 0.8, sz: 1.2 });   // low round belly
+      sphere(g, hide, 23, 0, 36, -36, { sx: 0.9, sy: 0.86, sz: 0.85 }); // hams
+      sphere(g, hide, 22, 0, 36, 28, { sx: 0.9, sy: 0.86, sz: 0.9 });   // shoulders
       // head blends straight off the shoulders (no neck)
-      sphere(g, hide, 19, 0, 42, 52, { sx: 0.94, sy: 0.9, sz: 0.95 });
+      sphere(g, hide, 17, 0, 38, 48, { sx: 0.92, sy: 0.88, sz: 0.95 });
+      sphere(g, hide, 9, 0, 34, 58, { sx: 0.85, sy: 0.8, sz: 0.9 });    // snout bridge
       // flat disc snout with nostril dots
-      cyl(g, snoutC, 9.5, 6, 0, 40, 66, { rx: Math.PI / 2, seg: 16 });
-      sphere(g, solid('#2b2622', 0.4), 1.5, -3.5, 40, 69);
-      sphere(g, solid('#2b2622', 0.4), 1.5, 3.5, 40, 69);
-      sphere(g, solid('#1a1512', 0.35), 1.8, -9, 48, 60);               // eyes
-      sphere(g, solid('#1a1512', 0.35), 1.8, 9, 48, 60);
-      // triangular forward-flopping ears
+      cyl(g, snoutC, 8, 5, 0, 34, 62, { rx: Math.PI / 2, seg: 16 });
+      sphere(g, solid('#2b2622', 0.4), 1.5, -3.2, 34, 64.6);
+      sphere(g, solid('#2b2622', 0.4), 1.5, 3.2, 34, 64.6);
+      sphere(g, solid('#1a1512', 0.35), 1.7, -8, 44, 55);               // eyes
+      sphere(g, solid('#1a1512', 0.35), 1.7, 8, 44, 55);
+      // floppy triangular ears drooping forward over the eyes
       for (const s of [-1, 1]) {
-        const e = sphere(g, hide, 8, s * 12, 54, 51, { sx: 0.35, sy: 1.0, sz: 0.7 });
-        e.rotation.x = 0.5; e.rotation.z = s * 0.3;
+        const e = pyramid(g, hide, 11, 14, 3.5, s * 10, 46, 51);
+        e.rotation.x = 2.45; e.rotation.z = s * -0.35;
       }
-      // curly corkscrew tail
-      segment(g, hide, [0, 46, -44], [0, 50, -51], 2.4, 1.6, 8);
-      sphere(g, hide, 2.4, 4, 50, -54);
-      sphere(g, hide, 2.2, 6, 47, -53);
-      sphere(g, hide, 2.0, 4, 45, -51);
+      // curly corkscrew tail — a loop of tiny tapered segments
+      segment(g, hide, [0, 42, -46], [3, 46, -50], 2.2, 1.8, 8);
+      segment(g, hide, [3, 46, -50], [6, 42, -53], 1.8, 1.5, 8);
+      segment(g, hide, [6, 42, -53], [3, 38, -51], 1.5, 1.2, 8);
+      segment(g, hide, [3, 38, -51], [1, 41, -48], 1.2, 0.8, 8);
       // spots sit on the barrel surface (flattened along the outward axis)
       if (p.spot) {
         const sp = solid(p.spot, 0.7);
-        sphere(g, sp, 13, 22, 42, -6, { sx: 0.32, sy: 1.0, sz: 1.1 });  // right flank
-        sphere(g, sp, 11, -21, 44, 24, { sx: 0.32, sy: 1.0, sz: 1.0 }); // left shoulder
-        sphere(g, sp, 8, 5, 44, 52, { sx: 0.8, sy: 0.7, sz: 0.55 });    // over an eye
+        sphere(g, sp, 13, 22, 32, -4, { sx: 0.3, sy: 0.95, sz: 1.1 });  // right flank
+        sphere(g, sp, 11, -19, 36, 22, { sx: 0.3, sy: 0.95, sz: 1.0 }); // left shoulder
+        sphere(g, sp, 12, 4, 52, -22, { sx: 0.9, sy: 0.3, sz: 1.0 });   // saddle (from above)
+        sphere(g, sp, 7, 5, 42, 50, { sx: 0.75, sy: 0.65, sz: 0.5 });   // over an eye
       }
       return g;
     }
   },
   {
     id: 'farm_sheep', name: 'Sheep', cat: 'farm', w: 60, d: 128, h: 96,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'Wool White', chip: '#efece4', wool: '#efece4', face: '#33302c' },
       { name: 'Suffolk', chip: '#e9e5dc', wool: '#e9e5dc', face: '#201d1a' },
@@ -197,29 +226,34 @@ export const FARM_ITEMS = [
       const wool = p.wool;
       const face = solid(p.face, 0.7);
       const legMat = solid(p.face, 0.75);
-      // slender dark jointed legs
-      leg2(g, legMat, HOOF, -16, 34, 42, 5, true);
-      leg2(g, legMat, HOOF, 16, 34, 42, 5, true);
-      leg2(g, legMat, HOOF, -17, -36, 43, 5, false);
-      leg2(g, legMat, HOOF, 17, -36, 43, 5, false);
-      // fluffy wool body — overlapping blobs, brighter on top
-      blob(g, wool, '#ffffff', 34, 0, 62, -6, { seed: 5, sy: 0.95, detail: 3 });
-      blob(g, wool, '#ffffff', 29, 0, 64, 24, { seed: 8, sy: 0.95, detail: 3 });
-      blob(g, wool, '#ffffff', 24, 0, 60, -38, { seed: 3, sy: 0.9, detail: 3 });
-      // dark head + face
-      sphere(g, face, 14, 0, 66, 50, { sx: 0.82, sy: 1.0, sz: 1.05 });
-      sphere(g, face, 9, 0, 60, 62, { sx: 0.82, sy: 0.82, sz: 0.9 });   // muzzle
-      blob(g, wool, '#ffffff', 9, 0, 74, 47, { seed: 2, detail: 2 });   // woolly forelock
-      for (const s of [-1, 1]) sphere(g, face, 6, s * 13, 65, 47, { sx: 0.35, sy: 0.55, sz: 1.15 }); // ears
-      sphere(g, solid('#141210', 0.4), 1.8, -6, 68, 58);               // eyes
-      sphere(g, solid('#141210', 0.4), 1.8, 6, 68, 58);
-      blob(g, wool, '#ffffff', 8, 0, 58, -50, { seed: 6, detail: 2 });  // tail tuft
+      // slender dark jointed legs — bare below the fleece line
+      leg2(g, legMat, HOOF, -15, 32, 42, 5, true);
+      leg2(g, legMat, HOOF, 15, 32, 42, 5, true);
+      leg2(g, legMat, HOOF, -16, -34, 43, 5, false);
+      leg2(g, legMat, HOOF, 16, -34, 43, 5, false);
+      // fleece — layered overlapping wool blobs, brighter on top
+      blob(g, wool, '#ffffff', 33, 0, 60, -4, { seed: 5, sy: 0.92, detail: 3 });
+      blob(g, wool, '#ffffff', 28, 0, 62, 26, { seed: 8, sy: 0.94, detail: 3 });
+      blob(g, wool, '#ffffff', 26, 0, 60, -36, { seed: 3, sy: 0.92, detail: 3 });
+      blob(g, wool, '#ffffff', 20, 0, 68, 42, { seed: 11, sy: 0.9, detail: 3 }); // chest/neck wool
+      // bare head + face out in front of the fleece
+      sphere(g, face, 13, 0, 68, 52, { sx: 0.78, sy: 1.0, sz: 1.05 });
+      segment(g, face, [0, 66, 56], [0, 61, 66], 8, 5, 10);             // muzzle
+      sphere(g, face, 5.5, 0, 60, 66, { sx: 0.8, sy: 0.75, sz: 0.85 });
+      blob(g, wool, '#ffffff', 9.5, 0, 78, 49, { seed: 2, detail: 2, sy: 0.8 }); // lambs-wool crown
+      for (const s of [-1, 1]) {
+        const ear = sphere(g, face, 6.5, s * 13, 68, 48, { sx: 1.0, sy: 0.4, sz: 0.55 });
+        ear.rotation.z = s * -0.3;
+      }
+      sphere(g, solid('#141210', 0.4), 1.8, -6, 71, 59);               // eyes
+      sphere(g, solid('#141210', 0.4), 1.8, 6, 71, 59);
+      blob(g, wool, '#ffffff', 8, 0, 56, -50, { seed: 6, detail: 2 });  // tail tuft
       return g;
     }
   },
   {
     id: 'farm_goat', name: 'Goat', cat: 'farm', w: 52, d: 118, h: 92,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'White', chip: '#eeece5', body: '#eeece5', horn: '#c7bca6' },
       { name: 'Brown', chip: '#8a6b48', body: '#8a6b48', horn: '#3f342a' },
@@ -229,37 +263,39 @@ export const FARM_ITEMS = [
       const g = G();
       const hide = solid(p.body, 0.72);
       const hornMat = solid(p.horn, 0.5);
-      // slender jointed legs
-      leg2(g, hide, HOOF, -14, 32, 44, 5, true);
-      leg2(g, hide, HOOF, 14, 32, 44, 5, true);
-      leg2(g, hide, HOOF, -15, -34, 45, 5, false);
-      leg2(g, hide, HOOF, 15, -34, 45, 5, false);
-      // compact barrel from a tapered core
-      segment(g, hide, [0, 58, -40], [0, 60, 38], 22, 18, 18);
-      sphere(g, hide, 22, 0, 56, -4, { sx: 0.74, sy: 0.9, sz: 1.15 });   // belly
-      sphere(g, hide, 20, 0, 60, 30, { sx: 0.78, sy: 0.94, sz: 0.86 });  // shoulders
-      sphere(g, hide, 19, 0, 60, -34, { sx: 0.8, sy: 0.94, sz: 0.82 });  // hindquarters
+      // slender jointed legs with visible knees/hocks
+      leg2(g, hide, HOOF, -13, 32, 46, 4.5, true);
+      leg2(g, hide, HOOF, 13, 32, 46, 4.5, true);
+      leg2(g, hide, HOOF, -14, -34, 47, 4.8, false);
+      leg2(g, hide, HOOF, 14, -34, 47, 4.8, false);
+      // slim connective core; compact masses make the silhouette
+      segment(g, hide, [0, 58, -38], [0, 60, 34], 14, 12, 14);
+      sphere(g, hide, 23, 0, 54, -2, { sx: 0.7, sy: 0.8, sz: 1.15 });    // belly
+      sphere(g, hide, 19, 0, 60, 28, { sx: 0.74, sy: 0.86, sz: 0.9 });   // shoulders
+      sphere(g, hide, 19, 0, 60, -32, { sx: 0.78, sy: 0.86, sz: 0.85 }); // hindquarters
       // neck up to a wedge head
-      segment(g, hide, [0, 62, 34], [0, 74, 54], 12, 9, 12);
-      sphere(g, hide, 12, 0, 76, 55, { sx: 0.78, sy: 0.95, sz: 1.0 });
-      segment(g, hide, [0, 74, 57], [0, 68, 74], 8, 4.5, 10);            // muzzle wedge
-      sphere(g, solid('#2b2622', 0.5), 3.5, 0, 66, 75, { sx: 0.95, sy: 0.7 });
-      sphere(g, solid('#141210', 0.4), 1.8, -7, 79, 57);                // eyes
-      sphere(g, solid('#141210', 0.4), 1.8, 7, 79, 57);
-      // swept-back horns + ears
+      segment(g, hide, [0, 64, 32], [0, 80, 50], 10, 7.5, 12);
+      sphere(g, hide, 10.5, 0, 82, 52, { sx: 0.74, sy: 0.92, sz: 1.0 });
+      segment(g, hide, [0, 80, 55], [0, 73, 70], 7, 4, 10);              // muzzle wedge
+      sphere(g, solid('#2b2622', 0.5), 3.2, 0, 72, 71, { sx: 0.9, sy: 0.7 });
+      sphere(g, solid('#141210', 0.4), 1.8, -6.5, 85, 54);              // eyes
+      sphere(g, solid('#141210', 0.4), 1.8, 6.5, 85, 54);
+      // backward-curving horns (two-segment arc) + out-tilted ears
       for (const s of [-1, 1]) {
-        segment(g, hornMat, [s * 5, 84, 53], [s * 8, 93, 30], 3, 1, 8);
-        sphere(g, hide, 6, s * 12, 76, 49, { sx: 0.35, sy: 0.5, sz: 1.2 });
+        segment(g, hornMat, [s * 4, 89, 50], [s * 6.5, 98, 42], 2.6, 1.7, 8);
+        segment(g, hornMat, [s * 6.5, 98, 42], [s * 8.5, 100, 30], 1.7, 0.6, 8);
+        const ear = sphere(g, hide, 6.5, s * 11, 83, 47, { sx: 1.0, sy: 0.4, sz: 0.55 });
+        ear.rotation.z = s * -0.35;
       }
-      // chin beard + perky tail
-      segment(g, hide, [0, 66, 66], [0, 54, 62], 3, 1.2, 8);
-      segment(g, hide, [0, 62, -40], [0, 71, -48], 3, 1.2, 8);
+      // chin beard + small upright tail
+      segment(g, hide, [0, 72, 63], [0, 60, 60], 2.8, 0.9, 8);
+      segment(g, hide, [0, 64, -38], [0, 74, -44], 2.8, 1.0, 8);
       return g;
     }
   },
   {
     id: 'farm_chicken', name: 'Chicken', cat: 'farm', w: 24, d: 44, h: 40,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'White Leghorn', chip: '#f3f1ea', body: '#f3f1ea' },
       { name: 'Rhode Island Red', chip: '#8a3a26', body: '#8a3a26' },
@@ -277,8 +313,10 @@ export const FARM_ITEMS = [
         cyl(g, shank, 1.5, 12, s * 5, 0, -1, { seg: 8 });
         for (const t of [-1.5, 0, 1.5]) box(g, shank, 1, 1, 5, s * 5 + t, 0.4, 2);
       }
-      // plump ovoid body with a full breast
-      sphere(g, feathers, 14, 0, 20, -3, { sx: 0.86, sy: 1.02, sz: 1.15 });
+      // plump ovoid body — a feathery blob over a smooth breast
+      const bodyBlob = blob(g, shade(p.body, -0.12), shade(p.body, 0.22), 13, 0, 20, -3,
+        { seed: 4, detail: 3, amp: 0.05 });
+      bodyBlob.scale.set(0.9, 1.05, 1.2);
       sphere(g, feathers, 10, 0, 17, 9, { sx: 0.9, sy: 1.05, sz: 0.9 });
       // head on a short neck
       sphere(g, feathers, 6.5, 0, 30, 11, { sx: 0.98, sy: 0.98 });
@@ -289,9 +327,9 @@ export const FARM_ITEMS = [
       segment(g, beakM, [0, 30, 15], [0, 29, 21], 2.2, 0.3, 8);
       sphere(g, eye, 1.1, -4, 31, 14);
       sphere(g, eye, 1.1, 4, 31, 14);
-      // upright tail fan
+      // modest upright tail fan
       for (let i = -1; i <= 1; i++) {
-        const t = box(g, feathers, 3, 14, 2.2, i * 3, 22, -14, { r: 0.8 });
+        const t = box(g, feathers, 3.2, 14, 2.2, i * 3, 22, -14, { r: 1 });
         t.rotation.x = -0.7; t.rotation.z = i * 0.14;
       }
       return g;
@@ -299,7 +337,7 @@ export const FARM_ITEMS = [
   },
   {
     id: 'farm_rooster', name: 'Rooster', cat: 'farm', w: 30, d: 54, h: 58,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'Classic', chip: '#3a2a20', body: '#3a2a20', tail: '#1c3040' },
       { name: 'Red', chip: '#8a2e1e', body: '#8a2e1e', tail: '#2a1c14' }
@@ -318,8 +356,10 @@ export const FARM_ITEMS = [
         cyl(g, shank, 2, 18, s * 6, 0, -3, { seg: 8 });
         for (const t of [-2, 0, 2]) box(g, shank, 1.2, 1.2, 7, s * 6 + t, 0.6, 2);
       }
-      // upright plump body, chest thrust forward
-      sphere(g, feathers, 16, 0, 28, -5, { sx: 0.86, sy: 1.2, sz: 1.02 });
+      // upright plump body — feathery blob core, chest thrust forward
+      const bodyBlob = blob(g, shade(p.body, -0.12), shade(p.body, 0.25), 14.5, 0, 30, -5,
+        { seed: 7, detail: 3, amp: 0.05 });
+      bodyBlob.scale.set(0.92, 1.28, 1.1);
       sphere(g, feathers, 12, 0, 26, 8, { sx: 0.9, sy: 1.15, sz: 0.9 });
       // proud arched neck + head
       segment(g, neckM, [0, 36, 3], [0, 50, 12], 8, 5.5, 12);
@@ -331,20 +371,21 @@ export const FARM_ITEMS = [
       segment(g, beakM, [0, 52, 18], [0, 50, 25], 2.6, 0.3, 8);
       sphere(g, eye, 1.3, -5, 54, 16);
       sphere(g, eye, 1.3, 5, 54, 16);
-      // grand arched sickle tail
-      for (let i = 0; i < 6; i++) {
-        const t = i / 5;
+      // grand arched sickle tail — tapered segments rising then curving down
+      for (let i = 0; i < 5; i++) {
         const s = i % 2 ? 1 : -1;
-        const bl = box(g, tailc, 3.2, 30 - i * 2.4, 2.4, s * (1 + i * 0.5), 30 + i * 1.4, -16 - i * 1.2, { r: 1 });
-        bl.rotation.x = -0.5 - t * 0.7;
-        bl.rotation.z = s * 0.1;
+        const dx = 1 + i * 0.9;
+        segment(g, tailc, [s * 1.5, 40, -12], [s * dx, 57 - i * 3.5, -22 - i * 2.5], 2.1 - i * 0.15, 1.4, 8);
+        segment(g, tailc, [s * dx, 57 - i * 3.5, -22 - i * 2.5], [s * (dx + 1.5), 34 - i * 3.5, -31 - i * 1.2], 1.4, 0.3, 8);
       }
+      // short covert tuft at the tail base
+      sphere(g, tailc, 5, 0, 40, -14, { sx: 0.8, sy: 1.0, sz: 1.2 });
       return g;
     }
   },
   {
     id: 'farm_duck', name: 'Duck', cat: 'farm', w: 26, d: 52, h: 42,
-    plan: { type: 'box' },
+    plan: { type: 'animal' },
     palettes: [
       { name: 'Pekin White', chip: '#f4f2ec', body: '#f4f2ec', head: '#f4f2ec' },
       { name: 'Mallard', chip: '#7c6a4a', body: '#7c6a4a', head: '#1f5a3a' }
@@ -433,8 +474,13 @@ export const FARM_ITEMS = [
       const g = G();
       // big cylinder lying on its side (axis along x so it can roll)
       cyl(g, solid(p.hay, 0.95), 64, 148, 0, 64, 0, { rz: Math.PI / 2, seg: 26 });
-      // rolled-straw texture as concentric end rings
-      for (const s of [-1, 1]) for (let r = 54; r > 8; r -= 16) cyl(g, solid(p.tip, 0.95), r, 2, s * 75, 64, 0, { rz: Math.PI / 2, seg: 26 });
+      // spiral-wrap hint on the flat ends — concentric raised rings of rolled
+      // straw (tori proud of the face) instead of painted discs
+      const wrap = solid(shade(p.tip, -0.12), 0.95);
+      for (const s of [-1, 1]) {
+        for (const r of [52, 36, 20]) torus(g, wrap, r, 1.8, s * 74, 64, 0, { rx: 0, ry: Math.PI / 2, seg: 30 });
+        sphere(g, wrap, 6, s * 74.5, 64, 0, { sx: 0.35 }); // rolled core nub
+      }
       // frizzy top
       blob(g, p.hay, p.tip, 60, 0, 96, 0, { seed: 6, sy: 0.4, detail: 2 });
       return g;
@@ -446,13 +492,20 @@ export const FARM_ITEMS = [
     palettes: [{ name: 'Straw', chip: '#cbab4e', hay: '#cbab4e' }],
     build: (p) => {
       const g = G();
-      box(g, solid(p.hay, 0.95), 45, 40, 90, 0, 0, 0, { r: 3 });
-      // frayed straw ends
-      for (const z of [-46, 46]) blob(g, p.hay, '#e4cf86', 22, 0, 20, z, { seed: z, sy: 0.85, detail: 2 });
-      // baling twine
+      // straw-textured block (wood grain reads as packed straw at this hue)
+      box(g, wood('#c9a86a', 0.85), 45, 40, 90, 0, 0, 0, { r: 3 });
+      // frayed straw ends — blobs flattened onto the cut faces (kept within
+      // the declared 90cm depth, no more phantom 139cm bale)
+      for (const z of [-44, 44]) {
+        const b = blob(g, p.hay, '#e4cf86', 19, 0, 20, z, { seed: z + 60, sy: 0.9, detail: 2 });
+        b.scale.z = 0.35;
+      }
+      // baling twine wrapped right around the bale
+      const twine = solid('#c86a2a', 0.7);
       for (const x of [-13, 13]) {
-        box(g, solid('#c86a2a', 0.7), 1.6, 42, 1.6, x, 0, 0);
-        box(g, solid('#c86a2a', 0.7), 47, 1.6, 1.6, 0, 22, x * 2);
+        box(g, twine, 1.6, 1.6, 90.4, x, 40, 0);        // top run
+        box(g, twine, 1.6, 1.6, 90.4, x, -0.2, 0);      // bottom run
+        for (const z of [-45.2, 45.2]) box(g, twine, 1.6, 40, 1.6, x, 0, z); // end drops
       }
       return g;
     }
@@ -638,10 +691,11 @@ export const FARM_ITEMS = [
       cyl(g, m, 45, 52, 0, 0, 60, { seg: 24 });
       cyl(g, m, 45, 52, 0, 0, -60, { seg: 24 });
       box(g, m, 90, 52, 120, 0, 0, 0);
-      // water surface
-      cyl(g, glass(), 40, 2, 0, 46, 60, { seg: 24 });
-      cyl(g, glass(), 40, 2, 0, 46, -60, { seg: 24 });
-      box(g, glass(), 80, 2, 120, 0, 46, 0);
+      // water surface — real rippled water material, not glass
+      const wat = water(180);
+      cyl(g, wat, 40, 2, 0, 46, 60, { seg: 24 });
+      cyl(g, wat, 40, 2, 0, 46, -60, { seg: 24 });
+      box(g, wat, 80, 2, 120, 0, 46, 0);
       // rolled rim
       for (const z of [60, -60]) cyl(g, m, 46, 4, 0, 50, z, { seg: 24 });
       return g;
@@ -683,25 +737,62 @@ export const FARM_ITEMS = [
     build: (p) => {
       const g = G();
       const post = wood('#7a5f40', 0.7);
-      // cross frame
-      cyl(g, post, 4, 200, 0, 0, 0, { seg: 8 });
-      box(g, post, 118, 6, 6, 0, 150, 0);
-      // straw-stuffed body
-      box(g, solid(p.shirt, 0.85), 46, 60, 24, 0, 120, 0, { r: 6 });
-      box(g, solid(p.pants, 0.85), 42, 50, 22, 0, 74, 0, { r: 5 });
+      const shirt = solid(p.shirt, 0.85);
+      const pants = solid(p.pants, 0.85);
+      const straw = solid('#d9b654', 0.9);
+      const strawLite = solid('#e8d07c', 0.9);
+      // cross frame — pole visible below the trousers
+      cyl(g, post, 4, 196, 0, 0, 0, { seg: 8 });
+      box(g, post, 114, 5, 5, 0, 148, 0);
+      // patched trousers — two stuffed legs, cuffs above the pole
       for (const s of [-1, 1]) {
-        box(g, solid(p.shirt, 0.85), 46, 12, 12, s * 34, 150, 0);   // sleeves
-        box(g, solid(p.pants, 0.85), 12, 44, 12, s * 12, 34, 0);    // legs
+        const lg = box(g, pants, 17, 56, 17, s * 10, 42, 0, { r: 5 });
+        lg.rotation.z = s * -0.06;
       }
-      // burlap head + hat
-      sphere(g, solid('#cbb487', 0.85), 16, 0, 172, 0);
-      sphere(g, solid('#2a2622', 0.4), 1.6, -6, 174, 12);
-      sphere(g, solid('#2a2622', 0.4), 1.6, 6, 174, 12);
-      cyl(g, wood('#9a7a44', 0.7), 24, 4, 0, 184, 0, { seg: 18 });
-      cyl(g, wood('#9a7a44', 0.7), 12, 16, 0, 186, 0, { seg: 18 });
-      // straw poking from sleeves, collar and hat
-      foliage(g, '#c8a94e', '#e4cf86', 0, 178, 0, 22, 8, 2);
-      for (const s of [-1, 1]) foliage(g, '#c8a94e', '#e4cf86', s * 56, 150, 0, 12, 6, s + 3);
+      box(g, pants, 40, 26, 20, 0, 92, 0, { r: 6 });                 // seat/waist
+      box(g, solid(shade(p.pants, 0.35), 0.85), 8, 10, 1.6, -12, 58, 8.6);  // knee patch
+      box(g, solid(shade(p.pants, -0.3), 0.85), 7, 8, 1.6, 11, 70, 8.6);    // second patch
+      // shirt torso + belt line
+      box(g, shirt, 44, 54, 22, 0, 112, 0, { r: 7 });
+      box(g, solid('#4a3527', 0.7), 40, 6, 20, 0, 106, 0.6, { r: 2 });      // belt
+      box(g, solid(shade(p.shirt, -0.35), 0.85), 9, 9, 1.6, 8, 128, 10.4);  // shirt patch
+      // sleeves hang along the cross pole, cuffs tied off
+      for (const s of [-1, 1]) {
+        cyl(g, shirt, 8.5, 38, s * 20, 148, 0, { rz: Math.PI / 2, seg: 12 });
+        const fore = cyl(g, shirt, 7.5, 22, s * 48, 144, 0, { rz: Math.PI / 2, seg: 12 });
+        fore.rotation.z = s * (Math.PI / 2 - 0.35);
+        cyl(g, solid('#4a3527', 0.7), 7.9, 3, s * 57, 141, 0, { rz: Math.PI / 2 - 0.35, seg: 12 }); // cuff tie
+      }
+      // straw poking out — thin tapered wisps at cuffs, collar and ankles
+      for (const s of [-1, 1]) {
+        for (let i = 0; i < 4; i++) {
+          const a = (i - 1.5) * 0.3;
+          segment(g, i % 2 ? straw : strawLite,
+            [s * 58, 138, 0], [s * (68 + i), 128 + Math.sin(a) * 6, (i - 1.5) * 5], 1.1, 0.2, 6);
+        }
+        for (let i = 0; i < 3; i++)
+          segment(g, i % 2 ? straw : strawLite,
+            [s * 10, 16, 0], [s * (13 + i * 3), 2, (i - 1) * 6], 1.2, 0.25, 6);   // ankle wisps
+      }
+      for (let i = 0; i < 5; i++)
+        segment(g, i % 2 ? straw : strawLite,
+          [(i - 2) * 4, 160, 2], [(i - 2) * 7, 152, 9 + (i % 2) * 3], 1.1, 0.2, 6); // collar wisps
+      // burlap head with stitched face
+      sphere(g, solid('#cbb487', 0.85), 15, 0, 176, 0, { sy: 1.08 });
+      cyl(g, solid('#4a3527', 0.7), 6.5, 2.5, 0, 160, 0, { seg: 10 });     // neck tie
+      sphere(g, solid('#2a2622', 0.4), 1.7, -5.5, 179, 13.4);
+      sphere(g, solid('#2a2622', 0.4), 1.7, 5.5, 179, 13.4);
+      box(g, solid('#8a5a3a', 0.6), 2.2, 3.5, 1.4, 0, 173.5, 14.2);        // stitched nose
+      for (let i = 0; i < 4; i++)                                          // stitched grin
+        box(g, solid('#2a2622', 0.5), 2.6, 1.1, 1.2, (i - 1.5) * 3.2, 168.5 + Math.abs(i - 1.5) * 0.9, 13.6);
+      // floppy hat — wide tilted brim + tapered crown, straw fringe beneath
+      for (let i = 0; i < 6; i++)
+        segment(g, i % 2 ? straw : strawLite,
+          [(i - 2.5) * 3, 186, 3], [(i - 2.5) * 5.5, 180, 12], 1.0, 0.2, 6);
+      const brim = cyl(g, wood('#9a7a44', 0.7), 20, 3, 0, 188, 0, { seg: 20 });
+      brim.rotation.x = 0.1; brim.rotation.z = 0.12;
+      cyl(g, wood('#9a7a44', 0.7), 12.5, 15, 0, 189, 0, { rTop: 9, seg: 18 });
+      torus(g, solid('#7a2e24', 0.7), 12.2, 2, 0, 192, 0, { seg: 24 });    // hat band
       return g;
     }
   },

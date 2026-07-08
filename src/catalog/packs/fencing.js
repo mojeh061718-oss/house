@@ -61,7 +61,7 @@ export const FENCING_ITEMS = [
   {
     id: 'fence_chainlink', name: 'Galvanized Chain-Link', cat: 'yard', w: 240, d: 12, h: 125, noShadow: true,
     palettes: [
-      { name: 'Galvanized', chip: '#aeb2b6', style: 'slat', color: '#aeb2b6', post: '#8f9398', h: 125 }
+      { name: 'Galvanized', chip: '#aeb2b6', style: 'chainlink', color: '#aeb2b6', post: '#8f9398', h: 125 }
     ],
     plan: { type: 'path' },
     path: { mat: 'pavement', width: 12, surface: 'fence' },

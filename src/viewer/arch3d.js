@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { wallLength, wallAngle, pointInPolygon, polygonArea } from '../core/geometry.js';
 import { getTextureCanvases, MATERIAL_MAP, watchTextures } from '../core/textures.js';
-import { solid } from '../catalog/builders.js';
+import { solid, netMaterial } from '../catalog/builders.js';
 
 const matCache = new Map();
 watchTextures((matId) => {
@@ -211,6 +211,21 @@ function buildFenceModel(it, def) {
     // rails / slats spanning the whole segment
     if (pal.style === 'ranch') {
       for (const f of [0.25, 0.55, 0.85]) bar(len, 10, 4.5, mx, H * f, mz, ry);
+    } else if (pal.style === 'chainlink') {
+      // galvanized run: top rail, bottom tension wire, translucent woven fabric
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, len, 10), postMat);
+      rail.rotation.z = Math.PI / 2; rail.rotation.y = ry;
+      rail.position.set(mx, H - 3, mz);
+      rail.castShadow = true;
+      g.add(rail);
+      bar(len, 1.6, 1.6, mx, 6, mz, ry);
+      const fabric = new THREE.Mesh(
+        new THREE.PlaneGeometry(len, H - 10),
+        netMaterial('#3a3f44', Math.max(4, Math.round(len / 34)), 3.5)
+      );
+      fabric.rotation.y = ry;
+      fabric.position.set(mx, (H - 10) / 2 + 8, mz);
+      g.add(fabric);
     } else if (pal.style === 'slat') {
       for (let k = 0; k < 7; k++) bar(len, 9, 3, mx, 12 + k * (H - 16) / 6 + 4, mz, ry);
     } else {

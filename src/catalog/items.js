@@ -2510,7 +2510,7 @@ export const ITEMS = [
       { name: 'Forest', chip: '#3f5c40', body: '#3f5c40' },
       { name: 'Grey', chip: '#6d7278', body: '#6d7278' }
     ],
-    plan: { type: 'box' },
+    plan: { type: 'container' },
     build: (p) => {
       const g = G();
       const paint = solid(p.body, 0.55);
