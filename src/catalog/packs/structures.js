@@ -1,4 +1,4 @@
-import { G, box, cyl, sphere, prism, wavyPanel, blob, foliage, solid, wood, metal, glass, water, glow, tex } from '../builders.js';
+import { G, box, cyl, sphere, prism, wavyPanel, blob, foliage, solid, wood, metal, glass, water, glow, tex, lathe, sweep } from '../builders.js';
 
 // Modern outdoor structures & yard features — all parametric, primitives only.
 const WOODS = [
@@ -27,6 +27,26 @@ export const STRUCTURES_ITEMS = [
       // horizontal louvered slats across the top
       for (let z = -128; z <= 128; z += 16) {
         box(g, wd, 300, 10, 5, 0, 236, z, { rx: 0.32 });
+      }
+      // climbing vine winding up two posts — smooth sweep runner with small
+      // leaf clumps kept tight to the post (intrigue)
+      const vineMat = solid('#4a5c2e', 0.85);
+      for (const [sx, sz, seed] of [[-1, -1, 3], [1, 1, 9]]) {
+        const px = sx * 148, pz = sz * 138;
+        const pts = [];
+        for (let i = 0; i <= 6; i++) {
+          const t = i / 6, a = seed + t * 4.2;
+          pts.push([px + Math.cos(a) * 11, 4 + t * 214, pz + Math.sin(a) * 11]);
+        }
+        sweep(g, vineMat, pts, 1.8, { seg: 36 });
+        // three leaf clusters (paired blobs) instead of evenly-spaced beads
+        for (const [t, r1, r2] of [[0.24, 10, 7], [0.55, 12, 8], [0.85, 10.5, 7.5]]) {
+          const a = seed + t * 4.2;
+          const bx = px + Math.cos(a) * 11, by = 8 + t * 214, bz = pz + Math.sin(a) * 11;
+          blob(g, '#3f5f26', '#7da845', r1, bx, by, bz, { seed: seed * 7 + t * 10, detail: 2 });
+          blob(g, '#4f6f36', '#9dc25a', r2, bx + Math.cos(a + 1.4) * 8, by + 10, bz + Math.sin(a + 1.4) * 8,
+            { seed: seed * 5 + t * 13, detail: 2 });
+        }
       }
       return g;
     }
@@ -80,16 +100,26 @@ export const STRUCTURES_ITEMS = [
       // gabled roof running along x
       prism(g, roof, 300, 70, 280, 0, 190, 0, solid('#5a5e62', 0.75));
       box(g, trim, 316, 8, 8, 0, 190, 142);
-      // dutch door
+      // dutch door with split groove + real lever handle on a backplate
       box(g, wood('#6a4f38', 0.55), 70, 150, 6, 0, 0, 131);
+      box(g, solid('#4a3626', 0.6), 70, 1.6, 1, 0, 74, 134.1);
       box(g, glass(), 54, 40, 3, 0, 100, 133);
-      sphere(g, metal('#c8b070', 0.3), 3, 22, 78, 134);
-      // flanking windows with boxes
+      box(g, metal('#c8b070', 0.3), 2.4, 10, 1.2, 24, 73, 134.2);
+      const knob = lathe(g, metal('#c8b070', 0.3), [[1.5, 0], [1.9, 0.7], [0.8, 1.8], [2.4, 3], [2.5, 4], [0.8, 4.6]], 24, 78, 134.5, { seg: 18 });
+      knob.rotation.x = Math.PI / 2;
+      // stone doorstep (intrigue)
+      box(g, solid('#a9a396', 0.9), 52, 4, 18, 0, 0, 142, { r: 2 });
+      // flanking windows with blooming flower boxes (intrigue)
       for (const sx of [-1, 1]) {
         box(g, wood('#f2ede2', 0.6), 60, 60, 5, sx * 95, 95, 130);
         box(g, glass(), 50, 50, 3, sx * 95, 100, 131);
         box(g, trim, 62, 14, 20, sx * 95, 62, 136);
         foliage(g, '#6f8a4a', '#a6c46a', sx * 95, 82, 140, 22, 8, 11 + sx);
+        const petals = ['#c65b6a', '#e8b64a', '#d8574a', '#ede4d8'];
+        for (let f = 0; f < 4; f++) {
+          sphere(g, solid(petals[(f + (sx > 0 ? 1 : 0)) % 4], 0.6), 2.4,
+            sx * 95 + (f - 1.5) * 12, 90 + (f % 2) * 4, 141 + (f % 2) * 3, { seg: 8 });
+        }
       }
       return g;
     }
@@ -123,10 +153,24 @@ export const STRUCTURES_ITEMS = [
       for (let z = -150; z <= 150; z += 50) {
         box(g, frame, 258, 3, 3, 0, H + 8, z, { rz: 0 });
       }
-      // interior potting bench with plants
+      // glazed entry door on the front gable: frame, mid-rail, bar handle
+      const doorFrame = metal('#d8d4cc', 0.4);
+      for (const sx of [-1, 1]) box(g, doorFrame, 4, 138, 3, sx * 27, 18, 169.5);
+      box(g, doorFrame, 58, 4, 3, 0, 156, 169.5);
+      box(g, doorFrame, 50, 3, 3, 0, 78, 169.5);
+      cyl(g, metal('#3a3d42', 0.4), 0.9, 16, 20, 72, 172);       // pull bar (intrigue)
+      for (const hy of [74, 86]) cyl(g, metal('#3a3d42', 0.4), 0.8, 2.6, 20, hy, 170.2, { rx: Math.PI / 2 });
+      // interior potting bench — plants now sit in turned terracotta pots
       box(g, wood('#7a6248', 0.6), 120, 8, 40, -60, 78, 130);
-      foliage(g, '#5f7f3c', '#9dc25a', -90, 100, 130, 18, 8, 3);
-      foliage(g, '#6f8a4a', '#a6c46a', -30, 100, 130, 18, 8, 5);
+      for (const [px, seed] of [[-90, 3], [-30, 5]]) {
+        lathe(g, solid('#b06a4a', 0.8), [[5, 0], [7.5, 1], [8.6, 10], [9.6, 11.5], [9, 12.8], [7, 12.2]], px, 86, 130, { seg: 22 });
+        cyl(g, solid('#2b2016', 0.98), 7.6, 1.5, px, 95.7, 130, { seg: 18 }); // soil recessed below rim
+        foliage(g, seed === 3 ? '#5f7f3c' : '#6f8a4a', seed === 3 ? '#9dc25a' : '#a6c46a', px, 104, 130, 15, 7, seed);
+      }
+      // one pot waiting on the floor by the door
+      lathe(g, solid('#b06a4a', 0.8), [[6, 0], [9, 1.2], [10.5, 13], [11.6, 14.5], [11, 16], [8.8, 15.4]], 66, 18, 120, { seg: 22 });
+      cyl(g, solid('#2b2016', 0.98), 9.2, 1.5, 66, 31, 120, { seg: 18 });
+      foliage(g, '#4f6f2c', '#8db84e', 66, 38, 120, 13, 6, 9);
       return g;
     }
   },
@@ -359,18 +403,22 @@ export const STRUCTURES_ITEMS = [
       const g = G();
       const stone = solid(p.chip, 0.9);
       const basin = solid('#8f8b82', 0.85);
-      // catch basin with real rippled water
-      cyl(g, basin, 34, 12, 0, 0, 0);
-      cyl(g, water(60), 30, 6, 0, 8, 0);
-      // monolith spout column
-      box(g, stone, 22, 108, 22, 0, 12, 0, { r: 3 });
-      // water sheet spilling from a scupper
-      box(g, water(70), 14, 70, 3, 0, 40, 12);
-      cyl(g, metal('#9a9ea4', 0.4), 3, 6, 0, 100, 11, { rx: Math.PI / 2 });
-      // pebbles in the basin
+      // catch basin — one smooth lathe bowl: outer wall up over a rolled rim,
+      // back down inside to the floor. Water sits RECESSED below the rim.
+      lathe(g, basin, [
+        [20, 0], [30, 1.2], [33, 4.5], [34, 9], [34.5, 12],
+        [32.5, 11.2], [30.5, 6], [28.5, 3.6], [2, 3.2]
+      ], 0, 0, 0, { seg: 36 });
+      cyl(g, water(60), 28.8, 4.5, 0, 4.5, 0, { seg: 36 });   // surface at 9, rim at 12
+      // monolith spout column rising out of the pool
+      box(g, stone, 22, 116, 22, 0, 3, 0, { r: 3 });
+      // water sheet spilling from a worn brass scupper into the pool
+      box(g, water(70), 12, 92, 2.5, 0, 7, 12.2);
+      cyl(g, metal('#b08d4a', 0.35), 3, 7, 0, 100, 11.5, { rx: Math.PI / 2 });
+      // pebbles breaking the water surface
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
-        blob(g, '#7a756c', '#a49e94', 3.5, Math.cos(a) * 22, 9, Math.sin(a) * 22, { seed: i + 5, sy: 0.5, detail: 1 });
+        blob(g, '#7a756c', '#a49e94', 3.5, Math.cos(a) * 22, 8, Math.sin(a) * 22, { seed: i + 5, sy: 0.55, detail: 2 });
       }
       return g;
     }
@@ -396,9 +444,30 @@ export const STRUCTURES_ITEMS = [
         for (let y = 20; y < 200; y += 24) box(g, wd, 5, 5, 52, sx * 64, y, 0);
       }
       for (let z = -20; z <= 20; z += 20) box(g, wd, 132, 5, 5, 0, 205, z);
-      // climbing vine — kept tight to the posts so the arch stays inside its
-      // declared 140×60 footprint
-      for (const sx of [-1, 1]) foliage(g, '#3f5f26', '#7da845', sx * 60, 150, 12, 18, 10, sx * 30 + 60);
+      // climbing roses — sweep runners weaving up the lattice sides and
+      // bending over the arch, leaf clumps + blossoms along the way, all kept
+      // inside the declared 140×60 footprint
+      const vineMat = solid('#4a5c2e', 0.85);
+      for (const sx of [-1, 1]) {
+        const pts = [];
+        for (let i = 0; i <= 5; i++) {
+          const t = i / 5;
+          pts.push([sx * (63 - t * 4), 6 + t * 200, Math.sin(t * 6 + sx * 2) * 14]);
+        }
+        pts.push([sx * 44, 222, 6]);
+        pts.push([sx * 16, 230, -4]);
+        sweep(g, vineMat, pts, 1.3, { seg: 40 });
+        let r = sx > 0 ? 11 : 29;
+        const rnd = () => { r = (r * 1664525 + 1013904223) >>> 0; return r / 4294967296; };
+        for (let i = 1; i <= 5; i++) {
+          const t = i / 5.6;
+          const bx = sx * (62 - t * 8), by = 14 + t * 198, bz = Math.sin(t * 6 + sx * 2) * 14;
+          blob(g, '#3f5f26', '#7da845', 4.5 + rnd() * 2.5, bx, by, bz, { seed: sx * 9 + i, detail: 2 });
+          if (i % 2) sphere(g, solid('#c65b6a', 0.6), 1.9, bx + (rnd() - 0.5) * 6, by + 4 + rnd() * 3, bz + (rnd() - 0.5) * 6, { seg: 8 });
+        }
+        blob(g, '#4f6f36', '#9dc25a', 6.5, sx * 34, 226, 2, { seed: sx * 13 + 4, detail: 2 });
+        sphere(g, solid('#c65b6a', 0.6), 2, sx * 26, 230, 0, { seg: 8 });
+      }
       return g;
     }
   },
@@ -443,21 +512,32 @@ export const STRUCTURES_ITEMS = [
       const wd = wood(p.wood, 0.6);
       const staveDark = wood('#8a5f30', 0.7);
       // big horizontal barrel body (cyl laid along z via rx)
-      cyl(g, wd, 95, 210, 0, 95, 0, { rx: Math.PI / 2, seg: 28 });
-      // stave banding rings
-      for (const z of [-90, 90]) cyl(g, metal('#5a5e62', 0.4), 96, 4, 0, 95, z, { rx: Math.PI / 2, seg: 28 });
-      // front face wall (flat) + door + window
-      cyl(g, staveDark, 93, 6, 0, 95, 103, { rx: Math.PI / 2, seg: 28 });
+      cyl(g, wd, 93, 210, 0, 95, 0, { rx: Math.PI / 2, seg: 32 });
+      // individual stave ribs riding the barrel so the staves genuinely read
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2;
+        if (Math.sin(a) < -0.88) continue; // bottom hidden by the cradle
+        const rr = 94.2;
+        box(g, staveDark, 5, 2.2, 206, Math.cos(a) * rr, 95 + Math.sin(a) * rr - 1.1, 0, { rz: a + Math.PI / 2, r: 1 });
+      }
+      // steel banding rings clamping the staves
+      for (const z of [-88, 88]) cyl(g, metal('#5a5e62', 0.4), 95.6, 5, 0, 95, z, { rx: Math.PI / 2, seg: 32 });
+      // front face wall (flat) + door + window + bar handle
+      cyl(g, staveDark, 91, 6, 0, 95, 103, { rx: Math.PI / 2, seg: 32 });
       box(g, wood('#6a4a2c', 0.6), 56, 130, 5, 0, 12, 106);
       box(g, glass(), 40, 40, 3, 0, 100, 107);
-      sphere(g, metal('#c8b070', 0.3), 3, 22, 70, 108);
+      cyl(g, metal('#c8b070', 0.3), 1.3, 26, 23, 56, 110.5);
+      for (const hy of [58, 78]) cyl(g, metal('#c8b070', 0.3), 1, 3, 23, hy, 108.5, { rx: Math.PI / 2 });
+      // wooden step at the door (intrigue)
+      box(g, wd, 58, 7, 22, 0, 0, 119, { r: 2 });
       // cradle supports keeping the barrel off the ground
       for (const z of [-70, 70]) {
         box(g, wd, 200, 14, 16, 0, 0, z);
         for (const sx of [-1, 1]) box(g, wd, 16, 30, 16, sx * 78, 0, z, { rz: sx * 0.35 });
       }
-      // little chimney
-      cyl(g, metal('#3a3c40', 0.5), 6, 40, 55, 175, -60);
+      // chimney with a turned rain cap
+      cyl(g, metal('#3a3c40', 0.5), 6, 38, 55, 175, -60);
+      lathe(g, metal('#3a3c40', 0.5), [[2, 0], [8.5, 1], [9, 2.5], [4.5, 4.5], [0.3, 5.5]], 55, 212, -60, { seg: 20 });
       return g;
     }
   },
@@ -564,9 +644,30 @@ export const STRUCTURES_ITEMS = [
       for (const sx of [-1, 1]) box(g, wd, 6, 42, 6, sx * 70, 0, 14);
       box(g, wd, 158, 8, 48, 0, 42, 6);
       for (let y = 54; y < 96; y += 12) box(g, wd, 152, 8, 5, 0, y, -16);
-      // climbing roses over the top
-      foliage(g, '#3f5f26', '#84a844', 40, 224, 20, 26, 10, 33);
-      foliage(g, '#4f6f36', '#9dc25a', -50, 224, -20, 24, 9, 71);
+      // climbing roses — runners up each lattice panel, spilling across the
+      // slat roof with leaf clumps + blossoms (contained in the footprint)
+      const vineMat = solid('#4a5c2e', 0.85);
+      for (const sx of [-1, 1]) {
+        const pts = [];
+        for (let i = 0; i <= 4; i++) {
+          const t = i / 4;
+          pts.push([sx * (77 - t * 3), 8 + t * 210, Math.sin(t * 5 + sx) * 20]);
+        }
+        pts.push([sx * 52, 230, sx * 14]);
+        pts.push([sx * 26, 234, -sx * 6]);
+        sweep(g, vineMat, pts, 1.4, { seg: 36 });
+        let r = sx > 0 ? 17 : 41;
+        const rnd = () => { r = (r * 1664525 + 1013904223) >>> 0; return r / 4294967296; };
+        for (let i = 1; i <= 4; i++) {
+          const t = i / 4.5;
+          const bx = sx * 76, by = 16 + t * 204, bz = Math.sin(t * 5 + sx) * 20;
+          blob(g, '#3f5f26', '#84a844', 5 + rnd() * 2.5, bx, by, bz, { seed: sx * 11 + i, detail: 2 });
+          if (i % 2) sphere(g, solid('#c65b6a', 0.6), 2, bx + (rnd() - 0.5) * 7, by + 5, bz + (rnd() - 0.5) * 7, { seg: 8 });
+        }
+        // canopy clump where the runner tops out over the slats
+        blob(g, '#4f6f36', '#9dc25a', 9, sx * 42, 232, sx * 10, { seed: sx * 5 + 33, detail: 2 });
+        sphere(g, solid('#c65b6a', 0.6), 2.2, sx * 32, 236, 0, { seg: 8 });
+      }
       return g;
     }
   },

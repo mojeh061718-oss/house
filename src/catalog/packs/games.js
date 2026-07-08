@@ -1,5 +1,5 @@
 import {
-  G, box, cyl, sphere, legs4, glow, solid, wood, metal, chrome, glass
+  G, box, cyl, sphere, legs4, glow, solid, wood, metal, chrome, glass, lathe, segment
 } from '../builders.js';
 
 // Games & recreation — indoor rec-room catalog.
@@ -65,14 +65,16 @@ export const GAMES_ITEMS = [
       box(g, cab, 72, 6, 4, 0, 89, -68);
       box(g, solid('#141414', 0.5), 22, 5, 3, 0, 89, 69);
       box(g, solid('#141414', 0.5), 22, 5, 3, 0, 89, -69);
-      // rods with little players + handles
+      // rods with little players + turned lathe handles (alternating sides)
       const zs = [-48, -16, 16, 48];
       const grip = solid('#1c1c1e', 0.5);
       zs.forEach((z, i) => {
-        cyl(g, rod, 1.2, 100, 0, 94, z, { rz: Math.PI / 2 });
+        cyl(g, rod, 1.2, 88, 0, 94, z, { rz: Math.PI / 2 });
         const men = solid(i % 2 === 0 ? '#b3352b' : '#215f9c', 0.5);
         for (const x of [-18, 18]) box(g, men, 3, 12, 5, x, 82, z);
-        box(g, grip, 5, 5, 11, 52, 94, z);
+        const side = i % 2 === 0 ? 1 : -1;
+        const h = lathe(g, grip, [[1.9, 0], [2.1, 1], [1.5, 2], [2.5, 4.5], [2.7, 7.5], [2.2, 9.5], [0.3, 10.5]], side * 44, 94, z, { seg: 16 });
+        h.rotation.z = -side * Math.PI / 2;
       });
       // score counters
       box(g, grip, 18, 10, 3, 0, 78, 71);
@@ -140,16 +142,21 @@ export const GAMES_ITEMS = [
       // six pockets
       const pk = [[-60, -116], [60, -116], [-60, 116], [60, 116], [-64, 0], [64, 0]];
       for (const [x, z] of pk) cyl(g, pocket, 6, 6, x, 74, z);
-      // racked balls
-      const cols = ['#f2c12e', '#215f9c', '#b3352b', '#2f7d4a', '#5a2f7d', '#e8e8e8'];
+      // full 15-ball rack in a tight triangle, 8-ball at the heart
+      const cols = ['#f2c12e', '#215f9c', '#b3352b', '#5a2f7d', '#e8632a', '#2f7d4a', '#8a2a24'];
       let n = 0;
-      for (let r = 0; r < 3; r++) {
+      for (let r = 0; r < 5; r++) {
         for (let c = 0; c <= r; c++) {
-          sphere(g, solid(cols[n % 6], 0.35), 3, (c - r / 2) * 6.4, 82, 60 + r * 5.6);
+          const hex = (r === 2 && c === 1) ? '#141414' : cols[n % 7];
+          sphere(g, solid(hex, 0.3), 3, (c - r / 2) * 6.3, 81.8, 56 + r * 5.5, { seg: 12 });
           n++;
         }
       }
-      sphere(g, solid('#f4f4f0', 0.3), 3, 0, 82, -50);
+      sphere(g, solid('#f4f4f0', 0.25), 3, 4, 81.8, -56, { seg: 12 }); // cue ball
+      // cue stick leaning against the rail + chalk cube (intrigue)
+      segment(g, wood('#c9a45f', 0.45), [94, 1.8, 116], [63, 87.5, 46], 1.7, 0.75, 12);
+      segment(g, solid('#2a2724', 0.5), [94, 1.8, 116], [89.5, 14.3, 105.9], 1.75, 1.6, 10); // wrap grip
+      box(g, solid('#3a6fb0', 0.7), 3.2, 3, 3.2, -40, 87, 124, { ry: 0.3 });
       return g;
     }
   },
@@ -174,13 +181,18 @@ export const GAMES_ITEMS = [
       // marquee
       box(g, body, 70, 22, 64, 0, 150, -3);
       box(g, glow(p.accent, 0.9), 62, 15, 2, 0, 153, 30);
-      // slanted control panel + stick + buttons
+      // slanted control panel + bat-top joystick (lathe) + concave buttons
       box(g, black, 66, 8, 34, 0, 86, 30, { rx: -0.42 });
-      cyl(g, chrome(), 1.5, 11, -16, 92, 34);
-      sphere(g, solid('#b3352b', 0.4), 3, -16, 103, 35);
+      cyl(g, chrome(), 1.2, 10, -16, 92, 34);
+      const bat = lathe(g, solid('#b3352b', 0.35), [[1, 0], [2.4, 1.4], [3, 3], [2.4, 4.6], [0.2, 5.8]], -16, 101, 34.5, { seg: 20 });
+      bat.rotation.x = -0.12;
+      const bcols = ['#ffcf3a', '#2fd9ff', '#ffcf3a', '#2fd9ff'];
       for (let i = 0; i < 4; i++) {
-        sphere(g, glow(i % 2 ? '#ffcf3a' : '#2fd9ff', 0.7), 2.4, 4 + i * 10, 95, 36);
+        const b = lathe(g, solid(bcols[i], 0.35), [[3, 0], [3.2, 1], [2.2, 1.4], [2.1, 2.2], [1.4, 2.6]], 2 + i * 9.5, 94.8, 33, { seg: 18 });
+        b.rotation.x = -0.42;
       }
+      // side-art accent stripes (intrigue)
+      for (const s of [-1, 1]) box(g, solid(p.accent, 0.55), 1.2, 92, 46, s * 35.1, 12, -10, { r: 0.5 });
       // coin door
       box(g, black, 26, 20, 2, 0, 30, 34);
       box(g, chrome(), 8, 4, 2, 0, 40, 35.2);
@@ -202,6 +214,10 @@ export const GAMES_ITEMS = [
       const body = solid(p.body, 0.5);
       const black = solid('#141519', 0.4);
       legs4(g, black, 66, 108, 55, 4, 6, true);
+      // full cabinet body under the deck + a bridge under the backbox so
+      // nothing floats
+      box(g, body, 72, 22, 108, 0, 36, 8, { r: 2 });
+      box(g, body, 70, 14, 18, 0, 53, -57);
       // slanted playfield deck + glass + glowing art
       box(g, body, 72, 12, 112, 0, 56, 8, { rx: -0.12 });
       box(g, glow('#22344f', 0.45), 66, 1, 104, 0, 62, 8, { rx: -0.12 });
@@ -212,6 +228,17 @@ export const GAMES_ITEMS = [
       }
       box(g, solid('#e8622a', 0.4), 14, 3, 4, -14, 62, 44, { ry: 0.4 });
       box(g, solid('#e8622a', 0.4), 14, 3, 4, 14, 62, 44, { ry: -0.4 });
+      // silver ball waiting on the playfield (intrigue)
+      sphere(g, chrome(), 1.7, 8, 61.8, 20, { seg: 12 });
+      // shooter plunger with a turned knob on the right front
+      cyl(g, chrome(), 0.9, 7, 28, 59, 66, { rx: -Math.PI / 2 });
+      const knob = lathe(g, solid('#b3352b', 0.4), [[0.9, 0], [2.3, 1.2], [2.6, 2.6], [1.6, 3.6], [0.2, 4.2]], 28, 59, 69, { seg: 18 });
+      knob.rotation.x = Math.PI / 2;
+      // flipper buttons on both cabinet flanks
+      for (const s of [-1, 1]) {
+        cyl(g, solid('#141519', 0.4), 3, 1.2, s * 36.2, 58, 42, { rz: Math.PI / 2, seg: 16 });
+        cyl(g, solid(p.accent, 0.45), 2, 2.6, s * 36.8, 58, 42, { rz: Math.PI / 2, seg: 16 });
+      }
       // vertical backbox with lit backglass
       box(g, body, 74, 58, 14, 0, 66, -60, { rx: 0.12 });
       box(g, glow(p.accent, 0.9), 64, 48, 2, 0, 72, -52);
@@ -248,11 +275,16 @@ export const GAMES_ITEMS = [
       cyl(g, metal('#9a9ea4', 0.3), 18.5, 0.6, 0, 0, 0.2, { rTop: 18.5, rx: Math.PI / 2, seg: 32 });
       box(g, cab, 22, 44, 3, -22, 0, 3, { ry: 0.5 });
       box(g, cab, 22, 44, 3, 22, 0, 3, { ry: -0.5 });
-      // a couple of stuck darts
-      cyl(g, chrome(), 0.5, 10, 5, 6, 6, { rx: Math.PI / 2 });
-      cyl(g, solid('#ffcf3a', 0.5), 1.3, 4, 5, 6, 10, { rx: Math.PI / 2, seg: 6 });
-      cyl(g, chrome(), 0.5, 10, -7, -4, 6, { rx: Math.PI / 2 });
-      cyl(g, solid('#2fd9ff', 0.5), 1.3, 4, -7, -4, 10, { rx: Math.PI / 2, seg: 6 });
+      // two darts stuck in the board, drooping under their own weight —
+      // needle+shaft, brass barrel, flared lathe flight (intrigue)
+      const dart = (x, y, hex) => {
+        segment(g, chrome(), [x, y, 0.8], [x, y - 1.2, 6], 0.35, 0.45, 8);
+        segment(g, metal('#b08d4a', 0.35), [x, y - 1.2, 6], [x, y - 2.2, 10], 0.85, 0.6, 10);
+        const f = lathe(g, solid(hex, 0.5), [[0.15, 0], [2.1, 2.6], [1.6, 3.3], [0.12, 3.6]], x, y - 2.2, 9.6, { seg: 12 });
+        f.rotation.x = Math.PI / 2 + 0.25;
+      };
+      dart(5, 6, '#ffcf3a');
+      dart(-7, -4, '#2fd9ff');
       return g;
     }
   },
@@ -334,21 +366,29 @@ export const GAMES_ITEMS = [
       const felt = solid(p.felt, 0.85);
       const rail = solid('#3a2a1c', 0.4);
       const base = wood('#2c2622', 0.5);
-      // padded outer rail + felt playfield
+      // padded outer rail + felt playfield sitting proud of the rail lip so
+      // the two tops never share a plane
       cyl(g, rail, 75, 9, 0, 70, 0, { seg: 8 });
-      cyl(g, felt, 66, 3, 0, 76, 0, { seg: 8 });
+      cyl(g, felt, 66, 4, 0, 76, 0, { seg: 8 });
       // cup holders around the rail
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
-        cyl(g, chrome(), 3.2, 4, Math.cos(a) * 70, 74, Math.sin(a) * 70);
+        cyl(g, chrome(), 3.2, 4.6, Math.cos(a) * 70, 75, Math.sin(a) * 70);
       }
       // pedestal column + cross feet
       cyl(g, base, 15, 66, 0, 4, 0, { rTop: 12 });
       box(g, base, 90, 8, 16, 0, 0, 0);
       box(g, base, 16, 8, 90, 0, 0, 0);
-      // a few chips + cards
-      for (let i = 0; i < 4; i++) cyl(g, solid(['#b3352b', '#215f9c', '#e8e8e8', '#2a2724'][i], 0.4), 3, 2, -20 + i * 3, 79, 10);
-      box(g, solid('#f4f4f0', 0.4), 8, 0.6, 12, 18, 79.5, -6, { ry: 0.3 });
+      // chip stacks of varied heights + two hole cards dealt face down (intrigue)
+      const chipCols = ['#b3352b', '#215f9c', '#2a2724', '#2f7d4a'];
+      const stacks = [[-24, 14, 6, 0], [-16, 18, 4, 1], [22, -30, 7, 2], [30, -24, 3, 3], [-40, -20, 5, 1]];
+      for (const [x, z, nCh, ci] of stacks) {
+        for (let i = 0; i < nCh; i++) {
+          cyl(g, solid(chipCols[(ci + (i % 3 === 2 ? 1 : 0)) % 4], 0.45), 2.9, 1, x, 80 + i * 0.9, z, { seg: 18 });
+        }
+      }
+      box(g, solid('#6e2833', 0.55), 6.4, 0.5, 8.9, -2, 80, -32, { ry: 0.2, r: 0.2 });
+      box(g, solid('#6e2833', 0.55), 6.4, 0.5, 8.9, 3, 80.55, -34, { ry: -0.15, r: 0.2 });
       return g;
     }
   },

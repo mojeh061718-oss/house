@@ -160,7 +160,7 @@ export const LOUNGE_ITEMS = [
       for (const s of [-1, 1]) box(g, wd, 5, 40, 5, s * 30, 0, -30);           // rear legs
       box(g, wd, 66, 10, 5, 0, 30, 22);                                        // front apron
       // weather-fabric seat pad + one pillow leaned into the back fan (intrigue)
-      cushion(g, fab, 56, 7, 56, 0, 27, 1, { puff: 0.28, dimple: 0.3, rx: -0.14 });
+      cushion(g, fab, 52, 7, 52, 0, 29.5, 0, { puff: 0.22, dimple: 0.3, rx: -0.14 });
       cushion(g, fab, 36, 34, 11, 0, 40, -27, { puff: 0.3, dimple: 0.05, rx: -0.42, ry: 0.18 });
       return g;
     }
@@ -214,9 +214,9 @@ export const LOUNGE_ITEMS = [
       box(g, top, 204, 6, 74, 0, 84, 0, { r: 2 });            // counter
       box(g, steel, 70, 30, 58, 52, 90, 0, { r: 14 });        // grill hood
       box(g, solid('#2a2c2e', 0.5), 66, 6, 50, 52, 90, 0, { r: 3 }); // grill body
-      // hood handle floating on standoffs
-      for (const hx of [32, 72]) cyl(g, metal('#e2e5e8', 0.3), 1.1, 4, hx, 104, 28, { rx: Math.PI / 2 });
-      cyl(g, metal('#e2e5e8', 0.3), 1.3, 46, 52, 105, 31, { rz: Math.PI / 2 });
+      // hood handle floating on standoffs (dark so it reads on the steel)
+      for (const hx of [32, 72]) cyl(g, metal('#2a2c2e', 0.35), 1.1, 4, hx, 104, 28, { rx: Math.PI / 2 });
+      cyl(g, metal('#2a2c2e', 0.35), 1.4, 46, 52, 105, 31, { rz: Math.PI / 2 });
       // farmhouse sink: proud rim, basin floor recessed well below it
       box(g, steel, 46, 7, 42, -58, 84.5, 0, { r: 2 });
       box(g, solid('#1a1a1a', 0.4), 38, 4, 34, -58, 82, 0);
@@ -231,7 +231,8 @@ export const LOUNGE_ITEMS = [
         box(g, steel, 44, 50, 2, dx, 18, 36, { r: 2 });        // doors
         cyl(g, metal('#e2e5e8', 0.3), 1, 20, dx + 16, 32, 37); // handles
       }
-      for (const kx of [30, 46, 62]) cyl(g, metal('#3a3d40', 0.3), 2.2, 4, kx, 86, 34);
+      // burner control knobs on the cabinet face under the grill
+      for (const kx of [30, 46, 62]) cyl(g, metal('#3a3d40', 0.3), 2.2, 3, kx, 76, 35.5, { rx: Math.PI / 2, seg: 14 });
       return g;
     }
   },
@@ -375,14 +376,25 @@ export const LOUNGE_ITEMS = [
       const fab = solid(p.fabric, 0.95);
       const canopy = solid('#eae3d4', 0.9);
       box(g, fr, 200, 26, 200, 0, 0, 0, { r: 4 });           // platform
-      box(g, fab, 188, 18, 188, 0, 26, 0, { r: 10 });        // mattress
-      box(g, fab, 184, 30, 22, 0, 44, -84, { r: 10 });       // back bolster
-      for (const s of [-1, 1]) box(g, fab, 22, 30, 150, s * 84, 44, 20, { r: 10 }); // side bolsters
+      cushion(g, fab, 180, 16, 180, 0, 26, 0, { puff: 0.05, dimple: 0.25 }); // mattress
+      cushion(g, fab, 176, 28, 22, 0, 42, -78, { puff: 0.2, dimple: 0.08 }); // back bolster
+      for (const s of [-1, 1]) cushion(g, fab, 22, 28, 140, s * 78, 42, 16, { puff: 0.2, dimple: 0.08 }); // side bolsters
+      // one throw pillow tossed at an angle (intrigue)
+      cushion(g, solid('#efe9dd', 0.95), 44, 40, 14, 30, 44, -62, { puff: 0.3, dimple: 0.05, ry: 0.4, rx: -0.12 });
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, fr, 8, 180, 8, sx * 94, 0, sz * 94); // posts
       for (const sz of [-1, 1]) box(g, fr, 196, 8, 8, 0, 180, sz * 94);  // top frame
       for (const sx of [-1, 1]) box(g, fr, 8, 8, 196, sx * 94, 180, 0);
       box(g, canopy, 200, 6, 200, 0, 188, 0, { r: 3 });      // canopy top
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, canopy, 10, 150, 10, sx * 94, 30, sz * 94, { r: 3 }); // drapes
+      // real hanging cloth panels — sagging hems, mirrored back faces so the
+      // cloth reads from both sides; back pair + one gathered at each side
+      for (const sx of [-1, 1]) {
+        drape(g, canopy, 44, 148, sx * 66, 176, -97, { sag: 4, wave: 2, folds: 4, seed: sx * 3 });
+        drape(g, canopy, 44, 148, sx * 66, 176, -96.2, { sag: 4, wave: 2, folds: 4, seed: -sx * 3, ry: Math.PI });
+        const d1 = drape(g, canopy, 44, 148, 0, 176, 0, { sag: 4, wave: 2, folds: 4, seed: sx * 5 + 1 });
+        d1.rotation.y = sx * Math.PI / 2; d1.position.set(sx * 97, 176 - 74, -58);
+        const d2 = drape(g, canopy, 44, 148, 0, 176, 0, { sag: 4, wave: 2, folds: 4, seed: -sx * 5 - 1 });
+        d2.rotation.y = -sx * Math.PI / 2; d2.position.set(sx * 96.2, 176 - 74, -58);
+      }
       return g;
     }
   },
@@ -406,8 +418,10 @@ export const LOUNGE_ITEMS = [
       box(g, wd, 130, 6, 60, 0, SEAT, 0, { r: 3 });          // seat
       box(g, wd, 130, 52, 6, 0, SEAT + 6, -27, { r: 3, rx: -0.12 }); // back
       for (const s of [-1, 1]) box(g, wd, 6, 26, 60, s * 62, SEAT + 6, 0, { r: 3 }); // arms
-      box(g, fab, 120, 10, 54, 0, SEAT + 6, 2, { r: 6 });    // seat cushion
-      box(g, fab, 120, 40, 10, 0, SEAT + 12, -24, { r: 6, rx: -0.12 }); // back cushion
+      cushion(g, fab, 120, 10, 54, 0, SEAT + 6, 2, { puff: 0.18, dimple: 0.45 });    // seat cushion
+      cushion(g, fab, 120, 38, 10, 0, SEAT + 12, -24, { puff: 0.22, dimple: 0.1, rx: -0.12 }); // back cushion
+      // one angled throw pillow (intrigue)
+      cushion(g, solid('#efe9dd', 0.95), 34, 32, 11, -40, SEAT + 14, -16, { puff: 0.3, dimple: 0.05, ry: 0.3, rx: -0.15 });
       return g;
     }
   },
@@ -433,9 +447,11 @@ export const LOUNGE_ITEMS = [
       for (const s of [-1, 1]) box(g, fr, 6, 6, 190, s * 30, 34, 0, { r: 3 }); // side rails
       for (const s of [-1, 1]) for (const z of [-70, 70]) cyl(g, fr, 2.6, 34, s * 30, 0, z);
       box(g, fr, 60, 4, 150, 0, 34, 18, { r: 2 });           // slat platform
-      box(g, fab, 58, 12, 140, 0, 38, 20, { r: 8 });         // seat cushion
-      box(g, fab, 58, 12, 66, 0, 54, -64, { r: 8, rx: 0.6 }); // reclined back
-      box(g, solid('#efe9dd', 0.95), 34, 10, 20, 0, 74, -86, { r: 6, rx: 0.6 }); // headrest
+      cushion(g, fab, 58, 12, 140, 0, 38, 20, { puff: 0.12, dimple: 0.35 });  // seat cushion
+      cushion(g, fab, 58, 12, 66, 0, 54, -64, { puff: 0.15, dimple: 0.2, rx: 0.6 }); // reclined back
+      cushion(g, solid('#efe9dd', 0.95), 34, 9, 20, 0, 74, -86, { puff: 0.35, dimple: 0.1, rx: 0.6 }); // headrest pillow
+      // folded towel at the foot end (intrigue)
+      cushion(g, solid('#c96a48', 0.9), 42, 5, 26, 0, 50, 66, { puff: 0.45, dimple: 0.1, ry: 0.06 });
       for (const s of [-1, 1]) cyl(g, solid('#2a2c2e', 0.6), 7, 4, s * 30, 7, 92, { rz: Math.PI / 2 }); // wheels
       return g;
     }
