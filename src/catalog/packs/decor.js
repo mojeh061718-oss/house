@@ -1,16 +1,9 @@
 // Modern indoor decor & accents pack. Built only from primitive helpers.
 import {
   G, box, cyl, sphere, shade, blob, foliage,
-  solid, wood, metal, glass, mirror, glow, artMaterial
+  solid, wood, metal, glass, mirror, glow, artMaterial,
+  lathe, cushion, sweep, segment
 } from '../builders.js';
-
-// local helper: a simple wine/spirits bottle standing at x,z
-function bottle(g, x, z, col, h = 22) {
-  cyl(g, glass(), 3, h * 0.7, x, 0, z, { seg: 12 });
-  cyl(g, solid(col, 0.35), 3.05, h * 0.55, x, 0, z, { seg: 12 });
-  cyl(g, solid(col, 0.4), 1.2, h * 0.28, x, h * 0.7, z, { seg: 10 });
-  cyl(g, solid('#4a3626', 0.8), 1.25, 2, x, h * 0.98, z, { seg: 8 });
-}
 
 export const DECOR_ITEMS = [
   // ===== MIRRORS =====
@@ -26,13 +19,19 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const fm = p?.metal ? metal(p.frame, 0.35) : wood(p?.frame || '#5a4433');
-      box(g, fm, 62, 176, 5, 0, 0, 0, { r: 2 });
-      box(g, mirror(), 52, 166, 1.6, 0, 5, 2.7);
-      // splayed easel feet
+      // stepped frame profile: back panel + four PROUD moulding rails; the
+      // mirror glass sits inset ~1.7cm behind the rail fronts (no z-fight)
+      box(g, fm, 58, 172, 2.5, 0, 2, -1.2, { r: 1 });          // back panel
+      box(g, fm, 6, 176, 6, -28, 0, 0, { r: 1.6 });            // left rail
+      box(g, fm, 6, 176, 6, 28, 0, 0, { r: 1.6 });             // right rail
+      box(g, fm, 50, 6, 6, 0, 170, 0, { r: 1.6 });             // top rail
+      box(g, fm, 50, 6, 6, 0, 0, 0, { r: 1.6 });               // bottom rail
+      box(g, mirror(), 50, 162, 1, 0, 6.5, 0.8);               // inset glass
+      // splayed easel feet + a real back brace running to the floor
       box(g, fm, 15, 4, 36, -19, 0, 0, { r: 1.5 });
       box(g, fm, 15, 4, 36, 19, 0, 0, { r: 1.5 });
-      // slim back brace
-      box(g, fm, 4, 150, 4, 0, 6, -14, { rx: 0.14 });
+      segment(g, fm, [0, 160, -1.5], [0, 3, -19], 2.2, 2.2, 8);
+      box(g, fm, 12, 3, 8, 0, 0, -18.5, { r: 1 });             // brace foot pad
       return g;
     }
   },
@@ -47,9 +46,11 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const fm = p?.metal ? metal(p.frame, 0.35) : wood(p?.frame || '#b79363');
-      // stadium-profile frame leaning back slightly reads as an arch
-      box(g, fm, 74, 184, 5, 0, 0, 0, { r: 34, rx: -0.06 });
-      box(g, mirror(), 62, 170, 1.8, 0, 7, 2.6, { r: 28, rx: -0.06 });
+      // stadium-profile frame leaning back slightly reads as an arch;
+      // three separated depth steps (slab → moulding → glass), no coplanar faces
+      box(g, fm, 74, 184, 3.5, 0, 0, -0.8, { r: 34, rx: -0.06 });   // outer slab
+      box(g, fm, 66, 176, 2, 0, 4, 1.9, { r: 30, rx: -0.06 });      // moulding step
+      box(g, mirror(), 58, 166, 1, 0, 9, 3.2, { r: 26, rx: -0.06 }); // glass
       return g;
     }
   },
@@ -176,18 +177,54 @@ export const DECOR_ITEMS = [
       const g = G();
       const fr = metal(p?.frame || '#c9a24a', 0.3);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        cyl(g, fr, 1.4, 78, sx * 35, 3, sz * 20, { seg: 10 });
-        sphere(g, solid('#2a2a2c', 0.4), 2.4, sx * 35, 3, sz * 20); // caster
+        cyl(g, fr, 1.4, 76, sx * 35, 4, sz * 20, { seg: 10 });
+        sphere(g, solid('#2a2a2c', 0.4), 2.4, sx * 35, 2.4, sz * 20); // caster on the floor
       }
-      // rails
+      // rails: long runs front/back + side gallery rails so bottles can't roll off
       for (const y of [8, 80]) for (const sz of [-1, 1]) cyl(g, fr, 1.2, 70, 0, y, sz * 20, { rz: Math.PI / 2, seg: 8 });
+      for (const sx of [-1, 1]) cyl(g, fr, 1.2, 40, sx * 35, 80, 0, { rx: Math.PI / 2, seg: 8 });
       box(g, glass(), 74, 1.4, 42, 0, 78, 0);   // top glass shelf
       box(g, glass(), 74, 1.4, 42, 0, 26, 0);   // lower glass shelf
-      bottle(g, -22, 4, '#3d5a3a', 26);
-      bottle(g, -8, -6, '#7a3a2a', 24);
-      bottle(g, 6, 6, '#2f4a6a', 28);
-      cyl(g, glass(), 4, 8, 24, 78, 6, { rTop: 3, seg: 14 }); // glassware
-      cyl(g, glass(), 4, 8, 14, 78, -8, { rTop: 3, seg: 14 });
+      const sy = 79.4;                          // items STAND ON the shelf surface
+      // wine bottle: straight body, sloped shoulder, long neck, lipped mouth
+      lathe(g, solid('#3d5a3a', 0.3), [
+        [3.3, 0], [3.5, 0.4], [3.5, 15], [3.1, 16.6], [1.25, 20.5],
+        [1.15, 26.2], [1.45, 26.8], [1.45, 28]
+      ], -24, sy, 5, { seg: 20 });
+      cyl(g, solid('#7a2230', 0.5), 1.5, 3.2, -24, sy + 25.4, 5, { seg: 12 }); // foil cap
+      box(g, solid('#efe8d6', 0.8), 4.4, 6, 0.5, -24, sy + 5, 8.4);            // label
+      // squat spirits bottle: wide shoulders, short neck, chunky black cap
+      lathe(g, solid('#8a5a2e', 0.35), [
+        [3.9, 0], [4.15, 0.5], [4.15, 11.5], [3.4, 13], [1.7, 14.8], [1.7, 17.6]
+      ], -12, sy, -6, { seg: 20 });
+      lathe(g, solid('#1d1d1f', 0.5), [[1.95, 0], [1.95, 2.6], [1.4, 3.1]], -12, sy + 16.6, -6, { seg: 14 });
+      box(g, solid('#e8e2d2', 0.8), 4.8, 5, 0.5, -12, sy + 3.5, -2.1);         // label
+      // crystal decanter: fat belly, slim neck, ball stopper, whisky inside
+      lathe(g, glass(), [
+        [2.4, 0], [4.9, 1.6], [5.7, 5.5], [4.9, 9.5], [2.6, 12], [1.5, 13.5],
+        [1.5, 17], [2.3, 17.8], [2.1, 18.6]
+      ], 0, sy, 6, { seg: 24 });
+      cyl(g, solid('#9a5c20', 0.3), 3.4, 4, 0, sy + 1.6, 6, { seg: 16, rTop: 4.4 });
+      sphere(g, glass(), 2, 0, sy + 20.4, 6, { seg: 14 });
+      // two lowball glasses (real inner wall), one already poured
+      for (const [gx, gz, fill] of [[13, 8, 1], [20, 0, 0]]) {
+        lathe(g, glass(), [
+          [2.5, 0], [2.75, 0.4], [2.85, 7], [2.6, 7], [2.45, 1.4], [0.01, 1.2]
+        ], gx, sy, gz, { seg: 18 });
+        if (fill) cyl(g, solid('#9a5c20', 0.3), 2.3, 2.6, gx, sy + 1.6, gz, { seg: 14 });
+      }
+      // a lemon waiting to be sliced, nubs and all
+      const lem = sphere(g, solid('#e3c22e', 0.55), 2.3, 27, sy + 2.2, -10, { seg: 14 });
+      lem.scale.set(1.3, 0.95, 1);
+      sphere(g, solid('#c9a71f', 0.6), 0.55, 30.2, sy + 2.2, -10, { seg: 8 });
+      sphere(g, solid('#c9a71f', 0.6), 0.55, 23.8, sy + 2.2, -10, { seg: 8 });
+      // lower shelf: a stack of two books + a cocktail shaker
+      const ls = 27.4;
+      box(g, solid('#7c4434', 0.7), 20, 3, 14, -18, ls, 2, { r: 0.6 });
+      box(g, solid('#39506b', 0.7), 18, 2.6, 13, -17, ls + 3, 1, { r: 0.6, ry: 0.22 });
+      lathe(g, metal('#cdd2d6', 0.2), [
+        [3.2, 0], [3.5, 0.6], [3.5, 9], [2.6, 12], [1.8, 13.5], [1.9, 15.5], [1.2, 16.4]
+      ], 8, ls, -4, { seg: 20 });
       return g;
     }
   },
@@ -322,12 +359,23 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const pm = metal(p?.pole || '#c9a24a', 0.3);
-      cyl(g, solid('#2f2f31', 0.4), 15, 3, 0, 0, 0, { seg: 24 });   // base
-      cyl(g, pm, 1.6, 150, 0, 3, 0, { seg: 12 });                   // pole
-      // domed metal shade
-      const dome = sphere(g, pm, 20, 0, 150, 0, { sy: 0.62, seg: 24 });
-      dome.scale.y = -0.62;                                          // flip so it cups downward
-      sphere(g, glow('#ffe8c8', 1.2, 0.4), 6, 0, 146, 0, { seg: 12 }); // bulb
+      // turned weighted base flowing up into the stem — one smooth profile
+      lathe(g, solid('#2f2f31', 0.4), [
+        [14.5, 0], [15, 1], [13.5, 2.6], [8, 4], [3.4, 5.5], [2.4, 8]
+      ], 0, 0, 0, { seg: 32 });
+      cyl(g, pm, 1.5, 142, 0, 7, 0, { seg: 14 });                   // pole
+      lathe(g, pm, [[1.6, 0], [2.6, 1], [2.8, 3], [1.6, 4]], 0, 96, 0, { seg: 18 }); // collar
+      // spun-metal dome shade: outer skin, rolled lip, real inner skin
+      lathe(g, pm, [
+        [20, 0], [20.4, 1.2], [19.4, 3.4], [16, 7.6], [9.5, 11], [2.2, 12.6],
+        [1.4, 13.4], [1.2, 12.4], [8.8, 10.2], [15.2, 6.8], [18.6, 3], [19.2, 0.6]
+      ], 0, 137, 0, { seg: 36 });
+      sphere(g, glow('#ffe8c8', 1.2, 0.4), 5.5, 0, 141, 0, { seg: 14 }); // bulb peeking below the rim
+      // intrigue: the power cord snakes across the floor to a foot switch
+      const cord = solid('#3a3a3d', 0.6);
+      sweep(g, cord, [[3, 1.2, 4], [10, 0.7, 9], [17, 0.7, 7], [23, 0.7, 10]], 0.45, { seg: 16, radialSeg: 6 });
+      box(g, cord, 3.4, 1.6, 5.4, 25.5, 0, 10.4, { r: 0.7 });        // foot switch
+      sweep(g, cord, [[27.8, 0.8, 10.7], [30, 0.7, 11.2]], 0.45, { seg: 6, radialSeg: 6 });
       return g;
     }
   },
@@ -343,14 +391,20 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const lm = wood(p?.leg || '#c0a06a', 0.5);
+      // three tapered legs that genuinely MEET at a turned hub (no floating tops)
       for (let i = 0; i < 3; i++) {
         const a = (i / 3) * Math.PI * 2;
-        const l = cyl(g, lm, 2, 150, Math.sin(a) * 24, 0, Math.cos(a) * 24, { rTop: 1.2, seg: 10 });
-        l.rotation.z = -Math.sin(a) * 0.31; l.rotation.x = Math.cos(a) * 0.31;
+        segment(g, lm, [Math.sin(a) * 26, 0, Math.cos(a) * 26],
+          [Math.sin(a) * 3.2, 124, Math.cos(a) * 3.2], 2.3, 1.4, 10);
       }
-      cyl(g, metal('#8a8f95', 0.4), 1, 20, 0, 128, 0, { seg: 8 });
+      // turned hub the legs bolt into, flowing into the stem
+      lathe(g, lm, [[5.4, 0], [5.8, 1.4], [5.4, 3.6], [3, 5.2], [2.2, 7.5], [2.4, 11]], 0, 118, 0, { seg: 22 });
+      cyl(g, metal('#8a8f95', 0.4), 1, 10, 0, 128, 0, { seg: 10 });
       shade(g, p?.shade || '#efe7d6', 24, 20, 30, 0, 128, 0);
-      sphere(g, glow('#ffe8c8', 1.0, 0.4), 6, 0, 138, 0, { seg: 10 });
+      sphere(g, glow('#ffe8c8', 1.0, 0.4), 6, 0, 138, 0, { seg: 12 });
+      // brass stem rising from the socket to a turned finial above the shade
+      cyl(g, metal('#c9a24a', 0.3), 0.5, 17, 0, 141, 0, { seg: 8 });
+      lathe(g, metal('#c9a24a', 0.3), [[1.6, 0], [2, 1], [0.9, 2.2], [0.4, 3.2], [1.1, 4.4], [0.05, 5.8]], 0, 158, 0, { seg: 16 });
       return g;
     }
   },
@@ -368,14 +422,15 @@ export const DECOR_ITEMS = [
     build: (p) => {
       const g = G();
       const fab = solid(p?.fab || '#d8a63a', 0.85);
-      cyl(g, fab, 25, 34, 0, 2, 0, { rTop: 23, seg: 28 });
-      sphere(g, fab, 24, 0, 34, 0, { sy: 0.34, seg: 28 });     // domed top
-      // tufting seams
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
-        box(g, solid(p?.fab || '#d8a63a', 0.9), 1.4, 34, 2, Math.sin(a) * 24, 3, Math.cos(a) * 24, { ry: a });
-      }
-      sphere(g, solid('#000000', 0.9), 1.8, 0, 39, 0);         // center button
+      // one heavily-stuffed soft body with a real sit dimple
+      cushion(g, fab, 44, 36, 44, 0, 0, 0, { puff: 0.4, dimple: 1.6 });
+      sphere(g, solid('#2a2118', 0.9), 1.6, 0, 34.6, 0, { seg: 10 }); // center button in the dip
+      // intrigue: a little ceramic tray with a lit candle resting in the dimple
+      lathe(g, solid('#efe9dc', 0.5), [
+        [7.2, 0], [7.8, 0.5], [8, 1.8], [7.2, 1.8], [7, 0.6]
+      ], 1, 35.2, -1, { seg: 24 });
+      cyl(g, solid('#e8ddc8', 0.6), 2.2, 3.4, 3, 36.2, -3, { seg: 14 });
+      sphere(g, glow('#ffca6a', 1.6, 0.4), 0.7, 3, 40.2, -3, { seg: 8 });
       return g;
     }
   },

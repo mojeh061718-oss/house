@@ -1,7 +1,7 @@
 // Modern outdoor lounge & entertainment pack. Built only from primitive
 // helpers; all dimensions in cm, origin at footprint center on the floor,
 // front faces +Z.
-import { G, box, cyl, sphere, glass, glow, tex, solid, wood, metal, strut, torus } from '../builders.js';
+import { G, box, cyl, sphere, glass, glow, tex, solid, wood, metal, strut, torus, lathe, cushion, drape, sweep } from '../builders.js';
 
 // fabric/frame palettes for cushioned seating
 const FAB = [
@@ -29,18 +29,17 @@ export const LOUNGE_ITEMS = [
       // L-shaped low platform base
       box(g, fr, 280, 22, 90, 0, 0, -60, { r: 4 });
       box(g, fr, 90, 22, 120, -95, 0, 45, { r: 4 });
-      // seat cushions along the back run
-      for (const cx of [-92, 0, 92]) box(g, fab, 90, 16, 80, cx, 22, -60, { r: 8 });
+      // soft seat cushions along the back run (sat-in dimples)
+      for (const cx of [-92, 0, 92]) cushion(g, fab, 90, 16, 80, cx, 22, -60, { puff: 0.13, dimple: 0.5 });
       // chaise seat cushion
-      box(g, fab, 80, 16, 110, -95, 22, 45, { r: 8 });
-      // back cushions
-      for (const cx of [-92, 0, 92]) box(g, fab, 88, 34, 20, cx, 38, -95, { r: 9, rx: -0.06 });
-      box(g, fab, 20, 34, 110, -131, 38, 45, { r: 9, rz: 0.06 });
+      cushion(g, fab, 80, 16, 110, -95, 22, 45, { puff: 0.13, dimple: 0.45 });
+      // plump back cushions leaning into the frame
+      for (const cx of [-92, 0, 92]) cushion(g, fab, 88, 32, 20, cx, 38, -95, { puff: 0.22, dimple: 0.1, rx: -0.06 });
+      cushion(g, fab, 20, 32, 108, -131, 38, 45, { puff: 0.22, dimple: 0.1, rz: 0.06 });
       // right arm
       box(g, fr, 20, 44, 90, 138, 0, -60, { r: 6 });
-      // throw pillows
-      box(g, solid('#efe9dd', 0.95), 42, 42, 14, 60, 40, -72, { r: 9, ry: 0.3 });
-      box(g, solid('#c98a5a', 0.95), 42, 42, 14, -95, 40, 8, { r: 9, ry: -0.2 });
+      // one throw pillow tossed at an angle (intrigue)
+      cushion(g, solid('#c98a5a', 0.95), 42, 40, 13, 60, 38, -76, { puff: 0.32, dimple: 0.05, ry: 0.35, rx: -0.1 });
       return g;
     }
   },
@@ -52,10 +51,11 @@ export const LOUNGE_ITEMS = [
       const fr = solid(p.frame, 0.6);
       const fab = solid(p.fabric, 0.95);
       box(g, fr, 150, 20, 82, 0, 0, 0, { r: 4 });
-      for (const cx of [-37, 37]) box(g, fab, 66, 16, 70, cx, 20, 4, { r: 8 });
-      for (const cx of [-37, 37]) box(g, fab, 64, 32, 18, cx, 36, -30, { r: 9, rx: -0.06 });
+      for (const cx of [-37, 37]) cushion(g, fab, 66, 16, 70, cx, 20, 4, { puff: 0.13, dimple: 0.5 });
+      for (const cx of [-37, 37]) cushion(g, fab, 64, 30, 18, cx, 36, -30, { puff: 0.22, dimple: 0.1, rx: -0.06 });
       for (const s of [-1, 1]) box(g, fr, 16, 44, 82, s * 67, 0, 0, { r: 6 });
-      box(g, solid('#efe9dd', 0.95), 34, 34, 12, -37, 42, -6, { r: 7, ry: 0.2 });
+      // one angled throw pillow (intrigue)
+      cushion(g, solid('#efe9dd', 0.95), 34, 32, 11, -37, 38, -22, { puff: 0.3, dimple: 0.05, ry: 0.25, rx: -0.08 });
       // short feet
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, metal('#2a2c2e', 0.5), 3, 6, sx * 66, 0, sz * 34);
       return g;
@@ -152,12 +152,16 @@ export const LOUNGE_ITEMS = [
     build: (p) => {
       const g = G();
       const wd = wood(p.frame, 0.6);
+      const fab = solid(p.fabric, 0.95);
       for (let i = 0; i < 6; i++) box(g, wd, 64, 3, 10, 0, 32 - i * 1.6, -24 + i * 11, { rx: -0.14 }); // seat slats
       for (let i = 0; i < 5; i++) { const x = (i - 2) * 13; box(g, wd, 11, 64, 3, x, 40, -36, { rx: -0.4 }); } // back fan
       for (const s of [-1, 1]) box(g, wd, 10, 4, 54, s * 35, 46, -6, { r: 2 }); // arms
       for (const s of [-1, 1]) box(g, wd, 5, 48, 5, s * 35, 0, 18);            // front legs
       for (const s of [-1, 1]) box(g, wd, 5, 40, 5, s * 30, 0, -30);           // rear legs
       box(g, wd, 66, 10, 5, 0, 30, 22);                                        // front apron
+      // weather-fabric seat pad + one pillow leaned into the back fan (intrigue)
+      cushion(g, fab, 56, 7, 56, 0, 27, 1, { puff: 0.28, dimple: 0.3, rx: -0.14 });
+      cushion(g, fab, 36, 34, 11, 0, 40, -27, { puff: 0.3, dimple: 0.05, rx: -0.42, ry: 0.18 });
       return g;
     }
   },
@@ -167,16 +171,34 @@ export const LOUNGE_ITEMS = [
     light: { y: 44, color: '#ff9440', intensity: 1.4, distance: 520 },
     build: () => {
       const g = G();
-      box(g, solid('#6f6a60', 0.85), 120, 36, 70, 0, 0, 0, { r: 4 });   // concrete base
-      box(g, solid('#45423c', 0.8), 122, 5, 72, 0, 36, 0, { r: 3 });    // rim
-      box(g, solid('#141414', 0.4), 74, 3, 34, 0, 39, 0);               // burner pan
-      for (const z of [-19, 19]) box(g, glass(), 78, 20, 2, 0, 42, z);  // wind guard
-      for (const x of [-39, 39]) box(g, glass(), 2, 20, 40, x, 42, 0);
-      const ember = glow('#ff6a20', 1.7, 0.5);
+      box(g, solid('#6f6a60', 0.85), 120, 34, 70, 0, 0, 0, { r: 4 });   // concrete base
+      box(g, solid('#45423c', 0.8), 122, 6, 72, 0, 34, 0, { r: 3 });    // cap slab
+      // spun-steel fire bowl set into the slab — one smooth lathe profile,
+      // outer wall rising to the rim then dipping back down to the pan
+      lathe(g, solid('#26262a', 0.55), [
+        [8, 0], [24, 0.6], [30, 3], [33, 7], [34, 11.5],
+        [32.5, 10.8], [30, 6.5], [26, 4.6], [1, 4.2]
+      ], 0, 38, 0, { seg: 36 });
+      // lava rocks piled BELOW rim level (rim y≈49.5)
+      const rock = solid('#2b2b2e', 0.95);
       let s = 7; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-      for (let i = 0; i < 12; i++) sphere(g, ember, 3.2, (rnd() - 0.5) * 64, 41, (rnd() - 0.5) * 28, { seg: 8 });
+      for (let i = 0; i < 14; i++) {
+        const a = rnd() * Math.PI * 2, rr = rnd() * 23;
+        sphere(g, rock, 2 + rnd() * 1.4, Math.cos(a) * rr, 43.5 + rnd() * 1.8, Math.sin(a) * rr, { seg: 8, sy: 0.8 });
+      }
+      const ember = glow('#ff6a20', 1.7, 0.5);
+      for (let i = 0; i < 5; i++) {
+        const a = rnd() * Math.PI * 2, rr = rnd() * 19;
+        sphere(g, ember, 1.8, Math.cos(a) * rr, 45, Math.sin(a) * rr, { seg: 8 });
+      }
+      // licking flames rising off the rock bed
       const flame = glow('#ffb347', 1.9, 0.4);
-      for (const fx of [-24, 0, 24]) cyl(g, flame, 5, 18, fx, 41, 0, { rTop: 1, seg: 8 });
+      cyl(g, flame, 6, 17, 0, 45, 0, { rTop: 0.8, seg: 10 });
+      cyl(g, flame, 4.5, 13, -13, 45, 5, { rTop: 0.7, seg: 10 });
+      cyl(g, flame, 4, 11, 12, 45, -6, { rTop: 0.6, seg: 10 });
+      cyl(g, glow('#ff7a24', 2.1, 0.4), 3, 9, 4, 45, 8, { rTop: 0.5, seg: 8 });
+      // cylindrical glass wind guard seated on the bowl rim (intrigue)
+      cyl(g, glass(), 30.5, 15, 0, 48.5, 0, { open: true, seg: 36 });
       return g;
     }
   },
@@ -192,8 +214,19 @@ export const LOUNGE_ITEMS = [
       box(g, top, 204, 6, 74, 0, 84, 0, { r: 2 });            // counter
       box(g, steel, 70, 30, 58, 52, 90, 0, { r: 14 });        // grill hood
       box(g, solid('#2a2c2e', 0.5), 66, 6, 50, 52, 90, 0, { r: 3 }); // grill body
-      box(g, steel, 44, 8, 44, -58, 88, 0, { r: 3 });         // sink basin
-      box(g, solid('#1a1a1a', 0.4), 34, 4, 34, -58, 90, 0);
+      // hood handle floating on standoffs
+      for (const hx of [32, 72]) cyl(g, metal('#e2e5e8', 0.3), 1.1, 4, hx, 104, 28, { rx: Math.PI / 2 });
+      cyl(g, metal('#e2e5e8', 0.3), 1.3, 46, 52, 105, 31, { rz: Math.PI / 2 });
+      // farmhouse sink: proud rim, basin floor recessed well below it
+      box(g, steel, 46, 7, 42, -58, 84.5, 0, { r: 2 });
+      box(g, solid('#1a1a1a', 0.4), 38, 4, 34, -58, 82, 0);
+      // gooseneck faucet — lathe base column + smooth sweep arc (intrigue)
+      lathe(g, steel, [[3, 0], [2.2, 1.5], [1.8, 12]], -58, 91, -17, { seg: 18 });
+      sweep(g, steel, [
+        [-58, 102, -17], [-58, 112, -16], [-57.5, 116, -12], [-57.5, 116, -5], [-57.5, 111, -2]
+      ], 1.5, { seg: 22 });
+      cyl(g, steel, 1, 3, -57.5, 108.5, -2);                  // spout tip
+      box(g, steel, 1.4, 4.5, 1.4, -50, 91.3, -17, { rz: -0.5 }); // lever handle
       for (const dx of [-58, -8, 42]) {
         box(g, steel, 44, 50, 2, dx, 18, 36, { r: 2 });        // doors
         cyl(g, metal('#e2e5e8', 0.3), 1, 20, dx + 16, 32, 37); // handles
@@ -236,12 +269,21 @@ export const LOUNGE_ITEMS = [
       box(g, top, 206, 6, 86, 0, 100, -2, { r: 2 });          // overhang top
       cyl(g, st, 2, 196, 0, 18, 22, { rz: Math.PI / 2 });     // foot rail
       for (const x of [-90, 90]) cyl(g, st, 2, 18, x, 0, 22);
+      const sm = metal('#3a3d40', 0.4);
       for (const sx of [-64, 0, 64]) {                        // stools
-        const sm = metal('#3a3d40', 0.4);
-        cyl(g, solid('#c9b48c', 0.7), 18, 8, sx, 70, 40, { seg: 20 });
-        for (const a of [0.8, 2.3, 3.9, 5.5]) cyl(g, sm, 1.6, 70, sx + Math.cos(a) * 13, 0, 40 + Math.sin(a) * 13, { rz: 0.1 * Math.cos(a), rx: 0.1 * Math.sin(a) });
-        cyl(g, sm, 13, 2, sx, 26, 40, { seg: 16 });
+        // turned pedestal leg — one smooth lathe profile, no cylinder stack
+        lathe(g, sm, [[13, 0], [12, 1.6], [3.2, 4], [2.6, 32], [3.6, 38], [2.6, 44], [2.8, 58], [5.5, 62]], sx, 0, 40, { seg: 24 });
+        // padded round seat with rolled edge
+        lathe(g, solid('#c9b48c', 0.85), [[5, 0], [14.5, 1], [17, 3.5], [16, 6.5], [11, 8.2], [1, 8.6]], sx, 62, 40, { seg: 26 });
+        torus(g, sm, 13.5, 1.1, sx, 24, 40, {});              // foot ring
       }
+      // lemonade service on the bar top (intrigue): pitcher with a lemon
+      // wheel on the rim, two tumblers, a green bottle
+      lathe(g, glass(), [[4.5, 0], [7, 1], [8, 7], [7.2, 13], [6.2, 17], [6.6, 20]], -62, 106, -22, { seg: 24 });
+      cyl(g, solid('#f2cf4e', 0.55), 6.4, 12, -62, 107, -22, { seg: 20 });
+      cyl(g, solid('#f6e27a', 0.6), 3.2, 0.7, -57, 122, -22, { rz: 0.5, seg: 16 });
+      for (const tx of [-44, -36]) lathe(g, glass(), [[2.6, 0], [3.4, 1], [3.8, 8], [3.6, 9.5]], tx, 106, -14, { seg: 18 });
+      lathe(g, solid('#2e5a38', 0.35), [[2.9, 0], [4, 1], [4.2, 11], [2.4, 15], [1.3, 17], [1.4, 21]], 46, 106, -26, { seg: 20 });
       return g;
     }
   },
@@ -289,12 +331,17 @@ export const LOUNGE_ITEMS = [
       const g = G();
       const st = metal('#3a3d40', 0.4);
       const steel = metal('#c6cace', 0.3);
-      cyl(g, solid('#2a2c2e', 0.6), 30, 10, 0, 0, 0, { seg: 24 });    // weighted base
-      cyl(g, st, 7, 150, 0, 10, 0);                                   // pole
-      cyl(g, st, 10, 20, 0, 160, 0);                                  // burner housing
-      cyl(g, glow('#ff7a2a', 1.6, 0.4), 11, 10, 0, 158, 0, { seg: 24 }); // glow ring
-      cyl(g, steel, 12, 16, 0, 180, 0, { rTop: 34, seg: 28 });        // reflector dome
-      cyl(g, steel, 6, 10, 0, 196, 0, { rTop: 3 });                   // top cap
+      // domed propane-tank base + tapering stem — smooth lathe profiles
+      lathe(g, solid('#2a2c2e', 0.6), [[26, 0], [30, 2.5], [30.5, 7], [27, 12], [18, 16], [8, 18]], 0, 0, 0, { seg: 32 });
+      lathe(g, st, [[7, 0], [5.2, 8], [4, 30], [3.6, 90], [3.6, 128], [4.6, 138], [4, 146]], 0, 16, 0, { seg: 24 });
+      // burner can with emitter-screen glow band
+      lathe(g, st, [[6.5, 0], [9.5, 2], [10.5, 9], [10.5, 20], [9, 24]], 0, 158, 0, { seg: 28 });
+      cyl(g, glow('#ff7a2a', 1.6, 0.4), 10.8, 9, 0, 164, 0, { seg: 28, open: true });
+      cyl(g, solid('#16171a', 0.5), 2.2, 2.5, 0, 150, 9, { rx: Math.PI / 2 }); // control knob (intrigue)
+      // center stem carrying the mushroom reflector dish
+      cyl(g, st, 2.4, 24, 0, 180, 0);
+      lathe(g, steel, [[2, 16], [12, 8], [22, 3], [30, 0], [30.5, 1.2], [22, 4.4], [12, 9.6], [3, 17]], 0, 184, 0, { seg: 36 });
+      lathe(g, steel, [[3, 0], [3.4, 2], [1.6, 4], [1.8, 6], [0.2, 8]], 0, 200, 0, { seg: 20 }); // finial cap
       return g;
     }
   },
