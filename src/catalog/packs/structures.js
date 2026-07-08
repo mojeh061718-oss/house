@@ -533,7 +533,7 @@ export const STRUCTURES_ITEMS = [
       // cradle supports keeping the barrel off the ground
       for (const z of [-70, 70]) {
         box(g, wd, 200, 14, 16, 0, 0, z);
-        for (const sx of [-1, 1]) box(g, wd, 16, 30, 16, sx * 78, 0, z, { rz: sx * 0.35 });
+        for (const sx of [-1, 1]) box(g, wd, 16, 30, 16, sx * 78, 2, z, { rz: sx * 0.35 });
       }
       // chimney with a turned rain cap
       cyl(g, metal('#3a3c40', 0.5), 6, 38, 55, 175, -60);
