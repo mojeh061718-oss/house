@@ -2790,7 +2790,9 @@ export const ITEMS = [
     }
   },
   {
-    id: 'rose_bush', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100,
+    // hidden: superseded by packs/garden.js `rose_bush` (same id — the pack
+    // version wins in ITEM_MAP; hiding this one keeps the catalog to one card)
+    id: 'rose_bush', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100, hidden: true,
     palettes: [
       { name: 'Red', chip: '#b3273a', bloom: '#b3273a' },
       { name: 'Pink', chip: '#d87d9c', bloom: '#d87d9c' },
@@ -2821,7 +2823,8 @@ export const ITEMS = [
     }
   },
   {
-    id: 'tulip_bed', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50,
+    // hidden: superseded by packs/garden.js `tulip_bed` (same id, pack wins)
+    id: 'tulip_bed', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50, hidden: true,
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
