@@ -412,22 +412,22 @@ export const GARDEN_ITEMS = [
     build: () => {
       const g = G();
       const bark = solid('#3e3230', 0.9);
-      // sinuous low-branching multi-stem
-      segment(g, bark, [0, 0, 0], [-10, 55, 4], 11, 7.5, 10);
-      segment(g, bark, [-10, 55, 4], [-44, 120, 14], 7.5, 3.4, 8);
-      segment(g, bark, [-8, 40, 2], [40, 108, -22], 6.5, 3.0, 8);
-      segment(g, bark, [-10, 52, 4], [8, 152, 24], 5.5, 2.4, 8);
-      segment(g, bark, [-6, 28, 2], [-24, 84, -50], 5.5, 2.6, 8);
-      segment(g, bark, [-7, 34, 3], [58, 74, 44], 5, 2.4, 8);
-      // layered tiers of deep crimson — the maple signature. Overlapping,
-      // rounder masses so the crown reads as one weeping dome, not pancakes.
-      const A = '#4c130d', B = '#8e2c1b', C = '#a83a20';
-      blob(g, A, B, 58, -36, 104, 10, { seed: 3, sy: 0.56, amp: 0.09 });
-      blob(g, A, B, 54, 36, 96, -18, { seed: 7, sy: 0.54, amp: 0.09 });
-      blob(g, A, C, 48, 4, 136, 16, { seed: 11, sy: 0.58, amp: 0.09 });
-      blob(g, A, B, 38, -20, 76, -46, { seed: 15, sy: 0.52, amp: 0.1 });
-      blob(g, A, B, 34, 50, 68, 38, { seed: 19, sy: 0.52, amp: 0.1 });
-      blob(g, A, C, 28, -6, 168, -4, { seed: 23, sy: 0.62, amp: 0.09 });
+      // sinuous low-branching multi-stem, KEPT VISIBLE below a raised canopy
+      segment(g, bark, [0, 0, 0], [-8, 62, 4], 11, 7, 10);
+      segment(g, bark, [-8, 62, 4], [-36, 122, 12], 7, 3.2, 8);
+      segment(g, bark, [-6, 46, 2], [36, 114, -18], 6.5, 3.0, 8);
+      segment(g, bark, [-8, 58, 4], [4, 152, 20], 5.5, 2.4, 8);
+      segment(g, bark, [-5, 32, 2], [-48, 100, -36], 5.5, 2.6, 8);
+      segment(g, bark, [-6, 38, 3], [50, 92, 36], 5, 2.4, 8);
+      // layered tiers of deep crimson held clear of the trunk — the maple
+      // signature: a broad, low dome floating over sinuous stems
+      const A = '#4c130d', B = '#7e2317', C = '#96321d';
+      blob(g, A, B, 54, -34, 118, 10, { seed: 3, sy: 0.52, amp: 0.09 });
+      blob(g, A, B, 50, 34, 110, -16, { seed: 7, sy: 0.52, amp: 0.09 });
+      blob(g, A, C, 44, 2, 146, 14, { seed: 11, sy: 0.56, amp: 0.09 });
+      blob(g, A, B, 34, -48, 100, -34, { seed: 15, sy: 0.5, amp: 0.1 });
+      blob(g, A, B, 32, 50, 94, 36, { seed: 19, sy: 0.5, amp: 0.1 });
+      blob(g, A, C, 26, -6, 172, -2, { seed: 23, sy: 0.6, amp: 0.09 });
       return g;
     }
   },
@@ -462,7 +462,7 @@ export const GARDEN_ITEMS = [
       const g = G();
       const bark = solid('#dad3c4', 0.85);
       const scar = solid('#43413a', 0.9);
-      const trunks = [[-16, -8, -78, -38, 328], [14, 12, 72, 34, 352], [2, -18, 20, -88, 296]];
+      const trunks = [[-26, -6, -88, -30, 328], [24, 14, 78, 40, 352], [8, -28, 42, -96, 292]];
       trunks.forEach(([x0, z0, x1, z1, th], ti) => {
         const mid = [x0 + (x1 - x0) * 0.4, th * 0.5, z0 + (z1 - z0) * 0.4];
         segment(g, bark, [x0, 0, z0], mid, 9, 6.2, 10);
@@ -531,7 +531,7 @@ export const GARDEN_ITEMS = [
   },
   // ---- 16. Hanging basket (ceiling) ---------------------------------------------------------------
   {
-    id: 'hanging_basket', name: 'Hanging Blooms', cat: 'garden', w: 55, d: 55, h: 68,
+    id: 'hanging_basket', name: 'Hanging Blooms', cat: 'garden', w: 48, d: 48, h: 68,
     mount: 'ceiling',
     palettes: [
       { name: 'Fuchsia', chip: '#d84a8c', bloom: '#d84a8c' },
@@ -566,7 +566,6 @@ export const GARDEN_ITEMS = [
         blob(g, '#31541f', '#6aa03e', 4.6,
           Math.cos(a) * 13, -44 - (i % 3) * 6, Math.sin(a) * 13, { seed: 43 + i, sy: 2.1, amp: 0.08 });
       }
-      g.position.y = 70; // TEMP-QA: lift above ground for screenshots
       return g;
     }
   },
