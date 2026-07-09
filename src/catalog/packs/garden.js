@@ -227,7 +227,7 @@ export const GARDEN_ITEMS = [
       bloomRose(g, shadeHex(p.bloom, 16), 7, -25, 67, 13, 24);
       bloomRose(g, p.bloom, 6.8, -12, 73, -32, 27);
       bloomRose(g, shadeHex(p.bloom, 16), 7, 34, 63, -20, 30);
-      studBlooms(g, 104, 82, 104, 6, 77, (gg, x, y, z) =>
+      studBlooms(g, 90, 74, 90, 6, 77, (gg, x, y, z) =>
         roseBud(gg, p.bloom, 2.6, x, y, z));
       return g;
     }
