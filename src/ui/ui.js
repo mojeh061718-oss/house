@@ -1292,62 +1292,65 @@ export class UI {
 
   buildCatalog() {
     const panel = $('#catalog');
-    // One slim toolbar row instead of a title bar + a full-width search box +
-    // wrapped category rows: a search icon that expands inline, the categories
-    // on a single horizontal-scroll strip, and the close button — so the grid
-    // gets almost all the height.
+    // Two-level browser, the way furniture apps do it: a "shop by room" home
+    // screen (big tiles + favorites + recents), tap a room to drill into its
+    // grid with subcategory chips and a back button. Search is always visible
+    // and cuts across everything. 21 flat category chips did not scale.
+    try { this.favIds = JSON.parse(localStorage.getItem('hcs.favItems')) || []; } catch { this.favIds = []; }
+    this.depts = [
+      { id: 'living',  name: 'Living Room',       icon: '🛋️', cats: ['living'] },
+      { id: 'bedroom', name: 'Bedroom',           icon: '🛏️', cats: ['bedroom'] },
+      { id: 'kitchen', name: 'Kitchen & Dining',  icon: '🍳', cats: ['kitchen', 'dining'] },
+      { id: 'bath',    name: 'Bath & Utility',    icon: '🛁', cats: ['bathroom', 'utility'] },
+      { id: 'office',  name: 'Office',            icon: '💻', cats: ['office'] },
+      { id: 'decor',   name: 'Decor & Signs',     icon: '🖼️', cats: ['decor'] },
+      { id: 'garden',  name: 'Garden & Flowers',  icon: '🌸', cats: ['garden'] },
+      { id: 'yard',    name: 'Yard & Farm',       icon: '🌳', cats: ['yard', 'farm'] },
+      { id: 'patio',   name: 'Patio & Porch',     icon: '🪑', cats: ['patio', 'porch', 'outdoor'] },
+      { id: 'pools',   name: 'Pools & Water',     icon: '🏊', cats: ['pools', 'water', 'waterfront'] },
+      { id: 'build',   name: 'Paths & Structures', icon: '🏗️', cats: ['paths', 'structure'] },
+      { id: 'games',   name: 'Games & Fun',       icon: '🎮', cats: ['games'] },
+      { id: 'shells',  name: 'Home Shells',       icon: '🏠', cats: [], shells: true },
+    ];
+    // safety net: any category not claimed above still gets a door
+    const known = new Set(this.depts.flatMap(d => d.cats));
+    const stray = [...new Set(ITEMS.filter(i => !i.hidden && i.cat && !known.has(i.cat)).map(i => i.cat))];
+    if (stray.length) this.depts.splice(this.depts.length - 1, 0, { id: 'more', name: 'More', icon: '📦', cats: stray });
+    this.catDept = null;
+    this.activeCat = 'all';
+
     panel.innerHTML = `
       <div class="cat-bar">
-        <button class="cat-icon-btn" id="catSearchBtn" title="Search furniture" aria-label="Search furniture">${ICONS.search}</button>
-        <div class="cat-tabs" id="catTabs"></div>
-        <input id="catSearch" class="cat-search-input" type="search" placeholder="Search all furniture…"
-          autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"/>
+        <div class="cat-search-wrap">
+          <span class="cat-search-ico">${ICONS.search}</span>
+          <input id="catSearch" type="search" placeholder="Search everything…"
+            autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"/>
+          <button id="catClear" aria-label="Clear search" hidden>✕</button>
+        </div>
         <button class="cat-icon-btn" data-close="catalog" title="Close" aria-label="Close furniture">${ICONS.close}</button>
       </div>
+      <div class="cat-sub" id="catSub" hidden></div>
       <div class="cat-grid" id="catGrid"></div>`;
     panel.querySelector('[data-close]').onclick = () => this.closeDrawer('catalog');
 
-    const bar = panel.querySelector('.cat-bar');
     const search = $('#catSearch');
-    const searchBtn = $('#catSearchBtn');
-    const collapseSearch = () => {
-      if (search.value.trim()) return;        // keep open while a query is active
-      bar.classList.remove('searching');
-      this.catSearch = '';
-      this.renderCatalogGrid();
-    };
-    searchBtn.onclick = () => {
-      if (bar.classList.contains('searching')) { search.value = ''; collapseSearch(); }
-      else { bar.classList.add('searching'); search.focus(); }
-    };
+    const clear = $('#catClear');
     search.addEventListener('input', () => {
       this.catSearch = search.value.trim().toLowerCase();
-      searchBtn.classList.toggle('has-query', !!this.catSearch);
+      clear.hidden = !this.catSearch;
       this.renderCatalogGrid();
     });
-    search.addEventListener('blur', collapseSearch);
-    search.addEventListener('keydown', (e) => { if (e.key === 'Escape') { search.value = ''; collapseSearch(); search.blur(); } });
-
-    const tabs = $('#catTabs');
-    for (const c of [{ id: 'all', name: 'All' }, { id: 'shells', name: 'Home Shells' }, ...CATEGORIES]) {
-      const b = el('button', 'cat-tab', c.name);
-      b.dataset.cat = c.id;
-      b.onclick = () => {
-        this.activeCat = c.id;
-        this.renderCatalogGrid();
-      };
-      tabs.appendChild(b);
-    }
+    search.addEventListener('keydown', (e) => { if (e.key === 'Escape') { search.value = ''; search.dispatchEvent(new Event('input')); search.blur(); } });
+    clear.onclick = () => { search.value = ''; search.dispatchEvent(new Event('input')); };
+    this.attachKeys(search, 'text'); // Studio Keys on touch — never the iOS keyboard
     this.renderCatalogGrid();
   }
 
   renderCatalogGrid() {
-    const store = this.store;
-    document.querySelectorAll('.cat-tab').forEach(b => {
-      b.classList.toggle('active', b.dataset.cat === this.activeCat);
-    });
     const grid = $('#catGrid');
+    const sub = $('#catSub');
     grid.innerHTML = '';
+    grid.scrollTop = 0;
     // ONE shared lazy-thumbnail observer per render: a card only builds its 3D
     // preview when it scrolls into view, so opening a big category no longer
     // renders hundreds of models in a burst (that was OOM-crashing phones).
@@ -1361,8 +1364,31 @@ export class UI {
       }
       this.drainThumbs();
     }, { root: grid, rootMargin: '250px' });
-    // a search query overrides the active tab and matches item names everywhere
     const q = this.catSearch || '';
+    const dept = q ? null : this.depts.find(d => d.id === this.catDept) || null;
+    const catName = (cid) => CATEGORIES.find(c => c.id === cid)?.name || cid;
+
+    // sub-bar: back button + subcategory chips, only inside a department
+    if (dept) {
+      sub.hidden = false;
+      sub.innerHTML = '';
+      const back = el('button', 'cat-back', '‹ Rooms');
+      back.onclick = () => { this.catDept = null; this.renderCatalogGrid(); };
+      sub.appendChild(back);
+      if (!dept.shells && dept.cats.length > 1) {
+        for (const c of [{ id: 'all', name: 'All' }, ...dept.cats.map(cid => ({ id: cid, name: catName(cid) }))]) {
+          const b = el('button', 'cat-tab' + (this.activeCat === c.id ? ' active' : ''), c.name);
+          b.onclick = () => { this.activeCat = c.id; this.renderCatalogGrid(); };
+          sub.appendChild(b);
+        }
+      } else {
+        sub.appendChild(el('span', 'cat-sub-title', dept.name));
+      }
+    } else {
+      sub.hidden = true;
+    }
+
+    // a search query cuts across everything: names, ids, category names
     if (q) {
       const SYN = {
         couch: 'sofa', settee: 'sofa', tv: 'tv', television: 'tv', fridge: 'refrigerator',
@@ -1375,15 +1401,33 @@ export class UI {
         playset: 'play', trampoline: 'trampoline', firepit: 'fire', fireplace: 'fireplace'
       };
       const terms = [q, ...(SYN[q.replace(/\s+/g, '')] ? [SYN[q.replace(/\s+/g, '')]] : [])];
-      const hits = ITEMS.filter(i => !i.hidden && terms.some(t => i.name.toLowerCase().includes(t)));
+      const hits = ITEMS.filter(i => !i.hidden && terms.some(t =>
+        i.name.toLowerCase().includes(t) ||
+        i.id.includes(t.replace(/\s+/g, '_')) ||
+        catName(i.cat).toLowerCase().includes(t)));
       if (!hits.length) {
-        grid.innerHTML = `<p class="cat-empty">No furniture matches “${q}”.</p>`;
+        grid.innerHTML = `<p class="cat-empty">Nothing matches “${escapeHtml(q)}”.</p>`;
         return;
       }
-      this.renderCatalogCards(grid, hits);
+      // group results under category headers so 40 hits stay scannable
+      const byCat = new Map();
+      for (const h of hits) {
+        if (!byCat.has(h.cat)) byCat.set(h.cat, []);
+        byCat.get(h.cat).push(h);
+      }
+      for (const [cid, arr] of byCat) {
+        grid.appendChild(el('p', 'cat-section', catName(cid)));
+        this.renderCatalogCards(grid, arr);
+      }
       return;
     }
-    if (this.activeCat === 'shells') {
+
+    // browse home: favorites, recents, then room tiles
+    if (!dept) {
+      this.renderCatalogHome(grid);
+      return;
+    }
+    if (dept.shells) {
       for (const shell of SHELLS) {
         const card = el('button', 'cat-card shell-card');
         card.innerHTML = `
@@ -1397,23 +1441,47 @@ export class UI {
       }
       return;
     }
-    // recently-used row: a fast path back to the last things you placed,
-    // shown above the "All" tab so re-adding is one tap, not a hunt
-    if (this.activeCat === 'all' && this.recentIds.length) {
-      const recent = this.recentIds
-        .map(id => ITEMS.find(i => i.id === id && !i.hidden))
-        .filter(Boolean)
-        .slice(0, 8);
-      if (recent.length) {
-        grid.appendChild(el('p', 'cat-section', 'Recently used'));
-        const row = el('div', 'cat-recent');
-        this.renderCatalogCards(row, recent);
-        grid.appendChild(row);
-        grid.appendChild(el('p', 'cat-section', 'All furniture'));
+    const cats = (this.activeCat !== 'all' && dept.cats.includes(this.activeCat)) ? [this.activeCat] : dept.cats;
+    if (cats.length > 1) {
+      for (const cid of cats) {
+        const items = ITEMS.filter(i => !i.hidden && i.cat === cid);
+        if (!items.length) continue;
+        grid.appendChild(el('p', 'cat-section', catName(cid)));
+        this.renderCatalogCards(grid, items);
       }
+    } else {
+      this.renderCatalogCards(grid, ITEMS.filter(i => !i.hidden && i.cat === cats[0]));
     }
-    const items = ITEMS.filter(i => !i.hidden && (this.activeCat === 'all' || i.cat === this.activeCat));
-    this.renderCatalogCards(grid, items);
+  }
+
+  /** Catalog home: favorites + recents + "browse by room" department tiles. */
+  renderCatalogHome(grid) {
+    const favs = this.favIds.map(id => ITEM_MAP.get(id)).filter(d => d && !d.hidden).slice(0, 12);
+    if (favs.length) {
+      grid.appendChild(el('p', 'cat-section', 'Favorites'));
+      const row = el('div', 'cat-recent');
+      this.renderCatalogCards(row, favs);
+      grid.appendChild(row);
+    }
+    const recent = this.recentIds.map(id => ITEM_MAP.get(id)).filter(d => d && !d.hidden).slice(0, 8);
+    if (recent.length) {
+      grid.appendChild(el('p', 'cat-section', 'Recently used'));
+      const row = el('div', 'cat-recent');
+      this.renderCatalogCards(row, recent);
+      grid.appendChild(row);
+    }
+    grid.appendChild(el('p', 'cat-section', 'Browse by room'));
+    for (const d of this.depts) {
+      const n = d.shells ? SHELLS.length : ITEMS.filter(i => !i.hidden && d.cats.includes(i.cat)).length;
+      if (!n) continue;
+      const tile = el('button', 'dept-tile');
+      tile.innerHTML = `
+        <span class="dept-ico">${d.icon}</span>
+        <span class="dept-name">${d.name}</span>
+        <span class="dept-count">${n} ${d.shells ? 'homes' : 'pieces'}</span>`;
+      tile.onclick = () => { this.catDept = d.id; this.activeCat = 'all'; this.renderCatalogGrid(); };
+      grid.appendChild(tile);
+    }
   }
 
   /** Build queued card thumbnails a few per animation frame, so revealing many
@@ -1443,10 +1511,21 @@ export class UI {
     const store = this.store;
     for (const def of items) {
       const card = el('button', 'cat-card');
+      const isFav = (this.favIds || []).includes(def.id);
       card.innerHTML = `
         <span class="thumb"><img alt="${def.name}" loading="lazy"/></span>
+        <span class="fav-btn${isFav ? ' on' : ''}" role="button" aria-label="Favorite">${isFav ? '♥' : '♡'}</span>
         <span class="cat-card-name">${def.name}</span>
         <span class="cat-card-dims">${fmtLen(def.w)} × ${fmtLen(def.d)} × ${fmtLen(def.h)}</span>`;
+      const favBtn = card.querySelector('.fav-btn');
+      favBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const on = !(this.favIds || []).includes(def.id);
+        this.favIds = on ? [def.id, ...this.favIds] : this.favIds.filter(id => id !== def.id);
+        try { localStorage.setItem('hcs.favItems', JSON.stringify(this.favIds)); } catch {}
+        favBtn.classList.toggle('on', on);
+        favBtn.textContent = on ? '♥' : '♡';
+      });
       card.onclick = () => {
         this.closeDrawer('catalog');
         // roofs fit themselves to the house — no hand-sizing

@@ -7,6 +7,10 @@ import {
   buildTallGrass, flagTexture, buildFlag, glow, netMaterial, lathe, cushion, drape, sweep
 } from './builders.js';
 import { EXTRA_ITEMS } from './extras.js';
+import {
+  bloomRose, bloomDaisy, bloomTulip, spikeLavender, bloomHydrangea,
+  flowerStem, bushMass, studBlooms, shadeHex
+} from './flowers.js';
 
 export const CATEGORIES = [
   { id: 'living', name: 'Living Room' },

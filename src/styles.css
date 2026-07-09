@@ -703,19 +703,112 @@ canvas { display: block; }
 /* ---- catalog ---- */
 .cat-empty { padding: 26px 16px; color: var(--text-dim); font-size: 13.5px; text-align: center; }
 
-/* single slim toolbar: search icon + wrapping category chips + close button —
-   replaces the old title row and full-width search box. The chips wrap so every
-   category is visible at once (no horizontal scroll, nothing bleeding off the
-   edge) while the search/close icons stay pinned to the top corners. */
+/* top bar: an always-visible search field + close. Browsing happens on the
+   "shop by room" home below — no more 21-chip wall. */
 .cat-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   padding: 8px 8px;
   border-bottom: 1px solid var(--border);
   flex: none;
   min-width: 0;
 }
+.cat-search-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.cat-search-wrap:focus-within { border-color: var(--accent); }
+.cat-search-ico { display: flex; color: var(--text-dim); }
+.cat-search-ico svg { width: 16px; height: 16px; }
+.cat-search-wrap input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  height: 100%;
+}
+.cat-search-wrap input::placeholder { color: var(--text-dim); }
+#catClear {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+/* department drill-down bar: back button + subcategory chips */
+.cat-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cat-sub::-webkit-scrollbar { display: none; }
+.cat-back {
+  flex: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(56, 132, 255, 0.35);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding: 7px 11px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cat-sub-title { font-size: 13px; font-weight: 700; padding: 0 4px; white-space: nowrap; }
+
+/* room tiles on the catalog home */
+.dept-tile {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 8px 12px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.dept-tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+.dept-ico { display: block; font-size: 30px; line-height: 1.25; margin-bottom: 5px; }
+.dept-name { display: block; font-size: 12.5px; font-weight: 700; }
+.dept-count { display: block; font-size: 10.5px; color: var(--text-dim); margin-top: 2px; }
+
+/* favorite heart pinned on each card */
+.fav-btn {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-dim);
+  padding: 4px;
+  cursor: pointer;
+  z-index: 1;
+}
+.fav-btn.on { color: #e0426c; }
 .cat-icon-btn {
   flex: none;
   display: flex;
@@ -733,36 +826,6 @@ canvas { display: block; }
 .cat-icon-btn svg { width: 18px; height: 18px; }
 .cat-icon-btn.has-query { color: var(--accent); border-color: rgba(56, 132, 255, 0.4); }
 
-.cat-search-input {
-  display: none;
-  flex: 1;
-  min-width: 0;
-  box-sizing: border-box;
-  background: var(--panel-2);
-  border: 1px solid var(--accent);
-  border-radius: 9px;
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  padding: 8px 12px;
-  outline: none;
-  height: 34px;
-}
-.cat-search-input::placeholder { color: var(--text-dim); }
-/* while searching, the input takes the row and the chips step aside */
-.cat-bar.searching .cat-search-input { display: block; }
-.cat-bar.searching .cat-tabs { display: none; }
-
-.cat-tabs {
-  /* wrap every category onto as many rows as needed — all visible, no scroll */
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-  align-content: flex-start;
-  padding: 1px;
-}
 .cat-tab { flex: none; white-space: nowrap; }
 .cat-tab {
   background: var(--panel-2);
@@ -811,6 +874,7 @@ canvas { display: block; }
   scroll-snap-align: start;
 }
 .cat-card {
+  position: relative;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
