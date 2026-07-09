@@ -223,15 +223,15 @@ export const WORKDINE_ITEMS = [
         handleBar(g, 0, y + 21, 30, 16, false, pull);
         box(g, pull, 8, 3.5, 0.5, 0, y + 12, 29.6);                    // label holder
       }
-      // top drawer pulled open: shallow tub + hanging folders standing proud
-      box(g, steel, 38, 10, 40, 0, 74, 16);
-      box(g, steel, 40, 28, 1.5, 0, 72, 36.6, { r: 0.8 });
-      handleBar(g, 0, 93, 38, 16, false, pull);
-      box(g, pull, 8, 3.5, 0.5, 0, 84, 37.6);
-      const folder = ['#5d7a4c', '#c9b98a', '#5d7a4c', '#c9b98a', '#8a5a4a'];
-      for (let i = 0; i < 5; i++)
-        box(g, solid(folder[i], 0.85), 33, 15 + (i % 2) * 2, 1.6, 0, 79, 2 + i * 6.5);
-      box(g, solid('#e8e4d8', 0.9), 6, 3.5, 0.6, -8, 96, 8.5, { rz: 0.05 }); // index tab
+      // top drawer pulled open: exposed tub + hanging folders in the open span
+      box(g, steel, 38, 10, 16, 0, 74, 37);
+      box(g, steel, 40, 28, 1.5, 0, 72, 45.2, { r: 0.8 });
+      handleBar(g, 0, 93, 46.4, 16, false, pull);
+      box(g, pull, 8, 3.5, 0.5, 0, 84, 46.2);
+      const folder = ['#5d7a4c', '#c9b98a', '#8a5a4a'];
+      for (let i = 0; i < 3; i++)
+        box(g, solid(folder[i], 0.85), 33, 14 + (i % 2) * 3, 1.6, 0, 80, 31.5 + i * 5.5);
+      box(g, solid('#e8e4d8', 0.9), 6, 3.5, 0.6, -8, 97, 37.2, { rz: 0.05 }); // index tab
       return g;
     }
   },
