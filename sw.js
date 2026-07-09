@@ -43,9 +43,9 @@ self.addEventListener('message', (e) => {
 
 async function cacheLibrary(urls) {
   const cache = await caches.open(LIB);
-  let done = 0;
+  let done = 0, failed = 0;
   const total = urls.length;
-  const post = (extra) => broadcast({ type: 'LIBRARY_PROGRESS', done, total, ...extra });
+  const post = (extra) => broadcast({ type: 'LIBRARY_PROGRESS', done, total, failed, ...extra });
   // small concurrency so a phone on cellular isn't hammered
   const queue = urls.slice();
   async function worker() {
@@ -56,14 +56,17 @@ async function cacheLibrary(urls) {
         if (!hit) {
           const res = await fetch(url, { cache: 'reload' });
           if (res.ok) await cache.put(url, res.clone());
+          else failed++;
         }
-      } catch { /* leave it for a retry next time */ }
+      } catch { failed++; /* leave it for a retry next time */ }
       done++;
       post();
     }
   }
   await Promise.all([worker(), worker(), worker()]);
-  broadcast({ type: 'LIBRARY_DONE', done, total });
+  // report failures honestly — the app only marks the library "installed"
+  // when every file made it, so a flaky connection can't fake "offline ready"
+  broadcast({ type: 'LIBRARY_DONE', done, total, failed });
 }
 
 async function broadcast(data) {
