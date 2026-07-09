@@ -21,6 +21,11 @@ import { CABINET_ITEMS } from './packs/cabinets.js';
 import { PATHSPADS_ITEMS } from './packs/pathspads.js';
 import { PORCH_ITEMS } from './packs/porch.js';
 import { OUTDOORPLUS_ITEMS } from './packs/outdoorplus.js';
+import { GARDEN_ITEMS } from './packs/garden.js';
+import { SIGNS2_ITEMS } from './packs/signs2.js';
+import { BEDROOM2_ITEMS } from './packs/bedroom2.js';
+import { WORKDINE_ITEMS } from './packs/workdine.js';
+import { STRUCTURE2_ITEMS } from './packs/structure2.js';
 
 // Assign each pack to a finer catalog category so the "Outdoor" tab isn't one
 // giant broad bucket. (Games & Decor keep the categories their authors set.)
@@ -46,5 +51,10 @@ export const EXTRA_ITEMS = [
   ...CABINET_ITEMS,                       // 'kitchen'/'dining'/'bathroom' — cabinetry
   ...PATHSPADS_ITEMS,                     // 'paths' — drawable paths & drag-to-size pads
   ...PORCH_ITEMS,                         // 'porch' — columns, railings, swings, lanterns
-  ...OUTDOORPLUS_ITEMS                    // 'yard' — play, garden & backyard living extras
+  ...OUTDOORPLUS_ITEMS,                   // 'yard' — play, garden & backyard living extras
+  ...tag(GARDEN_ITEMS, 'garden'),         // flowers, garden beds & showpiece trees
+  ...SIGNS2_ITEMS,                        // 'decor' — customizable text signs
+  ...tag(BEDROOM2_ITEMS, 'bedroom'),      // bedroom furniture
+  ...WORKDINE_ITEMS,                      // 'office' / 'dining' (as authored)
+  ...tag(STRUCTURE2_ITEMS, 'structure')   // garages, sheds & outbuildings
 ];
