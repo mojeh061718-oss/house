@@ -145,7 +145,7 @@ export const BEDROOM2_ITEMS = [
       const t = carc(p, 2, 2);
       // recessed plinth → the deck reads as floating
       box(g, solid('#26241f', 0.9), 126, 9, 164, 0, 0, 4, { r: 1.5 });
-      if (p.glow) box(g, glow(p.glow, 1.5), 170, 1.4, 208, 0, 9.4, 4);
+      if (p.glow) box(g, glow(p.glow, 1.6), 176, 2.2, 214, 0, 8.8, 4);
       box(g, t, 180, 13, 220, 0, 11, 4, { r: 2.5 });                 // platform deck
       box(g, t, 180, 50, 9, 0, 24, -109.5, { r: 2 });                // low wide headboard
       // bedside ledge styling: book + espresso cup on the exposed foot ledge
