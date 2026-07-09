@@ -8,7 +8,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildWalls, buildFloors, buildCeilings, buildGround, buildPathModel, buildFloorSlab } from './arch3d.js';
 import { ITEM_MAP, paletteFor } from '../catalog/items.js';
 import { clamp, wallLength } from '../core/geometry.js';
-import { snapPose, createPathItem, shapePolyline, anchorWallItem } from '../core/placement.js';
+import { snapPose, createPathItem, shapePolyline, anchorWallItem, isPlanting, plantVariation } from '../core/placement.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
 import { detectRooms, roomKey } from '../core/geometry.js';
@@ -1147,8 +1147,12 @@ export class Viewer3D {
     store.checkpoint();
     const it = store.addItem(def.id, pose.x, pose.y, pose.rot, def);
     if (def.path) this.seedDefaultPath(it, def);
+    if (isPlanting(def)) plantVariation(it, def);
     anchorWallItem(store.project.walls, it, def);
     store.commit(false);
+    // planting stays armed (and skips the camera fly) so every tap plants
+    // another — tap Select or pick another tool to stop
+    if (isPlanting(def)) return true;
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
     this.flyToItem(it);

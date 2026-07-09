@@ -15,6 +15,7 @@ import { FURNISH_TYPES, guessType, furnishRoom } from '../core/autofurnish.js';
 import { SHELLS, stampShell, drawShellPreview } from '../core/shells.js';
 import { OPENING_TYPES, OPENING_MAP } from '../core/openings.js';
 import { autoRoof } from '../core/autoroof.js';
+import { isPlanting } from '../core/placement.js';
 import { onRotationChange } from '../core/orientation.js';
 import { backupToFile, importBackup, isBackup } from '../core/projects.js';
 
@@ -1549,6 +1550,7 @@ export class UI {
         // exactly where you tap — never auto-dropped into a room's center
         this.recordRecent(def.id);
         store.setTool('place', def.id);
+        if (isPlanting(def)) this.toast('Keep tapping to plant — sizes vary naturally. Select tool stops.');
       };
       grid.appendChild(card);
       const img = card.querySelector('img');

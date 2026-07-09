@@ -11,7 +11,7 @@ import { DEFAULTS } from '../core/state.js';
 import { openingDefaults } from '../core/openings.js';
 import { localPos } from '../core/orientation.js';
 import { fmtLen, fmtArea, fmtAngle, unitSystem, gridSize } from '../core/units.js';
-import { snapPose, createPathItem, shapePolyline, anchorWallItem, reanchorWallItems } from '../core/placement.js';
+import { snapPose, createPathItem, shapePolyline, anchorWallItem, reanchorWallItems, isPlanting, plantVariation } from '../core/placement.js';
 
 // snap grid follows the unit system: 6" imperial / 10 cm metric (gridSize())
 
@@ -826,8 +826,10 @@ export class Editor2D {
     const pos = this.placePose(w, def);
     store.checkpoint();
     const it = store.addItem(def.id, pos.x, pos.y, pos.rot, def);
+    if (isPlanting(def)) plantVariation(it, def);
     anchorWallItem(store.project.walls, it, def); // remember its host wall
     store.commit(false);
+    if (isPlanting(def)) return; // stay armed — keep tapping to plant a grove
     store.setTool('select');
     store.select({ kind: 'item', id: it.id });
   }

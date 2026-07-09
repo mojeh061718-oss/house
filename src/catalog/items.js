@@ -3976,6 +3976,24 @@ for (const it of ITEMS) {
   if ((isPath || isPad) && it.cat !== 'paths') it.cat = 'paths';
 }
 
+// Real tree scale: catalog trees read like tall shrubs next to a 2.5m-wall
+// house. Each listed tree grows uniformly — def footprint AND built model —
+// so the size contract holds and thumbnails/plan glyphs follow along.
+const TREE_SCALE = {
+  tree_oak: 1.5, tree_birch: 1.4, tree_pine: 1.5, tree_maple_red: 1.45,
+  tree_palm: 1.4, shade_oak: 1.55, flowering_cherry: 1.4,
+  japanese_maple: 1.27, birch_clump: 1.45
+};
+for (const def of ITEMS) {
+  const f = TREE_SCALE[def.id];
+  if (!f) continue;
+  def.w = Math.round(def.w * f);
+  def.d = Math.round(def.d * f);
+  def.h = Math.round(def.h * f);
+  const build0 = def.build;
+  def.build = (p) => { const g = build0(p); g.scale.setScalar(f); return g; };
+}
+
 /** Shared sunflower builder: stalk with leaves, seed disk, two petal rings. */
 function buildSunflower(g, x, z, h, headR, seed) {
   let s = seed * 7919 + 13;

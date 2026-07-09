@@ -172,6 +172,27 @@ export function snapPose(walls, def, x, y, opts = {}) {
 }
 
 
+/** Trees, bushes & flowers plant like a gardener works: the place tool stays
+ *  armed so every tap plants another (Select tool / Esc stops), and each
+ *  planting varies in size like real nursery stock. */
+export function isPlanting(def) {
+  if (!def || def.areaDraw || def.mount || def.path || def.sign) return false;
+  const t = def.plan?.type;
+  return t === 'plant' || t === 'hedge' || def.cat === 'garden';
+}
+
+export function plantVariation(it, def) {
+  const k = 0.8 + Math.random() * 0.45;        // 0.8–1.25× catalog size
+  it.w = Math.max(10, Math.round(def.w * k));
+  it.d = Math.max(10, Math.round(def.d * k));
+  it.h = Math.max(10, Math.round(def.h * k));
+  // random yaw only for roughly-round footprints — spinning a hedge or a
+  // trough planter would fight the wall it was aimed at
+  if (Math.abs(def.w - def.d) < def.w * 0.25) {
+    it.rotation = Math.round(Math.random() * 628) / 100; // 0..2π
+  }
+}
+
 /** Height of the tallest drag-to-size surface (pad, deck, patio) under a
  *  point — so a welcome mat dropped on a paver pad SITS ON the pavers
  *  instead of being buried inside the slab. */
