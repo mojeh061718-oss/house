@@ -25,7 +25,8 @@ export const SIGNS2_ITEMS = [
     palettes: [
       { name: 'Tavern Oak', chip: '#5a3d28', bd: '#5a3d28', bg: '#3a2c20', fg: '#e8d9b0' },
       { name: 'Forest', chip: '#2f4a38', bd: '#33503c', bg: '#24382b', fg: '#e6ddc4' },
-      { name: 'Harbor Navy', chip: '#22364a', bd: '#2b3d52', bg: '#22364a', fg: '#e8e2d0' }
+      { name: 'Harbor Navy', chip: '#22364a', bd: '#2b3d52', bg: '#22364a', fg: '#e8e2d0' },
+      { name: 'TEST', chip: '#000', bd: '#5a3d28', bg: '#3a2c20', fg: '#e8d9b0', sign: 'Wilkersons Lakeside Lodge' }
     ],
     plan: { type: 'wallDecor' },
     build: (p) => {
@@ -90,7 +91,8 @@ export const SIGNS2_ITEMS = [
     palettes: [
       { name: 'Whitewash', chip: '#ece7db', bd: '#ece7db', bg: '#e7e1d2', fg: '#33322e' },
       { name: 'Ink', chip: '#2b2c2e', bd: '#2b2c2e', bg: '#2b2c2e', fg: '#efe9da' },
-      { name: 'Sage', chip: '#8e9a82', bd: '#8e9a82', bg: '#87937b', fg: '#f4f1e6' }
+      { name: 'Sage', chip: '#8e9a82', bd: '#8e9a82', bg: '#87937b', fg: '#f4f1e6' },
+      { name: 'TEST', chip: '#000', bd: '#ece7db', bg: '#e7e1d2', fg: '#33322e', sign: 'Wilkersons Lakeside Lodge' }
     ],
     plan: { type: 'box' },
     build: (p) => {
@@ -318,18 +320,18 @@ export const SIGNS2_ITEMS = [
     id: 'sign2_stone', name: 'Garden Stone Plaque', cat: 'yard', w: 60, d: 45, h: 40,
     sign: true, signDefault: 'Rose Garden',
     palettes: [
-      { name: 'Granite', chip: '#7e7b73', rockA: '#57544d', rockB: '#8f8c84', bg: '#7e7b73', fg: '#332f28' },
-      { name: 'Sandstone', chip: '#a5906c', rockA: '#8a774f', rockB: '#b8a67e', bg: '#a5906c', fg: '#46381f' },
-      { name: 'Slate', chip: '#4e555c', rockA: '#3d434a', rockB: '#666d75', bg: '#4e555c', fg: '#16191d' }
+      { name: 'Granite', chip: '#6e6b64', rockA: '#45423c', rockB: '#75726a', bg: '#6e6b64', fg: '#26231d' },
+      { name: 'Sandstone', chip: '#997f58', rockA: '#77653f', rockB: '#a8926a', bg: '#997f58', fg: '#3a2d17' },
+      { name: 'Slate', chip: '#454c53', rockA: '#33383e', rockB: '#585f67', bg: '#454c53', fg: '#12151a' }
     ],
     plan: { type: 'box' },
     build: (p) => {
       const g = G();
       // weathered boulder + a smaller shoulder stone
-      const rock = blob(g, p.rockA, p.rockB, 24, -2, 17, -2, { seed: 7, sy: 0.72, amp: 0.045 });
-      rock.scale.z = 0.85;
-      blob(g, p.rockA, p.rockB, 10, 23, 6, 2, { seed: 19, sy: 0.7, amp: 0.055 });
-      blob(g, '#4a6b30', '#7fa04a', 6.5, -24, 1.5, 8, { seed: 31, sy: 0.55, amp: 0.07 }); // moss
+      const rock = blob(g, p.rockA, p.rockB, 24, -2, 17, -6, { seed: 7, sy: 0.72, amp: 0.045 });
+      rock.scale.z = 0.75;
+      blob(g, p.rockA, p.rockB, 10, 23, 6, 0, { seed: 19, sy: 0.7, amp: 0.04 });
+      blob(g, '#4a6b30', '#7fa04a', 6.5, -25, 1.5, 12, { seed: 31, sy: 0.55, amp: 0.07 }); // moss
       // leaning engraved tablet on a low stone sill
       const slate = solid(p.bg, 0.9);
       box(g, slate, 30, 6, 8, 0, 0, 19, { r: 2 });
@@ -477,9 +479,9 @@ export const SIGNS2_ITEMS = [
       }
       // ribbon bow at the bottom of the ring
       const ribbon = solid('#8e3b32', 0.55);
-      box(g, ribbon, 7, 5, 2, -4.4, 2.5, 4.4, { r: 2, rz: 0.5 });
-      box(g, ribbon, 7, 5, 2, 4.4, 2.5, 4.4, { r: 2, rz: -0.5 });
-      box(g, ribbon, 3.6, 3.6, 2.4, 0, 3.4, 4.8, { r: 1.2 });
+      box(g, ribbon, 7, 5, 2, -4.4, 2.5, 6.6, { r: 2, rz: 0.5 });
+      box(g, ribbon, 7, 5, 2, 4.4, 2.5, 6.6, { r: 2, rz: -0.5 });
+      box(g, ribbon, 3.6, 3.6, 2.4, 0, 3.4, 7, { r: 1.2 });
       return g;
     }
   },

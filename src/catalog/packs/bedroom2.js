@@ -149,7 +149,7 @@ export const BEDROOM2_ITEMS = [
       box(g, t, 180, 13, 220, 0, 11, 4, { r: 2.5 });                 // platform deck
       box(g, t, 180, 50, 9, 0, 24, -109.5, { r: 2 });                // low wide headboard
       // bedside ledge styling: book + espresso cup on the exposed foot ledge
-      box(g, solid('#7c4434', 0.7), 20, 2.6, 14, -62, 24, 104, { r: 0.5, ry: 0.2 });
+      box(g, solid('#39506b', 0.7), 20, 2.6, 14, -62, 24, 104, { r: 0.5, ry: 0.2 });
       cyl(g, solid('#e8e2d6', 0.4), 3.2, 3.6, 64, 24, 105, { rTop: 2.6, seg: 14 });
       makeBed(g, 156, 196, 24, {
         pillows: 4, puff: 0.92, duvet: solid('#e6e1d5', 0.85),
@@ -204,8 +204,8 @@ export const BEDROOM2_ITEMS = [
       sweep(g, solid('#e8e2d6', 0.9), [[-38, 152, 100.5], [0, 138, 101], [38, 152, 100.5]], 0.4, { seg: 16 });
       const cols = [p.a, p.b, '#e8d9a0', p.a, p.b];
       for (let i = 0; i < 5; i++) {
-        const x = -30 + i * 15, y = 146 - Math.cos((x / 38) * 1.3) * -0 - (1 - (x * x) / 1444) * 8;
-        box(g, solid(cols[i], 0.8), 5, 5, 0.8, x, y - 5, 100.6, { rz: 0.78 });
+        const x = -30 + i * 15, y = 138 + (x * x) / 1444 * 14;
+        box(g, solid(cols[i], 0.8), 5, 5, 0.8, x, y - 5.2, 100.6, { rz: 0.78 });
       }
       makeBed(g, 94, 190, 16, { pillows: 1, puff: 0.72, duvet: solid(p.a, 0.85), accent: p.b });
       return g;
@@ -241,6 +241,7 @@ export const BEDROOM2_ITEMS = [
       // mobile: curved arm over the mattress, four dangling shapes
       sweep(g, metal('#c9ccd0', 0.35), [[62, 88, 30], [56, 118, 18], [28, 138, 6], [0, 145, 0]], 1.1, { seg: 20 });
       cyl(g, wd, 3.5, 2.2, 0, 143, 0, { seg: 14 });
+      torus(g, wood(p.wood, 0.45), 10.5, 0.7, 0, 142, 1.5, { seg: 28, tubeSeg: 8 });
       const hang = [[-10, 0, '#d9b3ac'], [10, 3, '#8ba7bd'], [0, -10, '#e8d9a0'], [0, 10, '#9fb193']];
       hang.forEach(([hx, hz, c], i) => {
         cyl(g, solid('#b9b3a8', 0.8), 0.25, 9 + i * 2, hx, 133 - i * 2, hz, { seg: 6 });
@@ -347,9 +348,9 @@ export const BEDROOM2_ITEMS = [
       for (const sx of [-1, 1]) for (const sz of [-1, 1])
         cyl(g, wd, 2.2, 34, sx * 13, 0, 22 + sz * 13, { rTop: 1.3, rx: sz * 0.1, rz: -sx * 0.1 });
       // perfume + tray styling
-      lathe(g, solid('#d9c9b0', 0.35), [[2.4, 0], [3.4, 1], [3.6, 5], [1.4, 7], [1.4, 9.4]], -38, 72.5, -22, { seg: 16 });
-      sphere(g, brass(), 1.4, -38, 82.6, -22, { seg: 10 });
-      box(g, solid('#3a3530', 0.5), 24, 1.6, 14, 30, 72.5, -18, { r: 0.5 });
+      lathe(g, solid('#d9c9b0', 0.35), [[2.4, 0], [3.4, 1], [3.6, 5], [1.4, 7], [1.4, 9.4]], -38, 75, -22, { seg: 16 });
+      sphere(g, brass(), 1.4, -38, 85.1, -22, { seg: 10 });
+      box(g, solid('#3a3530', 0.5), 24, 1.6, 14, 30, 75, -18, { r: 0.5 });
       return g;
     }
   },
@@ -422,8 +423,10 @@ export const BEDROOM2_ITEMS = [
       cushion(ch, solid(p.accent, 0.8), 26, 24, 10, 14, 44, -14, { puff: 0.35, dimple: 0.04, ry: -0.4, rx: -0.24 });
       for (const [x, z] of [[-32, -30], [32, -30], [-32, 30], [32, 30]]) tleg(ch, wl, x, z, 10, 2.8);
       // throw folded over one arm, falling down the outside
-      drape(ch, solid(p.throw, 0.85), 30, 26, -41.5, 46, 2, { sag: 2.5, wave: 3, folds: 3, seed: 2, ry: Math.PI / 2 });
-      drape(ch, solid(p.throw, 0.85), 30, 18, -40.7, 46, 2, { sag: 2.5, wave: 3, folds: 3, seed: 5, ry: -Math.PI / 2 });
+      const tm = solid(p.throw, 0.85);
+      cushion(ch, tm, 17, 4.5, 28, -33, 44.5, 2, { puff: 0.22, dimple: 0.12 });
+      drape(ch, tm, 28, 28, -42, 46.5, 2, { sag: 3.5, wave: 4.5, folds: 4, seed: 2, ry: Math.PI / 2 });
+      drape(ch, tm, 28, 20, -41.2, 46.5, 2, { sag: 3, wave: 4, folds: 4, seed: 5, ry: -Math.PI / 2 });
       // slim brass reading lamp behind the right shoulder
       const m = brass();
       cyl(g, m, 11, 2.4, 46, 0, -30);
@@ -451,8 +454,8 @@ export const BEDROOM2_ITEMS = [
       box(g, wd, 88, 30, 2, 0, 8, 25.2, { r: 1 });                   // front frame panel
       // rope handles on the ends
       for (const s of [-1, 1]) torus(g, solid('#b09a72', 0.9), 4.5, 1.1, s * 48.4, 26, 0, { rx: 0, ry: Math.PI / 2, seg: 24 });
-      // lid propped wide open against the wall behind
-      box(g, wd, 96, 4, 52, 0, 56.7 - 2, -2.5, { r: 1.5, rx: -0.62 });
+      // lid propped open ~45°, hinged along the back top edge
+      box(g, wd, 96, 4, 52, 0, 60.6, -3.9, { r: 1.5, rx: -0.8 });
       // toys spilling out: ball, blocks, teddy peeking over the rim
       sphere(g, solid('#c05a4a', 0.6), 6.5, -28, 46, 2, { seg: 16 });
       box(g, solid(p.b, 0.7), 8, 8, 8, -8, 42, 6, { r: 1, ry: 0.4 });

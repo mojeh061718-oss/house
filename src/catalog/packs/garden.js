@@ -50,7 +50,7 @@ function bloomPoppy(g, r, x, y, z, seed = 1) {
 
 /** one leafy crop head (1 mesh) */
 const lettuce = (g, r, x, z, seed, y0 = 0) =>
-  blob(g, '#4f8030', '#a9cc5e', r, x, y0 + r * 0.55, z, { seed, sy: 0.72, amp: 0.15, detail: 3 });
+  blob(g, '#47702c', '#8fb54e', r, x, y0 + r * 0.55, z, { seed, sy: 0.72, amp: 0.09, detail: 3 });
 const cabbage = (g, r, x, z, seed, y0 = 0) =>
   blob(g, '#4e7a63', '#98b89c', r, x, y0 + r * 0.58, z, { seed, sy: 0.78, amp: 0.07, detail: 3 });
 
@@ -80,17 +80,20 @@ function buildGardenBed(p, w, d) {
     segment(g, wood('#7b5a38', 0.5), [tx - 5, 35, tz - 4], [tx, 26, tz], 1.5, 1.5, 8);
     segment(g, metal('#b8bcc0', 0.35), [tx, 26, tz], [tx + 3.5, 16, tz + 2.5], 2.4, 1.0, 8);
   }
-  // planting: jittered grid, mix cycles rose → daisy → tulip → greens
+  // planting: jittered grid spread over the WHOLE bed, mix cycles
+  // rose → daisy → tulip → greens
   const pg = sub(g, 0, 18, 0);
   const iw = Math.max(30, w - t * 2 - 26), idp = Math.max(20, d - t * 2 - 26);
-  const n = Math.max(6, Math.min(20, Math.round((iw * idp) / 1800)));
+  const n = Math.max(7, Math.min(22, Math.round((iw * idp) / 1350)));
   const cols = Math.max(1, Math.round(Math.sqrt(n * iw / idp)));
   const rows = Math.max(1, Math.ceil(n / cols));
+  const total = rows * cols;
   const mix = [0, 1, 2, 3, 2, 1, 3, 2, 1];
   const tulipCols = ['#d8385e', '#e8b520', '#e9e3d2'];
   let k = 0;
-  for (let ri = 0; ri < rows; ri++) for (let ci = 0; ci < cols; ci++) {
-    if (k >= n) break;
+  for (let idx = 0; idx < total; idx++) {
+    if (Math.round(idx * n / total) === Math.round((idx + 1) * n / total)) continue;
+    const ri = Math.floor(idx / cols), ci = idx % cols;
     const x = -iw / 2 + (ci + 0.5) * iw / cols + (rand() - 0.5) * iw / cols * 0.5;
     const z = -idp / 2 + (ri + 0.5) * idp / rows + (rand() - 0.5) * idp / rows * 0.5;
     const kind = mix[k % mix.length];
@@ -116,14 +119,14 @@ function buildMeadow(p, w, d) {
   const g = G();
   g.add(buildTallGrass(p, w, d));
   const rand = rng(w * 3.1 + d * 17.9);
-  const n = Math.max(5, Math.min(16, Math.round((w * d) / 9000)));
+  const n = Math.max(6, Math.min(18, Math.round((w * d) / 6000)));
   for (let i = 0; i < n; i++) {
     const x = (rand() - 0.5) * (w - 26);
     const z = (rand() - 0.5) * (d - 26);
-    const h = (p.height || 50) * (0.85 + rand() * 0.4) + 6;
+    const h = (p.height || 50) * (0.8 + rand() * 0.35) + 16;   // blooms clear the grass
     const tip = flowerStem(g, x, z, h, i + 3);
-    if (i % 2) bloomDaisy(g, '#f4f2ea', '#e8b520', 4.2, tip.x, tip.y + 2, tip.z, i + 5, (rand() - 0.5) * 0.5);
-    else bloomPoppy(g, 4.0, tip.x, tip.y + 2, tip.z, i + 11);
+    if (i % 2) bloomDaisy(g, '#f4f2ea', '#e8b520', 4.8, tip.x, tip.y + 2, tip.z, i + 5, (rand() - 0.5) * 0.5);
+    else bloomPoppy(g, 4.4, tip.x, tip.y + 2, tip.z, i + 11);
   }
   return g;
 }
@@ -218,11 +221,14 @@ export const GARDEN_ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      bushMass(g, 102, 84, 102, { seed: 11, clusters: 6 });
-      studBlooms(g, 100, 82, 100, 4, 41, (gg, x, y, z, i) =>
-        bloomRose(gg, i % 3 ? p.bloom : shadeHex(p.bloom, 16), 6, x, y, z, i + 21));
-      studBlooms(g, 104, 86, 104, 6, 77, (gg, x, y, z) =>
-        roseBud(gg, p.bloom, 2.4, x, y, z));
+      bushMass(g, 102, 80, 102, { seed: 11, clusters: 6 });
+      // hand-set blooms ringing the sunlit crown so every angle shows roses
+      bloomRose(g, p.bloom, 7.2, 36, 68, 30, 21);
+      bloomRose(g, shadeHex(p.bloom, 16), 7, -41, 64, 24, 24);
+      bloomRose(g, p.bloom, 6.8, -16, 70, -44, 27);
+      bloomRose(g, shadeHex(p.bloom, 16), 7, 42, 60, -20, 30);
+      studBlooms(g, 104, 82, 104, 6, 77, (gg, x, y, z) =>
+        roseBud(gg, p.bloom, 2.6, x, y, z));
       return g;
     }
   },
@@ -237,11 +243,12 @@ export const GARDEN_ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      bushMass(g, 120, 66, 120, { seed: 31, clusters: 5 });
-      bloomHydrangea(g, p.bloom, 15, -26, 64, 14, 7);
-      bloomHydrangea(g, shadeHex(p.bloom, 14), 14, 24, 70, -10, 13);
-      bloomHydrangea(g, shadeHex(p.bloom, -12), 12.5, 8, 60, 36, 21);
-      blob(g, '#9ab365', '#c4d489', 7.5, -38, 54, -30, { seed: 51, amp: 0.09 }); // lime bud
+      bushMass(g, 118, 52, 118, { seed: 31, clusters: 5 });
+      // mopheads held PROUD of the leaf mound — hydrangeas read as flowers first
+      bloomHydrangea(g, p.bloom, 16, -30, 60, 24, 7);
+      bloomHydrangea(g, shadeHex(p.bloom, 14), 15, 28, 64, -14, 13);
+      bloomHydrangea(g, shadeHex(p.bloom, -12), 14, 10, 56, 42, 21);
+      blob(g, '#9ab365', '#c4d489', 8, -34, 46, -34, { seed: 51, amp: 0.09 }); // lime bud
       return g;
     }
   },
@@ -249,19 +256,20 @@ export const GARDEN_ITEMS = [
   {
     id: 'peony_bush', name: 'Peony Bush', cat: 'garden', w: 95, d: 95, h: 78,
     palettes: [
-      { name: 'Blush', chip: '#e8a3b8', bloom: '#e8a3b8' },
-      { name: 'Coral', chip: '#e06a62', bloom: '#e06a62' },
-      { name: 'Ivory', chip: '#f0ebdf', bloom: '#f0ebdf' }
+      { name: 'Blush', chip: '#dd88a5', bloom: '#dd88a5' },
+      { name: 'Coral', chip: '#d95f57', bloom: '#d95f57' },
+      { name: 'Ivory', chip: '#efe8d8', bloom: '#efe8d8' }
     ],
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      bushMass(g, 88, 58, 88, { seed: 19, clusters: 5 });
-      bloomRose(g, p.bloom, 8, -20, 60, 12, 4);                        // fat ruffled peonies
-      bloomRose(g, shadeHex(p.bloom, 14), 7.5, 22, 63, -8, 9);
-      bloomRose(g, p.bloom, 7, 2, 56, 28, 14);
-      studBlooms(g, 90, 60, 90, 3, 91, (gg, x, y, z) =>
-        roseBud(gg, shadeHex(p.bloom, -18), 2.6, x, y, z));
+      bushMass(g, 88, 54, 88, { seed: 11, clusters: 6 });
+      bloomRose(g, p.bloom, 10, -22, 58, 16, 4);                       // fat ruffled peonies
+      bloomRose(g, shadeHex(p.bloom, 14), 9.5, 26, 62, -10, 9);
+      bloomRose(g, p.bloom, 9, 6, 54, 32, 14);
+      bloomRose(g, shadeHex(p.bloom, -10), 8.5, -28, 50, -26, 17);
+      studBlooms(g, 90, 56, 90, 3, 91, (gg, x, y, z) =>
+        roseBud(gg, shadeHex(p.bloom, -18), 2.8, x, y, z));
       return g;
     }
   },
@@ -271,15 +279,16 @@ export const GARDEN_ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      // silvery mounded foliage base
-      blob(g, '#57684a', '#8a9b74', 26, -44, 12, 0, { seed: 3, sy: 0.62, amp: 0.1 });
-      blob(g, '#52644a', '#84956e', 28, 8, 13, 3, { seed: 7, sy: 0.6, amp: 0.1 });
-      blob(g, '#57684a', '#8f9f78', 24, 52, 11, -3, { seed: 13, sy: 0.62, amp: 0.1 });
+      // silvery mounded foliage base — four rounder, deeper cushions
+      blob(g, '#4d5c42', '#78895f', 20, -52, 11, 0, { seed: 3, sy: 0.72, amp: 0.09 });
+      blob(g, '#495842', '#728358', 22, -14, 12, 3, { seed: 7, sy: 0.7, amp: 0.09 });
+      blob(g, '#4d5c42', '#7d8f66', 21, 22, 11, -3, { seed: 13, sy: 0.72, amp: 0.09 });
+      blob(g, '#495842', '#75875e', 19, 54, 10, 2, { seed: 17, sy: 0.7, amp: 0.09 });
       const rand = rng(29);
-      for (let i = 0; i < 14; i++) {
-        const x = -60 + (i / 13) * 120 + (rand() - 0.5) * 12;
-        const z = (rand() - 0.5) * 24;
-        spikeLavender(g, x, z, 25 + rand() * 12, i + 3);
+      for (let i = 0; i < 16; i++) {
+        const x = -62 + (i / 15) * 124 + (rand() - 0.5) * 10;
+        const z = (rand() - 0.5) * 18;
+        spikeLavender(g, x, z, 30 + rand() * 14, i + 3);
       }
       return g;
     }
@@ -318,13 +327,14 @@ export const GARDEN_ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      blob(g, '#3f6b2e', '#6f9c44', 12, -12, 4, 8, { seed: 3, sy: 0.5, amp: 0.14 });
-      blob(g, '#3a642c', '#699540', 10, 16, 3.5, -10, { seed: 9, sy: 0.5, amp: 0.14 });
-      blob(g, '#3f6b2e', '#74a047', 9, -20, 3, -16, { seed: 15, sy: 0.5, amp: 0.14 });
-      for (let i = 0; i < 5; i++) {
-        const a = i * 2.4 + 0.5, rr = 8 + (i % 3) * 13;
-        const tip = flowerStem(g, Math.cos(a) * rr, Math.sin(a) * rr, 22 + (i % 3) * 6, i + 5);
-        bloomDaisy(g, p.petal, p.eye, 4.8, tip.x, tip.y + 2, tip.z, i + 5, (i % 3 - 1) * 0.22);
+      blob(g, '#375c28', '#5f8a3a', 11, -14, 3.5, 8, { seed: 3, sy: 0.45, amp: 0.1 });
+      blob(g, '#33562a', '#578338', 10, 17, 3, -11, { seed: 9, sy: 0.45, amp: 0.1 });
+      blob(g, '#375c28', '#638e3e', 9, -19, 2.8, -18, { seed: 15, sy: 0.45, amp: 0.1 });
+      blob(g, '#33562a', '#5b8738', 8.5, 8, 2.6, 20, { seed: 21, sy: 0.45, amp: 0.1 });
+      for (let i = 0; i < 6; i++) {
+        const a = i * (Math.PI / 3) + 0.4, rr = 12 + (i % 3) * 11;
+        const tip = flowerStem(g, Math.cos(a) * rr, Math.sin(a) * rr, 20 + (i % 3) * 5, i + 5);
+        bloomDaisy(g, p.petal, p.eye, 5.2, tip.x, tip.y + 2, tip.z, i + 5, (i % 3 - 1) * 0.22);
       }
       return g;
     }
@@ -403,14 +413,15 @@ export const GARDEN_ITEMS = [
       segment(g, bark, [-10, 52, 4], [8, 152, 24], 5.5, 2.4, 8);
       segment(g, bark, [-6, 28, 2], [-24, 84, -50], 5.5, 2.6, 8);
       segment(g, bark, [-7, 34, 3], [58, 74, 44], 5, 2.4, 8);
-      // layered horizontal pancakes of deep red — the maple signature
-      const A = '#5c1f16', B = '#b0452c', C = '#c2542e';
-      blob(g, A, B, 62, -42, 120, 10, { seed: 3, sy: 0.42, amp: 0.11 });
-      blob(g, A, B, 58, 44, 110, -20, { seed: 7, sy: 0.4, amp: 0.11 });
-      blob(g, A, C, 48, 6, 154, 20, { seed: 11, sy: 0.44, amp: 0.11 });
-      blob(g, A, B, 40, -24, 86, -52, { seed: 15, sy: 0.4, amp: 0.12 });
-      blob(g, A, B, 36, 58, 76, 44, { seed: 19, sy: 0.42, amp: 0.12 });
-      blob(g, A, C, 30, -4, 184, -4, { seed: 23, sy: 0.5, amp: 0.11 });
+      // layered tiers of deep crimson — the maple signature. Overlapping,
+      // rounder masses so the crown reads as one weeping dome, not pancakes.
+      const A = '#4c130d', B = '#8e2c1b', C = '#a83a20';
+      blob(g, A, B, 58, -36, 104, 10, { seed: 3, sy: 0.56, amp: 0.09 });
+      blob(g, A, B, 54, 36, 96, -18, { seed: 7, sy: 0.54, amp: 0.09 });
+      blob(g, A, C, 48, 4, 136, 16, { seed: 11, sy: 0.58, amp: 0.09 });
+      blob(g, A, B, 38, -20, 76, -46, { seed: 15, sy: 0.52, amp: 0.1 });
+      blob(g, A, B, 34, 50, 68, 38, { seed: 19, sy: 0.52, amp: 0.1 });
+      blob(g, A, C, 28, -6, 168, -4, { seed: 23, sy: 0.62, amp: 0.09 });
       return g;
     }
   },
@@ -421,8 +432,8 @@ export const GARDEN_ITEMS = [
     build: () => {
       const g = G();
       const bark = solid('#4c3a28', 0.95);
-      cyl(g, bark, 21, 26, 0, 0, 0, { rTop: 16, seg: 14 });            // root flare
-      cyl(g, bark, 16, 150, 0, 20, 0, { rTop: 11, seg: 14 });          // main trunk
+      cyl(g, bark, 26, 30, 0, 0, 0, { rTop: 19, seg: 14 });            // root flare
+      cyl(g, bark, 19, 145, 0, 25, 0, { rTop: 12, seg: 14 });          // main trunk
       // five scaffold limbs, each carrying its own irregular bushMass cluster
       const tips = [[95, 215, 55], [-100, 228, -30], [25, 240, -100], [-42, 222, 85], [5, 278, 5]];
       tips.forEach(([tx, ty, tz], i) => {

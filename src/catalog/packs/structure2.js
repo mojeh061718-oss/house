@@ -103,13 +103,13 @@ export const STRUCTURE2_ITEMS = [
       // arched cross-bows carrying the roof
       for (const z of [-255, 0, 255]) {
         sweep(g, steel, [
-          [-172, 224, z], [-86, 244, z], [0, 250, z], [86, 244, z], [172, 224, z]
+          [-172, 218, z], [-86, 238, z], [0, 244, z], [86, 238, z], [172, 218, z]
         ], 3, { seg: 24 });
       }
       // three corrugated roof sheets forming the shallow arch
       box(g, corr, 150, 5, 574, 0, 250, 0);
       for (const sx of [-1, 1]) {
-        box(g, corr, 110, 5, 574, sx * 125, 234, 0, { rz: sx * -0.2 });
+        box(g, corr, 110, 5, 574, sx * 125, 237, 0, { rz: sx * -0.2 });
       }
       return g;
     }
@@ -183,8 +183,9 @@ export const STRUCTURE2_ITEMS = [
       const g = G();
       const frameW = solid('#e9e6de', 0.5);
       const gl = glass();
-      // brick kick-wall base
+      // brick kick-wall base + gravel interior floor
       box(g, tex('brick_red', 2.5, 0.5), 360, 55, 460, 0, 0, 0);
+      box(g, tex('gravel', 3, 4), 336, 4, 436, 0, 53, 0);
       // corner posts + wall mullions (white painted steel)
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         box(g, frameW, 8, 185, 8, sx * 176, 55, sz * 222);
@@ -198,9 +199,10 @@ export const STRUCTURE2_ITEMS = [
       // eave beams + gable fascia
       for (const sx of [-1, 1]) box(g, frameW, 10, 8, 470, sx * 178, 236, 0);
       for (const sz of [-1, 1]) box(g, frameW, 372, 8, 8, 0, 236, sz * 232);
-      // white rafters riding the glass roof slopes
+      // white ridge beam + rafters riding proud of the glass roof slopes
+      box(g, frameW, 8, 7, 462, 0, 319, 0);
       for (const sx of [-1, 1]) for (const z of [-150, -50, 50, 150]) {
-        box(g, frameW, 200, 5, 6, sx * 90, 279.5, z, { rz: sx * -0.43 });
+        box(g, frameW, 200, 5, 6, sx * 90, 283, z, { rz: sx * -0.43 });
       }
       // raised ridge-vent risers + crest rail + turned finials
       for (const sx of [-1, 1]) box(g, frameW, 5, 16, 396, sx * 15, 310, 0);
@@ -304,7 +306,7 @@ export const STRUCTURE2_ITEMS = [
       for (const sx of [-1, 1]) {
         box(g, roofM, 124, 7, 340, sx * 131, 210.5, 0, { rz: sx * -0.87 });
       }
-      const upper = prism(g, roofM, 344, 80, 204, 0, 256, 0, roofM);
+      const upper = prism(g, roofM, 344, 80, 216, 0, 256, 0, roofM);
       upper.rotation.y = Math.PI / 2;
       // gable-end fill (stepped boxes + cap prism, recessed to avoid z-fights)
       for (const sz of [-1, 1]) {
@@ -327,8 +329,9 @@ export const STRUCTURE2_ITEMS = [
         }
         cyl(g, metal('#9a9ea4', 0.3), 1.4, 12, sx * 8, 62, 163.8);
       }
-      // loft window with muntin cross
+      // loft window with muntin cross (dark reveal behind the glass)
       box(g, trimW, 50, 56, 3, 0, 196, 160.8);
+      box(g, solid('#1a1c20', 0.6), 42, 48, 1.5, 0, 199, 161.2);
       box(g, trimW, 3, 46, 2, 0, 200, 162.6);
       box(g, trimW, 40, 3, 2, 0, 221, 162.6);
       // hay-hoist beam + pulley + rope at the ridge (intrigue)
@@ -366,12 +369,12 @@ export const STRUCTURE2_ITEMS = [
       // canvas hip roof + finial
       pyramid(g, canvas, 360, 72, 320, 0, 234, 0);
       sphere(g, wd, 5, 0, 308, 0);
-      // louvered privacy wall at the back
-      for (const y of [24, 58, 92, 126, 160]) {
-        box(g, wd, 272, 10, 4, 0, y, -114, { rx: 0.42 });
+      // louvered privacy wall at the back (tight slat spacing)
+      for (let y = 22; y <= 184; y += 18) {
+        box(g, wd, 272, 12, 4, 0, y, -114, { rx: 0.42 });
       }
       box(g, wd, 272, 8, 6, 0, 12, -114);
-      box(g, wd, 272, 8, 6, 0, 188, -114);
+      box(g, wd, 272, 8, 6, 0, 200, -114);
       // sheer curtains at the front corners + one side (paired for two faces)
       for (const sx of [-1, 1]) {
         drape(g, curt, 70, 218, sx * 118, 234, 116, { sag: 4, wave: 8, folds: 5, seed: sx * 3 });
@@ -379,14 +382,14 @@ export const STRUCTURE2_ITEMS = [
       }
       drape(g, curt, 84, 218, 137, 234, -30, { sag: 4, wave: 8, folds: 5, seed: 8, ry: -Math.PI / 2 });
       drape(g, curt, 84, 218, 136.2, 234, -30, { sag: 4, wave: 8, folds: 5, seed: -8, ry: Math.PI / 2 });
-      // lounge inside: teak chaise with cushions + towel
-      box(g, wd, 150, 10, 56, -50, 12, 20);
+      // lounge inside: teak chaise, low cushion, angled backrest + towel
+      box(g, wd, 150, 8, 58, -45, 14, 20);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        box(g, wd, 5, 12, 5, -50 + sx * 68, 0, 20 + sz * 22);
+        box(g, wd, 5, 14, 5, -45 + sx * 68, 0, 20 + sz * 23);
       }
-      cushion(g, solid('#e8e2d2', 0.85), 146, 10, 52, -50, 22, 20, { puff: 0.2 });
-      cushion(g, solid('#e8e2d2', 0.85), 42, 9, 50, -114, 40, 20, { puff: 0.22, rz: 1.05 });
-      box(g, solid('#d86a5a', 0.9), 38, 4, 30, -8, 32.5, 20, { r: 2 });
+      cushion(g, solid('#e8e2d2', 0.85), 144, 8, 54, -45, 22, 20, { puff: 0.12 });
+      cushion(g, solid('#e8e2d2', 0.85), 46, 8, 54, -98, 26, 20, { puff: 0.12, rz: 0.85 });
+      box(g, solid('#d86a5a', 0.9), 36, 3.5, 44, 0, 30.2, 20, { r: 1.5 });
       // side table with a cold drink (intrigue)
       cyl(g, wd, 16, 40, 60, 12, -40, { seg: 20 });
       cyl(g, solid('#d8913c', 0.35), 3, 9, 60, 52, -40, { seg: 12 });
@@ -430,7 +433,7 @@ export const STRUCTURE2_ITEMS = [
       }
       sweep(g, solid('#2a2c2e', 0.7), pts, 0.7, { seg: 48 });
       for (let i = 1; i < 8; i++) {
-        sphere(g, glow('#ffd9a0', 1.2, 0.4), 2.4, pts[i][0], pts[i][1] - 3.5, pts[i][2], { seg: 10 });
+        sphere(g, glow('#ffd9a0', 1.6, 0.4), 3, pts[i][0], pts[i][1] - 4, pts[i][2], { seg: 10 });
       }
       return g;
     }
@@ -468,23 +471,25 @@ export const STRUCTURE2_ITEMS = [
       box(g, wood('#6a4f38', 0.55), 34, 56, 4, -95, 144, 33);
       sphere(g, metal('#c8b070', 0.3), 1.5, -105, 172, 35.5);
       box(g, trimW, 30, 30, 4, -145, 180, 31);
+      box(g, solid('#1a1c20', 0.6), 24, 24, 1.5, -145, 183, 32.5);
       box(g, trimW, 5, 34, 34, -176, 178, -25);
-      // deck railing (front + left) with pickets
-      box(g, wd, 160, 6, 8, -90, 180, 82);
-      for (const x of [-160, -125, -90, -55, -20]) box(g, wd, 5, 42, 4, x, 140, 82);
+      box(g, solid('#1a1c20', 0.6), 1.5, 26, 26, -176.8, 182, -25);
+      // deck railing (front-left + left side) with pickets — gap for the ladder
+      box(g, wd, 100, 6, 8, -120, 180, 82);
+      for (const x of [-155, -120, -85] ) box(g, wd, 5, 42, 4, x, 140, 82);
       box(g, wd, 8, 6, 55, -171, 180, 57);
       for (const z of [40, 72]) box(g, wd, 4, 42, 5, -171, 140, z);
       // captain's steering wheel on the front rail (intrigue)
-      cyl(g, wd, 1.6, 10, -30, 180, 84);
-      torus(g, wood('#6a4f38', 0.5), 11, 2, -30, 192, 85, { rx: 0 });
-      cyl(g, wood('#6a4f38', 0.5), 1.2, 26, -30, 179, 85);
-      cyl(g, wood('#6a4f38', 0.5), 1.2, 26, -30, 192, 85, { rz: Math.PI / 2 });
-      sphere(g, wood('#6a4f38', 0.5), 2.6, -30, 192, 85.5);
-      // ladder up the right side
-      strut(g, wd, -8, 126, 40, 62, 0, 40, 3);
-      strut(g, wd, -8, 126, 64, 62, 0, 64, 3);
+      cyl(g, wd, 1.6, 10, -85, 180, 84);
+      torus(g, wood('#6a4f38', 0.5), 11, 2, -85, 192, 85, { rx: 0 });
+      cyl(g, wood('#6a4f38', 0.5), 1.2, 26, -85, 179, 85);
+      cyl(g, wood('#6a4f38', 0.5), 1.2, 26, -85, 192, 85, { rz: Math.PI / 2 });
+      sphere(g, wood('#6a4f38', 0.5), 2.6, -85, 192, 85.5);
+      // ladder down the front porch edge
+      strut(g, wd, -58, 130, 83, -58, 0, 148, 3);
+      strut(g, wd, -32, 130, 83, -32, 0, 148, 3);
       for (const t of [0.2, 0.4, 0.6, 0.8]) {
-        cyl(g, wd, 1.8, 30, -8 + 70 * t, 126 - 126 * t, 52, { rx: Math.PI / 2, seg: 10 });
+        cyl(g, wd, 1.8, 28, -45, 130 - 130 * t, 83 + 65 * t, { rz: Math.PI / 2, seg: 10 });
       }
       // slide from the deck edge down to a ground flare
       box(g, slideM, 213, 5, 44, 85, 71.5, 0, { rz: -0.646 });

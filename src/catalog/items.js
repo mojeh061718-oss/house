@@ -832,14 +832,14 @@ export const ITEMS = [
         m.rotation.z = tilt;
         m.translateX(L * 0.45);
       };
-      // spiral of leaves up the leader, bigger and flatter low, smaller and
-      // more upright at the tip (how fiddles actually hold their foliage)
-      for (let i = 0; i < 12; i++) {
-        const t = i / 11;
-        const y = 74 + t * 62;
+      // crown-weighted spiral of BROAD paddles held nearly flat, the way a
+      // fiddle carries its foliage: a few sparse leaves low, a dense fan high
+      for (let i = 0; i < 13; i++) {
+        const t = i / 12;
+        const y = i < 4 ? 78 + i * 12 : 118 + (i - 4) * 3.4;
         const ax = 2.5 * Math.min(1, (y - 26.5) / 70) - (y > 96 ? (y - 96) * 0.026 : 0);
-        paddle(ax, y, 1, i * 2.39996 + rand() * 0.4, 0.32 + t * 0.55 + rand() * 0.12,
-          24 - t * 7, i % 2 ? lmA : lmB);
+        paddle(ax, y, 1, i * 2.39996 + rand() * 0.4, 0.16 + t * 0.42 + rand() * 0.12,
+          29 - t * 8, i % 2 ? lmA : lmB);
       }
       // two leaves finishing the side branch
       paddle(-9, 99, -5, 3.6, 0.4, 19, lmA);
@@ -1047,8 +1047,8 @@ export const ITEMS = [
       // small filler tuft on the leader so the crown center isn't hollow
       blob(g, '#4f7830', '#93b45a', 26, 2, 312, 2, { seed: 77, sy: 1.0, detail: 3, amp: 0.1 });
       // one drooping catkin-light tuft low on the crown (birch asymmetry)
-      segment(g, bark, [0, 226, 0], [40, 232, -34], 2.4, 0.9, 6);
-      blob(g, '#5d8a3a', '#a9c86e', 17, 46, 226, -40, { seed: 78, sy: 0.72, detail: 3, amp: 0.13 });
+      segment(g, bark, [0, 230, 0], [34, 240, -28], 2.6, 1.1, 6);
+      blob(g, '#5d8a3a', '#a9c86e', 19, 38, 238, -32, { seed: 78, sy: 0.75, detail: 3, amp: 0.13 });
       return g;
     }
   },
@@ -1098,13 +1098,27 @@ export const ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      // A hedge is a ROW of individual shrubs grown together: three
-      // overlapping bushMass plants with real branch structure, kept to a
-      // loosely-trimmed common height so the surface undulates instead of
-      // reading as one extruded green slug.
-      bushMass(g, 82, 88, 46, { x: -60, seed: 101, clusters: 6 });
-      bushMass(g, 88, 94, 48, { x: 2, seed: 107, clusters: 7 });
-      bushMass(g, 82, 86, 46, { x: 62, seed: 113, clusters: 6 });
+      // A hedge is a row of shrubs GROWN TOGETHER: fat interlocking leaf
+      // masses (two alternating green pairs) form one continuous undulating
+      // wall, crown tufts break the trim line, woody stubs peek out below.
+      let s = 7;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      for (let i = 0; i < 7; i++) {
+        const bx = -76 + i * 25.5;
+        const r = 26 + (i % 3) * 3 + rand() * 3;
+        const m = blob(g, i % 2 ? '#33591f' : '#2f5420', i % 2 ? '#548238' : '#4e7c35', r,
+          bx, r * 0.95 + rand() * 8, (rand() - 0.5) * 9,
+          { seed: 90 + i * 3, sy: 1.05 + rand() * 0.18, detail: 3, amp: 0.09 });
+        m.scale.z = 0.72;
+      }
+      for (let i = 0; i < 5; i++) {
+        const bx = -62 + i * 31 + (rand() - 0.5) * 10;
+        const t = blob(g, '#3a632c', '#5d8f3d', 14 + rand() * 5, bx, 60 + rand() * 9,
+          (rand() - 0.5) * 8, { seed: 120 + i, sy: 0.8, detail: 3, amp: 0.12 });
+        t.scale.z = 0.8;
+      }
+      const bark = solid('#4a3826', 0.95);
+      for (const bx of [-58, -6, 52]) segment(g, bark, [bx, 0, 2], [bx + 4, 13, 5], 2.6, 1.5, 6);
       return g;
     }
   },
@@ -2776,7 +2790,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'rose_bush', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100,
+    id: 'rose_bush_f2qa', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100,
     palettes: [
       { name: 'Red', chip: '#b3273a', bloom: '#b3273a' },
       { name: 'Pink', chip: '#d87d9c', bloom: '#d87d9c' },
@@ -2792,11 +2806,13 @@ export const ITEMS = [
       const budMat = solid(shadeHex(p.bloom, -18), 0.6);
       const sepalMat = solid('#2f5426', 0.85);
       // ACTUAL roses — whorled multi-petal blooms — studding the sunlit shell
-      // of the canopy, plus a few furled buds between them
-      studBlooms(g, 88, 78, 88, 8, 41, (gg, x, y, z, i) => {
-        if (i % 4 === 3) {                        // furled bud on a sepal collar
-          sphere(gg, budMat, 2.6, x, y + 2.4, z, { sy: 1.35, seg: 8 });
-          sphere(gg, sepalMat, 2.1, x, y + 0.8, z, { sy: 0.85, seg: 6 });
+      // of the canopy (shell slightly larger than the leaf mass so blooms sit
+      // proud of the clusters instead of sinking into them), plus furled buds
+      studBlooms(g, 100, 86, 100, 9, 41, (gg, x, y, z, i) => {
+        if (i % 4 === 3) {                        // furled bud on a sepal collar,
+          const bx = x * 0.85, bz = z * 0.85;     // tucked back into the foliage
+          sphere(gg, budMat, 2.6, bx, y + 0.6, bz, { sy: 1.35, seg: 8 });
+          sphere(gg, sepalMat, 2.1, bx, y - 1, bz, { sy: 0.85, seg: 6 });
         } else {
           bloomRose(gg, i % 2 ? p.bloom : lite, 5.8, x, y + 2, z, i + 21);
         }
@@ -2805,7 +2821,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'tulip_bed', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50,
+    id: 'tulip_bed_f2qa', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50,
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
