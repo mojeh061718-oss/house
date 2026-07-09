@@ -1376,21 +1376,28 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 #app.compact .type-card { font-size: 10.5px; padding: 4px 2px 5px; }
 
 
-/* compact phones: the catalog takes the whole screen so items are easy to
-   browse — it slides up from the bottom instead of in from the side */
+/* compact phones: the catalog docks to the left edge like every mobile
+   design app — a partial panel, so the plan/3D stays visible and touchable
+   beside it while you browse (a full-screen sheet buried the scene) */
 #app.compact #catalog {
   left: 0;
-  right: 0;
-  width: auto;
+  right: auto;
+  width: min(322px, 44%);
   padding-left: calc(var(--safe-l));
-  border-right: none;
-  transform: translateY(106%);
+  border-right: 1px solid var(--border);
+  transform: translateX(-108%);
 }
-#app.compact #catalog.open { transform: translateY(0); }
+#app.compact #catalog.open { transform: translateX(0); }
 #app.compact .cat-grid {
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  padding: 9px;
 }
+#app.compact .cat-card .thumb { margin-bottom: 5px; }
+#app.compact .cat-card-name { font-size: 11px; }
+#app.compact .cat-card-dims { font-size: 9.5px; }
+#app.compact .dept-ico { font-size: 24px; }
+#app.compact .dept-name { font-size: 11px; }
 #app.compact #catalog .cat-bar { padding: 6px 7px; }
 
 /* ---- home screen backup actions ---- */
