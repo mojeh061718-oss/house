@@ -50,6 +50,9 @@ export const STRUCTURE2_ITEMS = [
         box(g, doorMat, 478, 46, 4, 0, 6 + i * 52, 311, { r: 2 });
       }
       box(g, metal('#8a8e93', 0.35), 26, 4, 2, 0, 26, 313.8);    // lift handle
+      for (const wx of [-180, -60, 60, 180]) {
+        box(g, solid('#1a1c20', 0.6), 100, 26, 1.5, wx, 172, 312.6); // window reveals
+      }
       // door surround trim
       box(g, trim, 508, 16, 5, 0, 212, 311);
       for (const sx of [-1, 1]) box(g, trim, 16, 212, 5, sx * 250, 0, 311);

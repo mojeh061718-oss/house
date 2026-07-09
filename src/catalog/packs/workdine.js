@@ -313,8 +313,8 @@ export const WORKDINE_ITEMS = [
       seg(0, -26, 0); seg(-30.4, -22.6, 0.24); seg(30.4, -22.6, -0.24);
       box(g, glow('#2ad4d4', 1.2, 0.4), 56, 2, 1, 0, 96, -27.6);      // bias light behind
       box(g, solid('#141518', 0.5), 88, 0.8, 34, -6, 73, 16, { r: 0.4 }); // XL deskpad
-      box(g, solid('#1a1b1e', 0.4), 40, 2, 14, -14, 73.8, 16, { r: 0.8 }); // keyboard
-      box(g, glow('#7a3ac9', 1.1, 0.4), 37, 0.7, 11, -14, 75.8, 16);  // per-key RGB
+      box(g, solid('#1a1b1e', 0.4), 40, 2.4, 14, -14, 73.8, 16, { r: 0.8 }); // keyboard
+      box(g, glow('#7a3ac9', 1.1, 0.4), 36, 0.5, 10, -14, 74.4, 16);  // per-key RGB seam
       sphere(g, solid('#1a1b1e', 0.4), 3, 22, 75.5, 18, { sy: 0.55, sx: 0.72 });
       // PC tower with glow intake fans
       box(g, solid('#141518', 0.4), 22, 46, 44, 62, 0, 8, { r: 1.5 });
@@ -334,16 +334,16 @@ export const WORKDINE_ITEMS = [
       const m = metal('#2e3034', 0.4);
       // tilted work surface, hinged high at the back
       box(g, tex(p.tex, 1, 1), 100, 4, 74, 0, 78, -18, { r: 1, rx: 0.34 });
-      box(g, wd, 100, 3, 4.5, 0, 65, 16.6, { rx: 0.34 });             // pencil ledge
+      box(g, wd, 100, 3, 4.5, 0, 67.6, 18.2, { rx: 0.34 });           // pencil ledge
       // taped-down drawing sheet + blue plan lines
       box(g, solid('#f2efe6', 0.9), 58, 0.6, 44, 0, 81.8, -17.2, { rx: 0.34, ry: 0.04 });
       box(g, solid('#5a7ea6', 0.7), 34, 0.4, 1.4, -2, 82.4, -21.5, { rx: 0.34 });
       box(g, solid('#5a7ea6', 0.7), 22, 0.4, 1.4, -6, 82.7, -12.6, { rx: 0.34 });
       // A-frame legs + stretchers
-      strut(g, m, -46, 0, 8, -40, 76, -12, 2.4);
-      strut(g, m, 46, 0, 8, 40, 76, -12, 2.4);
-      strut(g, m, -46, 0, -50, -40, 88, -28, 2.4);
-      strut(g, m, 46, 0, -50, 40, 88, -28, 2.4);
+      strut(g, m, -46, 0, 8, -40, 74, -12, 2.4);
+      strut(g, m, 46, 0, 8, 40, 74, -12, 2.4);
+      strut(g, m, -46, 0, -50, -40, 80, -28, 2.4);
+      strut(g, m, 46, 0, -50, 40, 80, -28, 2.4);
       box(g, m, 84, 4, 4, 0, 26, -22);
       for (const s of [-1, 1]) strut(g, m, s * 43.2, 28, 8, s * 43.2, 28, -50, 1.8);
       // round drafting stool pulled up front-right
@@ -415,8 +415,8 @@ export const WORKDINE_ITEMS = [
       box(g, solid('#7a97b0', 0.7), 23, 6, 30, -13, 44.5, 0, { ry: -0.05 });
       // printer with a fresh page in the output tray
       box(g, solid('#dfe0dc', 0.5), 44, 23, 36, 0, 71, -2, { r: 2.5 });
-      box(g, solid('#c9cac6', 0.5), 24, 1.5, 14, 0, 78, 21);
-      box(g, solid('#f6f4ee', 0.9), 20, 0.4, 12, 0, 79.7, 22, { ry: 0.04 });
+      box(g, solid('#c9cac6', 0.5), 24, 1.5, 14, 0, 78, 20);
+      box(g, solid('#f6f4ee', 0.9), 20, 0.4, 12, 0, 79.7, 21, { ry: 0.04 });
       box(g, glow('#2a6a8c', 0.9, 0.3), 8, 0.8, 5, 15, 94.2, 8, { rx: -0.25 }); // status screen
       return g;
     }
@@ -623,7 +623,7 @@ export const WORKDINE_ITEMS = [
       const brass = metal(BRASS, 0.28);
       const shelf = wood('#4a3826', 0.45);
       for (const sx of [-1, 1]) for (const sz of [-1, 1])
-        cyl(g, brass, 1.5, 70, sx * 37, 8, sz * 19);
+        cyl(g, brass, 1.5, sx < 0 ? 68 : 72, sx * 37, sx < 0 ? 10 : 6, sz * 19);
       box(g, shelf, 78, 2.5, 42, 0, 72, 0, { r: 1 });                 // top tray
       box(g, shelf, 78, 2.5, 42, 0, 24, 0, { r: 1 });                 // lower shelf
       for (const y of [78, 30]) {                                      // gallery rails
@@ -633,10 +633,11 @@ export const WORKDINE_ITEMS = [
       sweep(g, brass, [                                                // push handle
         [-38, 74, -16], [-46, 80, -13], [-49, 86, 0], [-46, 80, 13], [-38, 74, 16]
       ], 1.1, { seg: 24 });
-      // rolling gear: two spoked-look wheels + two casters
+      // rolling gear: axle + two wheels under the handle end, casters at the other
+      cyl(g, brass, 0.9, 46, -37, 9.8, 0, { rx: Math.PI / 2 });
       for (const sz of [-1, 1]) {
-        torus(g, brass, 8.6, 1.2, -30, 9.8, sz * 21.2, { seg: 26 });
-        cyl(g, brass, 7.6, 1.4, -30, 9.8, sz * 21.2, { rx: Math.PI / 2, seg: 22 });
+        torus(g, brass, 8.6, 1.2, -37, 9.8, sz * 21.4, { seg: 26 });
+        cyl(g, brass, 7.6, 1.4, -37, 9.8, sz * 21.4, { rx: Math.PI / 2, seg: 22 });
       }
       for (const sz of [-1, 1]) sphere(g, solid('#141416', 0.45), 3.4, 37, 3.6, sz * 19);
       // stocked top: bottles, shaker, ice bucket with champagne
@@ -720,9 +721,9 @@ export const WORKDINE_ITEMS = [
       const f = seatMat(p);
       const plinth = solid('#3f3a34', 0.8);
       box(g, plinth, 186, 10, 58, 0, 0, -64);                         // bases
-      box(g, plinth, 58, 10, 122, -64, 0, 30);
+      box(g, plinth, 58, 10, 126, -64, 0, 28);
       box(g, f, 190, 26, 62, 0, 10, -64, { r: 5 });                   // seat decks
-      box(g, f, 62, 26, 126, -64, 10, 32, { r: 5 });
+      box(g, f, 62, 26, 128, -64, 10, 31, { r: 5 });
       box(g, f, 190, 52, 14, 0, 36, -88, { r: 5 });                   // tall backs
       box(g, f, 14, 52, 126, -88, 36, 32, { r: 5 });
       // seat pads
@@ -790,13 +791,13 @@ export const WORKDINE_ITEMS = [
       box(g, wd, 31, 15, 2.5, 0, 74, -14.5, { rx: -0.06, r: 1 });     // back panel
       box(g, wd, 33, 5, 3.5, 0, 87, -15.4, { rx: -0.06, r: 1.2 });    // crest rail
       for (const s of [-1, 1]) {                                       // armrests
-        box(g, wd, 3, 2.8, 24, s * 15.5, 67, -1);
-        cyl(g, wd, 1.3, 11, s * 15.5, 56, 10);
+        box(g, wd, 3, 2.8, 24, s * 15.5, 65, -1);
+        cyl(g, wd, 1.3, 13, s * 15.5, 56, 10);
       }
-      box(g, solid('#ece8e0', 0.5), 40, 3, 22, 0, 70, 15, { r: 2 });  // feeding tray
-      box(g, solid('#ece8e0', 0.5), 40, 2, 3, 0, 71.5, 25, { r: 1 }); // tray lip
-      cyl(g, acc, 3, 5.5, 9, 73, 14, { rTop: 2.5, seg: 16 });         // sippy cup
-      sphere(g, acc, 1.2, 9, 79.5, 14, { seg: 10 });
+      box(g, solid('#ece8e0', 0.5), 40, 3, 22, 0, 68, 15, { r: 2 });  // feeding tray
+      box(g, solid('#ece8e0', 0.5), 40, 2, 3, 0, 69.5, 25, { r: 1 }); // tray lip
+      cyl(g, acc, 3, 5.5, 9, 71, 14, { rTop: 2.5, seg: 16 });         // sippy cup
+      sphere(g, acc, 1.2, 9, 77.5, 14, { seg: 10 });
       box(g, wd, 26, 3, 10, 0, 28, 12, { r: 1 });                     // footrest
       return g;
     }

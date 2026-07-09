@@ -25,8 +25,7 @@ export const SIGNS2_ITEMS = [
     palettes: [
       { name: 'Tavern Oak', chip: '#5a3d28', bd: '#5a3d28', bg: '#3a2c20', fg: '#e8d9b0' },
       { name: 'Forest', chip: '#2f4a38', bd: '#33503c', bg: '#24382b', fg: '#e6ddc4' },
-      { name: 'Harbor Navy', chip: '#22364a', bd: '#2b3d52', bg: '#22364a', fg: '#e8e2d0' },
-      { name: 'TEST', chip: '#000', bd: '#5a3d28', bg: '#3a2c20', fg: '#e8d9b0', sign: 'Wilkersons Lakeside Lodge' }
+      { name: 'Harbor Navy', chip: '#22364a', bd: '#2b3d52', bg: '#22364a', fg: '#e8e2d0' }
     ],
     plan: { type: 'wallDecor' },
     build: (p) => {
@@ -91,8 +90,7 @@ export const SIGNS2_ITEMS = [
     palettes: [
       { name: 'Whitewash', chip: '#ece7db', bd: '#ece7db', bg: '#e7e1d2', fg: '#33322e' },
       { name: 'Ink', chip: '#2b2c2e', bd: '#2b2c2e', bg: '#2b2c2e', fg: '#efe9da' },
-      { name: 'Sage', chip: '#8e9a82', bd: '#8e9a82', bg: '#87937b', fg: '#f4f1e6' },
-      { name: 'TEST', chip: '#000', bd: '#ece7db', bg: '#e7e1d2', fg: '#33322e', sign: 'Wilkersons Lakeside Lodge' }
+      { name: 'Sage', chip: '#8e9a82', bd: '#8e9a82', bg: '#87937b', fg: '#f4f1e6' }
     ],
     plan: { type: 'box' },
     build: (p) => {

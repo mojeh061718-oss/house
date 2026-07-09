@@ -391,7 +391,7 @@ export const BEDROOM2_ITEMS = [
       const f = tex(p.fabric, 2, 1), m = brass();
       // plump upholstered top with three proud tuft buttons
       cushion(g, f, 136, 17, 46, 0, 30, 0, { puff: 0.2, dimple: 0.28 });
-      for (let i = 0; i < 3; i++) sphere(g, solid(p.wood, 0.5), 1.3, -34 + i * 34, 45.6, 0, { seg: 10 });
+      for (let i = 0; i < 3; i++) sphere(g, solid(p.wood, 0.5), 1.3, -34 + i * 34, 47.9, 0, { seg: 10 });
       // sleek brass sled legs + stretcher
       for (const s of [-1, 1]) {
         box(g, m, 3, 30, 3, s * 58, 0, -17);
@@ -451,6 +451,7 @@ export const BEDROOM2_ITEMS = [
       const wd = wood(p.wood, 0.45);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, wd, 6, 8, 6, sx * 43, 0, sz * 21, { r: 1 });
       box(g, wd, 96, 40, 50, 0, 4, 0, { r: 2.5 });                   // chest body
+      box(g, solid('#4a4238', 0.95), 84, 1.2, 38, 0, 44.1, 0);       // shadowed interior opening
       box(g, wd, 88, 30, 2, 0, 8, 25.2, { r: 1 });                   // front frame panel
       // rope handles on the ends
       for (const s of [-1, 1]) torus(g, solid('#b09a72', 0.9), 4.5, 1.1, s * 48.4, 26, 0, { rx: 0, ry: Math.PI / 2, seg: 24 });

@@ -2790,7 +2790,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'rose_bush_f2qa', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100,
+    id: 'rose_bush', name: 'Rose Bush', cat: 'outdoor', w: 95, d: 95, h: 100,
     palettes: [
       { name: 'Red', chip: '#b3273a', bloom: '#b3273a' },
       { name: 'Pink', chip: '#d87d9c', bloom: '#d87d9c' },
@@ -2821,7 +2821,7 @@ export const ITEMS = [
     }
   },
   {
-    id: 'tulip_bed_f2qa', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50,
+    id: 'tulip_bed', name: 'Tulip Bed', cat: 'outdoor', w: 130, d: 75, h: 50,
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
