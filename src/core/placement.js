@@ -201,7 +201,8 @@ export function surfaceTopAt(items, x, y, excludeId = null) {
   for (const it of items) {
     if (it.id === excludeId || it.path) continue;
     const def = ITEM_MAP.get(it.defId);
-    if (!def?.areaDraw) continue;
+    // roofs are drag-drawable but overhead — nothing "rests on" a roof
+    if (!def?.areaDraw || def.plan?.type === 'roof') continue;
     const cos = Math.cos(-(it.rotation || 0)), sin = Math.sin(-(it.rotation || 0));
     const dx = x - it.x, dy = y - it.y;
     const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;

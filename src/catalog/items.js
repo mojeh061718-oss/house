@@ -1485,7 +1485,7 @@ export const ITEMS = [
   //     and can be resized/rotated like any item to cover the footprint ---
   {
     id: 'roof_gable', name: 'Gable Roof', cat: 'structure', w: 700, d: 560, h: 200,
-    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true,
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true, areaDraw: true,
     build: (p) => {
       const g = G();
       const shingle = tex(p.roof, 1, 1);
@@ -1501,7 +1501,7 @@ export const ITEMS = [
   },
   {
     id: 'roof_hip', name: 'Hip Roof', cat: 'structure', w: 700, d: 560, h: 190,
-    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true,
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true, areaDraw: true,
     build: (p) => {
       const g = G();
       pyramid(g, tex(p.roof, 5, 3), 740, 182, 600, 0, 8, 0);
@@ -1511,7 +1511,7 @@ export const ITEMS = [
   },
   {
     id: 'roof_shed', name: 'Shed Roof', cat: 'structure', w: 500, d: 420, h: 130,
-    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true,
+    elevation: 260, palettes: ROOFS, plan: { type: 'roof' }, autoFit: true, areaDraw: true,
     build: (p) => {
       const g = G();
       const ang = Math.atan2(110, 420);
@@ -1527,7 +1527,7 @@ export const ITEMS = [
   },
   {
     id: 'roof_flat', name: 'Flat Roof', cat: 'structure', w: 600, d: 500, h: 45,
-    elevation: 260, palettes: null, plan: { type: 'roof' }, autoFit: true,
+    elevation: 260, palettes: null, plan: { type: 'roof' }, autoFit: true, areaDraw: true,
     build: () => {
       const g = G();
       box(g, tex('gravel', 3, 2.5), 600, 14, 500, 0, 0, 0);

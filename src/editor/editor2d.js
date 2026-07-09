@@ -1417,6 +1417,10 @@ export class Editor2D {
         // a plain tap drops the default size there
         it = store.addItem(def.id, Math.round(s.x), Math.round(s.y), 0, def);
       }
+      // a dragged-on roof sits at the top of the walls, not on the ground
+      if (def.plan?.type === 'roof') {
+        it.elevation = store.project.settings.wallHeight ?? it.elevation;
+      }
       store.commit(false);
       store.setTool('select');
       store.select({ kind: 'item', id: it.id });

@@ -1529,22 +1529,10 @@ export class UI {
       });
       card.onclick = () => {
         this.closeDrawer('catalog');
-        // roofs fit themselves to the house — no hand-sizing
-        if (def.autoFit && def.plan?.type === 'roof') {
-          const roof = autoRoof(store, def.id);
-          if (roof) {
-            if (store.viewMode === '2d') store.setViewMode('3d');
-            // show every storey so the roof reads as sitting on the house,
-            // not floating above the floor you happened to be on
-            if (store.project.levels.length > 1 && this.viewer.setViewAll) {
-              this.viewer.setViewAll(true);
-              this.syncLevels();
-            }
-            this.viewer.frameAll();
-            this.toast(`${def.name} fitted over the whole house`);
-            return;
-          }
-          // no walls yet — fall through to normal placement
+        // roofs: choose auto-fit over the whole house, or drag it on by hand
+        if (def.autoFit && def.plan?.type === 'roof' && store.project.walls.length) {
+          this.roofChoice(def);
+          return;
         }
         // "in your hand": arm the item so the NEXT tap on the plan/3D drops it
         // exactly where you tap — never auto-dropped into a room's center
@@ -2215,6 +2203,48 @@ export class UI {
       d.classList.add('open');
       this.loadSwatchTextures(which);
     }
+  }
+
+  /** Roof card tap: auto-fit the whole house, or drag the roof on by hand. */
+  roofChoice(def) {
+    const store = this.store;
+    const scrim = document.createElement('div');
+    scrim.className = 'modal-scrim';
+    scrim.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3>${def.name}</h3>
+        <p>Auto-fit covers the whole house for you. Or drag it on yourself —
+        corner to corner over the plan — to roof just the part you want.</p>
+        <div class="modal-row">
+          <button class="modal-btn" data-r="cancel">Cancel</button>
+          <button class="modal-btn" data-r="drag">Drag it on</button>
+          <button class="modal-btn primary" data-r="auto">Auto-fit house</button>
+        </div>
+      </div>`;
+    scrim.addEventListener('click', (e) => {
+      const r = e.target.closest('[data-r]')?.dataset.r;
+      if (!r) return;
+      scrim.remove();
+      if (r === 'auto') {
+        const roof = autoRoof(store, def.id);
+        if (!roof) { this.toast('Draw some walls first, then auto-fit'); return; }
+        if (store.viewMode === '2d') store.setViewMode('3d');
+        // show every storey so the roof reads as sitting on the house,
+        // not floating above the floor you happened to be on
+        if (store.project.levels.length > 1 && this.viewer.setViewAll) {
+          this.viewer.setViewAll(true);
+          this.syncLevels();
+        }
+        this.viewer.frameAll();
+        this.toast(`${def.name} fitted over the whole house`);
+      } else if (r === 'drag') {
+        this.recordRecent(def.id);
+        if (store.viewMode !== '2d') store.setViewMode('2d');
+        store.setTool('place', def.id);
+        this.toast('Drag corner to corner over the plan to set the roof');
+      }
+    });
+    overlayRoot().appendChild(scrim);
   }
 
   /** Swatch preview images build on a small per-frame time budget, newest
