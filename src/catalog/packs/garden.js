@@ -223,10 +223,10 @@ export const GARDEN_ITEMS = [
       const g = G();
       bushMass(g, 102, 80, 102, { seed: 11, clusters: 6 });
       // hand-set blooms nesting into the sunlit crown so every angle shows roses
-      bloomRose(g, p.bloom, 7.2, 28, 66, 24, 21);
-      bloomRose(g, shadeHex(p.bloom, 16), 7, -32, 62, 18, 24);
-      bloomRose(g, p.bloom, 6.8, -12, 68, -34, 27);
-      bloomRose(g, shadeHex(p.bloom, 16), 7, 34, 56, -20, 30);
+      bloomRose(g, p.bloom, 7.2, 28, 72, 22, 21);
+      bloomRose(g, shadeHex(p.bloom, 16), 7, -32, 68, 18, 24);
+      bloomRose(g, p.bloom, 6.8, -12, 73, -32, 27);
+      bloomRose(g, shadeHex(p.bloom, 16), 7, 34, 63, -20, 30);
       studBlooms(g, 104, 82, 104, 6, 77, (gg, x, y, z) =>
         roseBud(gg, p.bloom, 2.6, x, y, z));
       return g;
@@ -246,7 +246,7 @@ export const GARDEN_ITEMS = [
       bushMass(g, 118, 46, 118, { seed: 31, clusters: 5 });
       // mopheads on short stems held fully PROUD of the leaf mound —
       // hydrangeas read as flowers first, foliage second
-      const hs = [[-30, 60, 24, 16, 0], [26, 64, -18, 15, 14], [12, 56, 42, 14, -12]];
+      const hs = [[-32, 58, 22, 15, 0], [36, 60, 8, 14, 14], [-6, 64, -30, 14, -12]];
       const stemM = solid('#4e7a34', 0.85);
       for (let i = 0; i < hs.length; i++) {
         const [hx, hy, hz, hr, sh] = hs[i];

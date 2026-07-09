@@ -425,8 +425,8 @@ export const BEDROOM2_ITEMS = [
       // throw folded over one arm, falling down the outside
       const tm = solid(p.throw, 0.85);
       cushion(ch, tm, 17, 4.5, 28, -33, 44.5, 2, { puff: 0.22, dimple: 0.12 });
-      drape(ch, tm, 28, 28, -42, 46.5, 2, { sag: 3.5, wave: 4.5, folds: 4, seed: 2, ry: Math.PI / 2 });
-      drape(ch, tm, 28, 20, -41.2, 46.5, 2, { sag: 3, wave: 4, folds: 4, seed: 5, ry: -Math.PI / 2 });
+      drape(ch, tm, 28, 27, -42, 46.5, 2, { sag: 3, wave: 2.6, folds: 3, seed: 2, ry: Math.PI / 2 });
+      drape(ch, tm, 28, 27, -41.4, 46.5, 2, { sag: 3, wave: 2.6, folds: 3, seed: 2, ry: -Math.PI / 2 });
       // slim brass reading lamp behind the right shoulder
       const m = brass();
       cyl(g, m, 11, 2.4, 46, 0, -30);
