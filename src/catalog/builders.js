@@ -115,8 +115,13 @@ export function wood(hex, rough = 0.55) {
 
 // GPU byte budget for sized texture pairs. Count-based capping treated a
 // 2048² photo pair (~21 MB) the same as a 512² procedural pair (~1.3 MB);
-// budgeting by bytes is what the phone GPU actually feels.
-const TEX_BUDGET_BYTES = 112 * 1024 * 1024;
+// budgeting by bytes is what the phone GPU actually feels. Phones get half
+// the desktop budget: iOS Safari doesn't throw on memory pressure, it kills
+// the whole tab — a smaller cache trades a little texture churn for staying
+// alive ("crashing when selecting assets again" on iPhone).
+const IS_TOUCH_DEVICE = typeof navigator !== 'undefined' &&
+  (navigator.maxTouchPoints > 1 || /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent || ''));
+const TEX_BUDGET_BYTES = (IS_TOUCH_DEVICE ? 56 : 112) * 1024 * 1024;
 let texBytesTotal = 0;
 const texWeight = (m) => {
   const px = (im) => (im?.width || 512) * (im?.height || 512);

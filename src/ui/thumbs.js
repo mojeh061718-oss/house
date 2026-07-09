@@ -6,7 +6,12 @@ import { ITEM_MAP } from '../catalog/items.js';
 import { watchTextures } from '../core/textures.js';
 
 let renderer = null, scene = null, camera = null;
+// LRU, not a plain cache: with 600+ items, keeping every card's data URL
+// forever holds tens of MB of strings + decoded bitmaps — real pressure on
+// iPhone Safari, which kills the tab instead of throwing. 250 covers every
+// card visible in a browsing session; older ones simply re-render on return.
 const cache = new Map();
+const CACHE_MAX = 250;
 const SIZE = 220;
 
 // Photo-based materials load after the first thumbnails are built; without
@@ -42,7 +47,11 @@ function ensure() {
 }
 
 export function thumbnail(defId) {
-  if (cache.has(defId)) return cache.get(defId);
+  if (cache.has(defId)) {
+    const hit = cache.get(defId);
+    cache.delete(defId); cache.set(defId, hit); // touch → most-recently-used
+    return hit;
+  }
   const def = ITEM_MAP.get(defId);
   if (!def) return '';
   ensure();
@@ -76,5 +85,6 @@ export function thumbnail(defId) {
     }
   });
   cache.set(defId, url);
+  while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
   return url;
 }
