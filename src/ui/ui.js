@@ -2190,7 +2190,10 @@ export class UI {
       for (const m of list.filter(m => (m.group || '') === g)) {
         const b = el('button', 'mat-swatch' + (m.id === current ? ' active' : ''));
         b.title = m.name;
-        b.innerHTML = `<img src="${getMaterialPreview(m.id)}" data-mat="${m.id}" alt="${m.name}"/><span>${m.name}</span>`;
+        // preview fills in a few per frame — building all of a family's
+        // texture canvases in one synchronous burst was killing phone tabs
+        b.innerHTML = `<img data-mat="${m.id}" alt="${m.name}"/><span>${m.name}</span>`;
+        this.queueSwatch(b.querySelector('img'));
         b.onclick = () => {
           grid.querySelectorAll('.mat-swatch').forEach(s => s.classList.remove('active'));
           b.classList.add('active');
@@ -2214,11 +2217,43 @@ export class UI {
     }
   }
 
-  /** Photo swatches download lazily — fetch the ones now on screen. */
+  /** Swatch preview images build on a small per-frame time budget, newest
+   *  first — so the panel that's on screen right now fills before stale
+   *  queue entries from earlier renders (which get skipped as disconnected). */
+  queueSwatch(img) {
+    (this._swQueue || (this._swQueue = [])).push(img);
+    if (this._swDraining) return;
+    this._swDraining = true;
+    const step = () => {
+      const t0 = performance.now();
+      while (this._swQueue.length && performance.now() - t0 < 12) {
+        const im = this._swQueue.pop();
+        if (im.isConnected && im.dataset.mat && !im.src) {
+          try { im.src = getMaterialPreview(im.dataset.mat); } catch {}
+        }
+      }
+      if (this._swQueue.length) requestAnimationFrame(step);
+      else this._swDraining = false;
+    };
+    requestAnimationFrame(step);
+  }
+
+  /** Photo swatches download lazily — only the ones actually scrolled into
+   *  view. Fetching a whole family at once allocated a 1024² canvas pair per
+   *  photo material in one burst — the "tapped the exterior wall and it
+   *  crashed" report on iPhone. */
   loadSwatchTextures(which) {
     const panel = $('#' + which);
     if (!panel?.classList.contains('open')) return;
-    panel.querySelectorAll('.mat-swatch img[data-mat]').forEach(img => ensureTexture(img.dataset.mat));
+    if (this._swatchIO) this._swatchIO.disconnect();
+    this._swatchIO = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        obs.unobserve(e.target);
+        ensureTexture(e.target.dataset.mat);
+      }
+    }, { root: panel, rootMargin: '120px' });
+    panel.querySelectorAll('.mat-swatch img[data-mat]').forEach(img => this._swatchIO.observe(img));
   }
 
   closeDrawer(which) {

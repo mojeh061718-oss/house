@@ -3,7 +3,20 @@
 // still looking like real wood, stone, tile, fabric and brick.
 
 const SIZE = 512;
-const canvasCache = new Map(); // matId -> {color, bump}
+const canvasCache = new Map(); // matId -> {color, bump}; LRU, byte-budgeted
+// Browsing material swatches used to build full-size canvas pairs for every
+// material in a family and keep them all forever — a single "exterior wall"
+// tap could allocate hundreds of MB, which iOS Safari answers by killing the
+// tab. The cache is now an LRU with a byte budget (smaller on phones).
+// Evicted entries stay alive for any live CanvasTexture that still points at
+// them (the GPU texture keeps its own reference); they simply regenerate on
+// the next request.
+const IS_TOUCH = typeof navigator !== 'undefined' &&
+  (navigator.maxTouchPoints > 1 || /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent || ''));
+const CANVAS_BUDGET = (IS_TOUCH ? 48 : 160) * 1024 * 1024;
+let canvasBytes = 0;
+const entryBytes = (e) =>
+  (e.color.width * e.color.height + e.bump.width * e.bump.height) * 4;
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -1180,7 +1193,10 @@ function loadFileTexture(def, entry) {
 /** Get (and cache) generated canvases for a material id. */
 export function getTextureCanvases(matId) {
   let entry = canvasCache.get(matId);
-  if (entry) return entry;
+  if (entry) {
+    canvasCache.delete(matId); canvasCache.set(matId, entry); // touch → MRU
+    return entry;
+  }
   const def = MATERIAL_MAP.get(matId) || MATERIAL_MAP.get('paint_warmwhite');
   const { color, bump } = canvasPair(def.file ? (def.res || 1024) : (def.res || SIZE));
   entry = { color, bump, def };
@@ -1196,6 +1212,12 @@ export function getTextureCanvases(matId) {
     gen(color.getContext('2d'), bump.getContext('2d'), def.params);
   }
   canvasCache.set(matId, entry);
+  canvasBytes += entryBytes(entry);
+  while (canvasBytes > CANVAS_BUDGET && canvasCache.size > 1) {
+    const oldest = canvasCache.keys().next().value;
+    canvasBytes -= entryBytes(canvasCache.get(oldest));
+    canvasCache.delete(oldest);
+  }
   return entry;
 }
 
