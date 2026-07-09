@@ -246,7 +246,7 @@ export const GARDEN_ITEMS = [
       bushMass(g, 118, 46, 118, { seed: 31, clusters: 5 });
       // mopheads on short stems held fully PROUD of the leaf mound —
       // hydrangeas read as flowers first, foliage second
-      const hs = [[-32, 58, 22, 15, 0], [36, 60, 8, 14, 14], [-6, 64, -30, 14, -12]];
+      const hs = [[-32, 64, 22, 17, 0], [36, 66, 8, 16, 14], [-6, 70, -30, 16, -12]];
       const stemM = solid('#4e7a34', 0.85);
       for (let i = 0; i < hs.length; i++) {
         const [hx, hy, hz, hr, sh] = hs[i];
