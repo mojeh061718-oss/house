@@ -224,7 +224,7 @@ export const GARDEN_ITEMS = [
       bushMass(g, 102, 80, 102, { seed: 11, clusters: 6 });
       // hand-set blooms nesting into the sunlit crown so every angle shows roses
       bloomRose(g, p.bloom, 7.2, 28, 72, 22, 21);
-      bloomRose(g, shadeHex(p.bloom, 16), 7, -32, 68, 18, 24);
+      bloomRose(g, shadeHex(p.bloom, 16), 7, -25, 67, 13, 24);
       bloomRose(g, p.bloom, 6.8, -12, 73, -32, 27);
       bloomRose(g, shadeHex(p.bloom, 16), 7, 34, 63, -20, 30);
       studBlooms(g, 104, 82, 104, 6, 77, (gg, x, y, z) =>
