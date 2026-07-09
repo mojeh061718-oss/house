@@ -815,11 +815,35 @@ export const ITEMS = [
         [19.6, 28], [19.6, 30], [17.6, 30], [17.2, 26]
       ], 0, 0, 0, { seg: 32 });
       cyl(g, solid('#4a3a2c', 0.95), 17.3, 2, 0, 26.2, 0, { seg: 24 });
-      // leaning, tapering trunk with a side branch feeding the crown
+      // leaning, tapering trunk with a side branch — and REAL fiddle leaves:
+      // big glossy paddles pivoting off the stem, not a green ball
       const bark = solid('#5c4632', 0.9);
       segment(g, bark, [0, 26.5, 0], [2.5, 96, 1.5], 2.6, 1.6, 10);
+      segment(g, bark, [2.5, 96, 1.5], [1.5, 134, 0.5], 1.6, 1.0, 8);
       segment(g, bark, [1.4, 68, 0.8], [-9, 98, -5], 1.4, 0.9, 8);
-      foliage(g, '#4a6e3a', '#5d8348', 0, 108, 0, 30, 12, 11);
+      let s = 13;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const lmA = solid('#2e5c28', 0.4), lmB = solid('#3f7233', 0.42);
+      const paddle = (ax, ay, az, yaw, tilt, L, mat) => {
+        const m = sphere(g, mat, L / 2, 0, 0, 0, { sx: 1.15, sy: 0.13, sz: 0.6, seg: 10 });
+        m.position.set(ax, ay, az);
+        m.rotation.order = 'YXZ';
+        m.rotation.y = yaw;
+        m.rotation.z = tilt;
+        m.translateX(L * 0.45);
+      };
+      // spiral of leaves up the leader, bigger and flatter low, smaller and
+      // more upright at the tip (how fiddles actually hold their foliage)
+      for (let i = 0; i < 12; i++) {
+        const t = i / 11;
+        const y = 74 + t * 62;
+        const ax = 2.5 * Math.min(1, (y - 26.5) / 70) - (y > 96 ? (y - 96) * 0.026 : 0);
+        paddle(ax, y, 1, i * 2.39996 + rand() * 0.4, 0.32 + t * 0.55 + rand() * 0.12,
+          24 - t * 7, i % 2 ? lmA : lmB);
+      }
+      // two leaves finishing the side branch
+      paddle(-9, 99, -5, 3.6, 0.4, 19, lmA);
+      paddle(-9, 97, -5, 2.4, 0.25, 17, lmB);
       // a dropped leaf resting on the soil
       sphere(g, solid('#8a8040', 0.7), 3.5, 8, 28.6, 4, { sy: 0.14, sx: 1.4, seg: 10 });
       return g;
@@ -836,7 +860,23 @@ export const ITEMS = [
         [10.8, 15.6], [10.8, 17], [9.4, 17], [9.2, 14]
       ], 0, 0, 0, { seg: 28 });
       cyl(g, solid('#4a3a2c', 0.95), 9.3, 1.6, 0, 13.6, 0, { seg: 20 });
-      foliage(g, '#55763f', '#68894e', 0, 30, 0, 13, 8, 23);
+      // arching strap-leaf rosette out of the soil crown: outer leaves droop
+      // over the rim, inner ones stand tall — a plant, not a pom-pom
+      let s = 5;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const lmA = solid('#55763f', 0.5), lmB = solid('#68894e', 0.5);
+      for (let i = 0; i < 12; i++) {
+        const a = i * 2.39996 + rand() * 0.3;
+        const ring = i % 3;                      // 0 outer droop, 1 mid, 2 upright
+        const tilt = [0.28, 0.62, 1.05][ring] + rand() * 0.12;
+        const L = [15, 19, 26][ring] + rand() * 3;
+        const m = sphere(g, i % 2 ? lmA : lmB, L / 2, 0, 0, 0, { sx: 1, sy: 0.12, sz: 0.24, seg: 8 });
+        m.position.set(0, 14.5, 0);
+        m.rotation.order = 'YXZ';
+        m.rotation.y = a;
+        m.rotation.z = tilt;
+        m.translateX(L * 0.44);
+      }
       // intrigue: one trailing stem spilling over the rim and down the pot
       segment(g, solid('#55763f', 0.7), [3, 14.6, 2.5], [8.2, 13.2, 6.6], 0.5, 0.45, 6);
       segment(g, solid('#55763f', 0.7), [8.2, 13.2, 6.6], [11, 8, 8.8], 0.45, 0.35, 6);
@@ -942,18 +982,32 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      // flared trunk with three main branches reaching into the crown
+      // REAL tree architecture: a flared trunk that FORKS into scaffold limbs,
+      // each limb carrying its OWN offset canopy cluster — the crown is a
+      // broken, irregular union of lobes with sky gaps, not one green ball.
+      let s = 9;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       const bark = solid('#54422e', 0.95);
-      cyl(g, bark, 16, 165, 0, 0, 0, { rTop: 10 });
-      cyl(g, bark, 7, 110, 0, 120, 0, { rz: 0.5 });
-      cyl(g, bark, 6, 100, 0, 135, 0, { rz: -0.55 });
-      cyl(g, bark, 5, 85, 0, 150, 0, { rx: 0.45 });
-      // full dappled crown; satellite tufts overlap the crown base so the
-      // canopy reads as one irregular mass, not detached balls
-      foliage(g, '#33591f', '#6fa03e', 0, 300, 0, 112, 16, 17);
-      blob(g, '#33591f', '#649238', 48, 80, 250, 28, { seed: 41, sy: 0.85 });
-      blob(g, '#2f5220', '#5d8a34', 44, -74, 244, -32, { seed: 42, sy: 0.82 });
-      blob(g, '#365e22', '#68983a', 40, 8, 236, -52, { seed: 44, sy: 0.8 });
+      segment(g, bark, [0, 0, 0], [4, 155, 2], 19, 10, 12);
+      const limbs = [
+        [0.4, 92, 262, 54], [1.7, 100, 236, 50], [2.9, 86, 282, 48],
+        [4.2, 96, 248, 52], [5.35, 68, 308, 44]
+      ];
+      for (const [a, rr, ty, cr] of limbs) {
+        const tx = Math.cos(a) * rr, tz = Math.sin(a) * rr;
+        // limb leaves the fork, elbows partway, thins toward its tip
+        segment(g, bark, [2, 142, 1], [tx * 0.55, 150 + (ty - 150) * 0.55, tz * 0.55], 7.5, 4.8, 8);
+        segment(g, bark, [tx * 0.55, 150 + (ty - 150) * 0.55, tz * 0.55], [tx * 0.94, ty - 10, tz * 0.94], 4.8, 2.4, 7);
+        // this limb's canopy: a main lobe plus a smaller offset cap
+        blob(g, '#2f5220', '#649238', cr, tx + (rand() - 0.5) * 22, ty + cr * 0.42, tz + (rand() - 0.5) * 22,
+          { seed: 40 + Math.round(a * 7), sy: 0.82, detail: 3, amp: 0.1 });
+        blob(g, '#33591f', '#6fa03e', cr * 0.58, tx * 1.08, ty + cr * 0.95, tz * 1.08,
+          { seed: 45 + Math.round(a * 9), sy: 0.78, detail: 3, amp: 0.11 });
+      }
+      // crown lobe up the leader + a dark inner filler tying the lobes together
+      segment(g, bark, [3, 150, 1.5], [10, 300, -6], 6, 2.4, 7);
+      blob(g, '#33591f', '#6fa03e', 60, 8, 322, -6, { seed: 71, sy: 0.8, detail: 3, amp: 0.1 });
+      blob(g, '#2c4d1c', '#4a7030', 56, 0, 238, 0, { seed: 72, sy: 0.9, detail: 2, amp: 0.08 });
       return g;
     }
   },
@@ -976,12 +1030,25 @@ export const ITEMS = [
           Math.cos(a) * (rAt - 0.4), y, Math.sin(a) * (rAt - 0.4), { r: 1 });
         m.rotation.y = -a + Math.PI / 2;
       }
-      // light, airy crown: overlapping tufts up the leader
-      blob(g, '#557f33', '#9aba60', 58, 0, 330, 0, { seed: 50, sy: 1.05 });
-      blob(g, '#4f7830', '#93b45a', 42, 44, 292, 18, { seed: 51, sy: 0.95 });
-      blob(g, '#527c31', '#a0be62', 40, -40, 286, -16, { seed: 52, sy: 0.92 });
-      blob(g, '#5d8a3a', '#a9c86e', 32, 8, 388, 2, { seed: 53, sy: 1.05 });
-      blob(g, '#557f33', '#9cbc5e', 26, -26, 352, 22, { seed: 54, sy: 0.9 });
+      // light, airy crown: slender limbs off the leader, each ending in its
+      // OWN small tuft, with sky showing between them — birches are open trees
+      const tufts = [
+        [52, 292, 24, 30], [-56, 300, -16, 28], [30, 342, -30, 26],
+        [-30, 352, 26, 26], [8, 386, 4, 27], [58, 336, 10, 22], [-58, 258, 8, 22]
+      ];
+      let ti = 0;
+      for (const [tx, ty, tz, tr] of tufts) {
+        const ay = 150 + (ty - 150) * 0.45;
+        segment(g, bark, [0, ay, 0], [tx * 0.86, ty - 8, tz * 0.86], 3.4, 1.2, 6);
+        blob(g, '#557f33', '#9cbc5e', tr, tx, ty + tr * 0.28, tz,
+          { seed: 50 + ti * 3, sy: 0.9 + (ti % 3) * 0.08, detail: 3, amp: 0.12 });
+        ti++;
+      }
+      // small filler tuft on the leader so the crown center isn't hollow
+      blob(g, '#4f7830', '#93b45a', 26, 2, 312, 2, { seed: 77, sy: 1.0, detail: 3, amp: 0.1 });
+      // one drooping catkin-light tuft low on the crown (birch asymmetry)
+      segment(g, bark, [0, 226, 0], [40, 232, -34], 2.4, 0.9, 6);
+      blob(g, '#5d8a3a', '#a9c86e', 17, 46, 226, -40, { seed: 78, sy: 0.72, detail: 3, amp: 0.13 });
       return g;
     }
   },
@@ -990,17 +1057,39 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      cyl(g, solid('#4e3d2c', 0.95), 13, 130, 0, 0, 0, { rTop: 9 });
-      // fluffy boughs: stacked lumpy tiers that OVERLAP so the spire reads as
-      // one continuous tree (the old spacing left the top tiers floating)
-      const tiers = [
-        [86, 100, 0.5], [72, 160, 0.54], [58, 215, 0.58], [46, 268, 0.62],
-        [35, 314, 0.68], [25, 352, 0.78], [16, 384, 1.0]
-      ];
-      tiers.forEach(([r, y, sy], i) => {
-        blob(g, '#24421f', '#4a7534', r, (i % 2 ? 3 : -3), y, (i % 3 - 1) * 3, { seed: 61 + i * 3, sy });
+      // conifer built from WHORLS of individual drooping boughs, not stacked
+      // cones: each tier is 5 radiating branch lobes, rotated per tier, with
+      // the tips sagging — the silhouette stays a spire but the edge is broken
+      let s = 3;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const bark = solid('#4e3d2c', 0.95);
+      segment(g, bark, [0, 0, 0], [0, 372, 0], 13, 2.2, 10);
+      const tiers = [[92, 96], [80, 152], [66, 206], [52, 258], [38, 306], [26, 348]];
+      tiers.forEach(([tr, ty], t) => {
+        const n = t < 4 ? 5 : 4;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2 + t * 0.66 + rand() * 0.3;
+          const reach = tr * (0.72 + rand() * 0.22);
+          const lr = tr * (0.3 + rand() * 0.06);
+          // visible bough on the lower tiers
+          if (t < 3) segment(g, bark, [0, ty + 14, 0],
+            [Math.cos(a) * reach * 0.62, ty + 2, Math.sin(a) * reach * 0.62], 2.6, 1.1, 6);
+          const m = blob(g, t % 2 ? '#24421f' : '#28481f', t % 2 ? '#4a7534' : '#52803a', lr,
+            0, 0, 0, { seed: 61 + t * 7 + i * 3, sy: 0.5, detail: 3, amp: 0.12 });
+          m.position.set(Math.cos(a) * reach * 0.62, ty + lr * 0.2, Math.sin(a) * reach * 0.62);
+          m.rotation.order = 'YXZ';
+          m.rotation.y = -a;
+          m.rotation.z = -(0.22 + rand() * 0.2 + (2 - Math.min(t, 2)) * 0.05); // tips sag
+          m.scale.x *= 1.45;                      // stretch the lobe along its bough
+          m.translateX(reach * 0.16);
+        }
+        // small core tuft hides the trunk pass-through
+        blob(g, '#22401d', '#41692e', tr * 0.3, (rand() - 0.5) * 6, ty + 8, (rand() - 0.5) * 6,
+          { seed: 90 + t, sy: 0.72, detail: 2, amp: 0.09 });
       });
-      blob(g, '#2a4a24', '#548038', 10, 0, 412, 0, { seed: 80, sy: 1.3 });
+      // leader: two small tip tufts finish the spire
+      blob(g, '#2a4a24', '#548038', 15, 2, 382, -1, { seed: 80, sy: 1.1, detail: 3, amp: 0.12 });
+      blob(g, '#2e5226', '#5c8a3e', 9, 0, 416, 1, { seed: 81, sy: 1.35, detail: 3, amp: 0.12 });
       return g;
     }
   },
@@ -1009,30 +1098,13 @@ export const ITEMS = [
     palettes: null, plan: { type: 'hedge' },
     build: () => {
       const g = G();
-      // Clipped hedge: a rounded leafy core block, its top and faces broken by
-      // MANY small high-detail foliage tufts that stay INSIDE the silhouette —
-      // big stretched blobs poked out of the ends and read as faceted lumps.
-      box(g, solid('#3a602e', 0.95), 188, 74, 44, 0, 3, 0, { r: 14, seg: 4 });
-      let sd = 90;
-      // large half-BURIED tufts: only their crowns break the clipped surface,
-      // so the hedge reads as one undulating leafy mass (small surface-mounted
-      // tufts read as warts; big protruding blobs read as faceted lumps)
-      for (let bx = -76; bx <= 76; bx += 19) {
-        blob(g, '#3a632c', '#548238', 20 + (sd % 3) * 3, bx, 62 - (sd % 2) * 5, ((sd % 2) ? 5 : -5),
-          { seed: sd++, sy: 0.75, detail: 3, amp: 0.07 });
-      }
-      for (const zs of [1, -1]) {
-        for (let bx = -64; bx <= 64; bx += 32) {
-          blob(g, '#345a2a', '#4e7c35', 17 + (sd % 3) * 3, bx + (sd % 2) * 7, 34 + (sd % 3) * 10, zs * 8,
-            { seed: sd++, sy: 0.9, detail: 3, amp: 0.07 });
-        }
-      }
-      for (const xs of [1, -1]) {
-        blob(g, '#38602c', '#54823a', 18, xs * 80, 40, 0, { seed: sd++, sy: 1.0, detail: 3, amp: 0.06 });
-      }
-      // woody trunk stubs peeking out under the foliage skirt
-      const bark = solid('#4a3826', 0.95);
-      for (const bx of [-62, 0, 62]) cyl(g, bark, 2.6, 12, bx, 0, 0, { rTop: 2 });
+      // A hedge is a ROW of individual shrubs grown together: three
+      // overlapping bushMass plants with real branch structure, kept to a
+      // loosely-trimmed common height so the surface undulates instead of
+      // reading as one extruded green slug.
+      bushMass(g, 82, 88, 46, { x: -60, seed: 101, clusters: 6 });
+      bushMass(g, 88, 94, 48, { x: 2, seed: 107, clusters: 7 });
+      bushMass(g, 82, 86, 46, { x: 62, seed: 113, clusters: 6 });
       return g;
     }
   },
@@ -1041,8 +1113,9 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
-      foliage(g, '#375c22', '#6d9c42', 0, 52, 0, 52, 10, 33);
-      cyl(g, solid('#54422e', 0.95), 5, 24, 0, 0, 0);
+      // real shrub architecture: woody stubs, radiating branches, each ending
+      // in its own offset irregular leaf cluster (see bushMass in flowers.js)
+      bushMass(g, 104, 94, 104, { seed: 33, clusters: 8 });
       return g;
     }
   },
@@ -2471,21 +2544,23 @@ export const ITEMS = [
       }
       const soil = cyl(g, solid('#4a3a28', 0.98), 72, 8, 0, 0, 0, { seg: 24 });
       soil.scale.z = 0.44;
-      // lumpy foliage bed the blooms rise out of
-      for (const [fx, fz, fr, sd] of [[-42, 0, 20, 130], [2, 4, 23, 133], [46, -3, 19, 137]]) {
-        const b = blob(g, '#33571f', '#54803a', fr, fx, 12, fz, { seed: sd, sy: 0.6 });
+      // low leafy underplanting the blooms rise out of
+      for (const [fx, fz, fr, sd] of [[-42, 0, 17, 130], [2, 4, 19, 133], [46, -3, 16, 137]]) {
+        const b = blob(g, '#33571f', '#54803a', fr, fx, 9, fz, { seed: sd, sy: 0.55, detail: 3, amp: 0.11 });
         b.scale.z = 0.75;
       }
-      // blooms: visible stems, a petal whorl and a bright center
-      const heads = ['#c94a63', '#e0a33c', '#9c6bbf', '#ece7dc', '#d3591f', '#c94a63', '#e0a33c'];
-      for (let i = 0; i < 7; i++) {
-        const fx = -60 + i * 20 + (rand() - 0.5) * 8, fz = (rand() - 0.5) * 40;
-        const fh = 20 + rand() * 14;
-        cyl(g, solid('#4e6b34', 0.9), 0.9, fh, fx, 10, fz);
-        const petals = sphere(g, solid(heads[i], 0.6), 4.6 + rand() * 1.6, fx, 11 + fh, fz, { sy: 0.42, seg: 10 });
-        petals.rotation.x = (rand() - 0.5) * 0.4;
-        sphere(g, solid('#e8c02e', 0.55), 1.7, fx, 12.5 + fh, fz, { seg: 8 });
-      }
+      // REAL mixed blooms on leaning leafy stems: daisies, tulips, lavender
+      const daisies = [['#f4f2ea', -52, -10, 24], ['#f0d9e6', -8, 14, 27], ['#f4f2ea', 40, -14, 22]];
+      daisies.forEach(([c, fx, fz, fh], i) => {
+        const tip = flowerStem(g, fx, fz, fh, 130 + i * 3);
+        bloomDaisy(g, c, '#e8b520', 4.4, tip.x, tip.y + 2, tip.z, 130 + i * 3, (i - 1) * 0.16);
+      });
+      const tulips = [['#c94a63', -30, 16, 22], ['#e0a33c', 16, -16, 25], ['#9c6bbf', 58, 10, 21]];
+      tulips.forEach(([c, fx, fz, fh], i) => {
+        const tip = flowerStem(g, fx, fz, fh, 140 + i * 5);
+        bloomTulip(g, c, 4.4, tip.x, tip.y + 3.5, tip.z, 140 + i * 5);
+      });
+      for (let i = 0; i < 3; i++) spikeLavender(g, -14 + i * 10, -18 + (i % 2) * 6, 18 + i * 3, 150 + i);
       return g;
     }
   },
@@ -2496,10 +2571,24 @@ export const ITEMS = [
       const g = G();
       box(g, wood(p.wood, 0.75), 110, 40, 42, 0, 0, 0, { r: 2 });
       box(g, solid('#4a3a28', 0.98), 100, 4, 34, 0, 34.5, 0); // recessed below rim (no z-fight)
-      // crowns clear of the rim and inside the footprint (no wall clipping)
-      foliage(g, '#4e6b34', '#5f8040', -28, 58, 0, 12, 5, 41);
-      foliage(g, '#5d7a4c', '#728f5e', 6, 60, 2, 13, 5, 42);
-      foliage(g, '#3f6b2e', '#548a3c', 36, 57, -2, 11, 4, 43);
+      // an irregular leafy fill breaking the rim line at varied heights…
+      for (const [bx, bz, br, by, sd] of [
+        [-38, 2, 10, 38, 41], [-16, -5, 12, 40, 42], [8, 5, 11, 37, 43],
+        [30, -3, 12, 41, 44], [44, 4, 8, 36, 45]
+      ]) {
+        blob(g, '#3f6b2e', '#5f8f40', br, bx, by, bz, { seed: sd, sy: 0.8, detail: 3, amp: 0.12 });
+      }
+      // …with real daisies rising out of it on stems
+      for (let i = 0; i < 3; i++) {
+        const dx = -26 + i * 26;
+        segment(g, solid('#4e7a34', 0.85), [dx, 38, 0], [dx + 3, 54 + i * 2, (i - 1) * 3], 0.7, 0.5, 6);
+        bloomDaisy(g, i === 1 ? '#f0d9e6' : '#f4f2ea', '#e8b520', 3.6, dx + 3, 56 + i * 2, (i - 1) * 3, 46 + i, (i - 1) * 0.2);
+      }
+      // trailing stem spilling over the front edge (planters always trail)
+      segment(g, solid('#4e7a34', 0.8), [12, 40, 8], [20, 34, 20], 0.6, 0.5, 6);
+      segment(g, solid('#4e7a34', 0.8), [20, 34, 20], [26, 20, 23], 0.5, 0.4, 6);
+      sphere(g, solid('#5f8f40', 0.7), 2.6, 22, 30, 21.5, { sy: 0.4, seg: 8 });
+      sphere(g, solid('#548a3c', 0.7), 2.2, 26, 20, 23, { sy: 0.4, seg: 8 });
       return g;
     }
   },
@@ -2697,29 +2786,21 @@ export const ITEMS = [
     plan: { type: 'plant' },
     build: (p) => {
       const g = G();
-      cyl(g, solid('#4e3a26', 0.95), 3.5, 20, 0, 0, 0, { rTop: 2.6 });
-      // layered leafy mound (deep interior -> sunlit crown)
-      blob(g, '#2c4d1c', '#4a7030', 34, 0, 42, 0, { seed: 51, sy: 1.0 });
-      blob(g, '#33571f', '#558038', 26, -20, 56, 10, { seed: 54, sy: 0.9 });
-      blob(g, '#30521e', '#517c34', 25, 21, 54, -12, { seed: 57, sy: 0.92 });
-      blob(g, '#365a22', '#5c8a3c', 20, 2, 68, 4, { seed: 60, sy: 0.85 });
-      let s = 61;
-      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-      const bloomMat = solid(p.bloom, 0.55);
-      const heartMat = solid('#3a2b1a', 0.8);
-      // roses sit ON the crown: cupped outer whorl + rising inner bud + heart
-      for (let i = 0; i < 7; i++) {
-        const a = (i / 7) * Math.PI * 2 + rand() * 0.5;
-        const r = 10 + rand() * 22;
-        const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
-        // blooms ride ON the mound's crown surface, standing proud on stems
-        const by = 90 - r * 0.55 + rand() * 5;
-        cyl(g, solid('#3f6b28', 0.9), 0.8, 14 + rand() * 5, bx, by - 15, bz); // stem into the bush
-        const rr = 4.8 + rand() * 2.2;
-        sphere(g, bloomMat, rr, bx, by, bz, { sy: 0.62, seg: 10 });          // outer whorl
-        sphere(g, bloomMat, rr * 0.62, bx, by + rr * 0.34, bz, { sy: 0.78, seg: 8 }); // inner bud
-        sphere(g, heartMat, rr * 0.22, bx, by + rr * 0.62, bz, { seg: 6 });  // dark heart
-      }
+      // real shrub skeleton (woody stubs -> branches -> offset leaf clusters)
+      bushMass(g, 88, 78, 88, { seed: 11, clusters: 7 });
+      const lite = shadeHex(p.bloom, 26);
+      const budMat = solid(shadeHex(p.bloom, -18), 0.6);
+      const sepalMat = solid('#2f5426', 0.85);
+      // ACTUAL roses — whorled multi-petal blooms — studding the sunlit shell
+      // of the canopy, plus a few furled buds between them
+      studBlooms(g, 88, 78, 88, 8, 41, (gg, x, y, z, i) => {
+        if (i % 4 === 3) {                        // furled bud on a sepal collar
+          sphere(gg, budMat, 2.6, x, y + 2.4, z, { sy: 1.35, seg: 8 });
+          sphere(gg, sepalMat, 2.1, x, y + 0.8, z, { sy: 0.85, seg: 6 });
+        } else {
+          bloomRose(gg, i % 2 ? p.bloom : lite, 5.8, x, y + 2, z, i + 21);
+        }
+      });
       return g;
     }
   },
@@ -2732,22 +2813,14 @@ export const ITEMS = [
       let s = 41;
       const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       const colors = ['#c8283c', '#e0a33c', '#9c50b8', '#e05a7c', '#ece7dc', '#c8283c', '#e0a33c', '#e05a7c'];
+      // real tulips: leaning leafy stems, each topped by a CUP of separate
+      // petals with a lighter inner whorl (bloomTulip), heights staggered
       for (let i = 0; i < 8; i++) {
         const tx = -47 + (i % 4) * 31 + (rand() - 0.5) * 10;
         const tz = (i < 4 ? -16 : 16) + (rand() - 0.5) * 10;
-        const th = 26 + rand() * 12;
-        const lean = (rand() - 0.5) * 0.12;
-        const stem = cyl(g, solid('#3f6b28', 0.9), 1.2, th, tx, 8, tz);
-        stem.rotation.z = lean;
-        // broad strap leaf hugging the stem
-        const leaf = sphere(g, solid('#4a7a30', 0.9), 6, tx + 4, 15, tz - 1, { sy: 1.9, sz: 0.42, seg: 8 });
-        leaf.scale.x = 0.2;
-        leaf.rotation.z = 0.38;
-        leaf.rotation.y = rand() * Math.PI;
-        // tulip cup: egg-shaped outer petals + lighter inner petals peeking out
-        const bx = tx + Math.sin(lean) * th;
-        sphere(g, solid(colors[i], 0.55), 5.4, bx, 8 + th + 3.5, tz, { sy: 1.25, sx: 0.92, seg: 12 });
-        sphere(g, solid('#f2e4c0', 0.6), 3.1, bx, 8 + th + 7.5, tz, { sy: 1.05, seg: 8 });
+        const th = 24 + rand() * 10;
+        const tip = flowerStem(g, tx, tz, th, 41 + i * 3);
+        bloomTulip(g, colors[i], 4.8, tip.x, tip.y + 4, tip.z, 41 + i * 3);
       }
       return g;
     }
@@ -3734,12 +3807,33 @@ export const ITEMS = [
     palettes: null, plan: { type: 'plant' },
     build: () => {
       const g = G();
+      // maple: forking trunk, each scaffold limb ending in its OWN fiery
+      // cluster — reds vary lobe to lobe the way real fall maples do
+      let s = 23;
+      const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       const bark = solid('#4a3a30', 0.95);
-      cyl(g, bark, 13, 160, 0, 0, 0, { rTop: 8 });
-      cyl(g, bark, 6, 90, 0, 115, 0, { rz: 0.5 });
-      cyl(g, bark, 5, 85, 0, 125, 0, { rz: -0.5 });
-      foliage(g, '#7a2a20', '#c8542e', 0, 280, 0, 100, 14, 55);
-      blob(g, '#6e2418', '#b8442a', 42, 85, 205, 25, { seed: 96, sy: 0.85 });
+      segment(g, bark, [0, 0, 0], [-3, 148, 2], 16, 9, 12);
+      const tones = [
+        ['#6e2418', '#b8442a'], ['#7a2a20', '#c8542e'], ['#82301c', '#d0662e'],
+        ['#6a2014', '#ae3c24'], ['#7a2a20', '#c8542e']
+      ];
+      const limbs = [
+        [0.2, 84, 246, 50], [1.5, 90, 226, 48], [2.7, 80, 262, 46],
+        [3.9, 88, 234, 48], [5.1, 62, 288, 42]
+      ];
+      limbs.forEach(([a, rr, ty, cr], i) => {
+        const tx = Math.cos(a) * rr, tz = Math.sin(a) * rr;
+        segment(g, bark, [-2, 136, 1], [tx * 0.55, 145 + (ty - 145) * 0.55, tz * 0.55], 6.8, 4.4, 8);
+        segment(g, bark, [tx * 0.55, 145 + (ty - 145) * 0.55, tz * 0.55], [tx * 0.94, ty - 8, tz * 0.94], 4.4, 2.2, 7);
+        const [lo, hi] = tones[i];
+        blob(g, lo, hi, cr, tx + (rand() - 0.5) * 20, ty + cr * 0.4, tz + (rand() - 0.5) * 20,
+          { seed: 96 + i * 5, sy: 0.84, detail: 3, amp: 0.1 });
+        blob(g, lo, hi, cr * 0.56, tx * 1.08, ty + cr * 0.92, tz * 1.08,
+          { seed: 99 + i * 7, sy: 0.78, detail: 3, amp: 0.11 });
+      });
+      segment(g, bark, [-2, 142, 1], [6, 286, -4], 5.4, 2.2, 7);
+      blob(g, '#7a2a20', '#d0662e', 54, 5, 306, -4, { seed: 121, sy: 0.8, detail: 3, amp: 0.1 });
+      blob(g, '#621e12', '#9e3620', 50, 0, 228, 0, { seed: 122, sy: 0.9, detail: 2, amp: 0.08 });
       return g;
     }
   },
@@ -3799,8 +3893,25 @@ export const ITEMS = [
     build: () => {
       const g = G();
       box(g, solid('#4a4438', 0.8), 88, 22, 24, 0, 0, 0, { r: 2 });
-      for (let i = 0; i < 4; i++) blob(g, '#375c22', '#6d9c42', 11, -33 + i * 22, 24, 0, { seed: 41 + i, detail: 1 });
-      for (let i = 0; i < 3; i++) sphere(g, solid(['#c43a50', '#e8b03a', '#c46ad0'][i], 0.7), 3, -22 + i * 22, 34, 6);
+      box(g, solid('#463522', 0.98), 80, 3, 18, 0, 18.5, 0); // recessed soil
+      // uneven leafy fill (varied radii/heights so the row isn't 4 equal balls)
+      for (const [bx, bz, br, by, sd] of [
+        [-32, 1, 8, 20, 41], [-13, -3, 9.5, 22, 42], [5, 3, 8.5, 19, 43], [24, -2, 9, 22, 44], [37, 2, 6.5, 19, 45]
+      ]) {
+        blob(g, '#375c22', '#5d8f3d', br, bx, by, bz, { seed: sd, sy: 0.85, detail: 3, amp: 0.13 });
+      }
+      // real mini-tulips on stems instead of floating gumballs
+      const cols = ['#c43a50', '#e8b03a', '#c46ad0'];
+      for (let i = 0; i < 3; i++) {
+        const fx = -24 + i * 23;
+        segment(g, solid('#4e7a34', 0.85), [fx, 20, 2], [fx + 2, 29 + (i % 2) * 3, 3], 0.6, 0.45, 6);
+        bloomTulip(g, cols[i], 2.7, fx + 2, 29.5 + (i % 2) * 3, 3, 51 + i);
+      }
+      // ivy strand trailing down the front face
+      segment(g, solid('#41692c', 0.8), [-4, 20, 9], [2, 12, 13.5], 0.55, 0.45, 6);
+      segment(g, solid('#41692c', 0.8), [2, 12, 13.5], [7, 2, 14.5], 0.45, 0.35, 6);
+      sphere(g, solid('#548a3c', 0.7), 2.1, 3, 10, 13.8, { sy: 0.4, seg: 8 });
+      sphere(g, solid('#5d8f3d', 0.7), 1.8, 7, 3, 14.6, { sy: 0.4, seg: 8 });
       return g;
     }
   }
