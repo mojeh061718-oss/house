@@ -26,6 +26,7 @@ export const CATEGORIES = [
   { id: 'yard', name: 'Yard & Garden' },
   { id: 'farm', name: 'Farm & Homestead' },
   { id: 'porch', name: 'Front Porch' },
+  { id: 'garden', name: 'Garden & Flowers' },
   { id: 'paths', name: 'Paths & Pads' },
   { id: 'outdoor', name: 'Outdoor' }
 ];
@@ -3822,6 +3823,15 @@ for (const it of ITEMS) {
   const nc = OUTDOOR_RECAT[it.plan?.type];
   if (nc) it.cat = nc;
 }
+// Everything botanical — trees, bushes, flowers, planters, garden beds —
+// lives together under "Garden & Flowers" (drawn from yard/outdoor/decor).
+for (const it of ITEMS) {
+  const t = it.plan?.type;
+  const botanical = ['plant', 'hedge', 'grass'].includes(t) ||
+    /tree|bush|hedge|flower|rose|tulip|plant|fern|garden_|_garden|topiary|shrub|palm|sunflower|monstera|pampas|snake_|fiddle/.test(it.id);
+  if (botanical && !it.hidden && it.cat !== 'garden' && !it.mount) it.cat = 'garden';
+}
+
 // All walkable/drivable surfaces — drawable paths and drag-to-size pads — live
 // together under "Paths & Pads" wherever they started (fences and water
 // streams keep their own homes).

@@ -1516,8 +1516,12 @@ input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
   padding: 10px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(10px);
-  max-width: 96vw;
+  /* size against #app (the containing block for fixed inside the rotated
+     element), NOT vw — viewport units don't rotate, which squeezed the
+     keyboard to the narrow axis in rotated-portrait */
+  width: min(94%, 760px);
 }
+#gameKeys .gk { max-width: none; } /* keys share the row evenly at full width */
 .gk-row { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
 .gk-row:first-child { margin-top: 0; }
 .gk {

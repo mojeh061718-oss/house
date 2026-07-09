@@ -194,8 +194,17 @@ export function textMaterial(text, opts = {}) {
   if (opts.border) { g.strokeStyle = opts.border; g.lineWidth = 10; g.strokeRect(8, 8, c.width - 16, c.height - 16); }
   g.fillStyle = opts.fg || '#ece7da';
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = `${opts.weight || 700} ${opts.size || 150}px ${opts.font || 'Georgia, "Times New Roman", serif'}`;
-  g.fillText(String(text ?? '').slice(0, 14), c.width / 2, c.height / 2 + 6);
+  // font adapts to the text: long names shrink to fit rather than clipping
+  const str = String(text ?? '').slice(0, 25);
+  let size = opts.size || 150;
+  g.font = `${opts.weight || 700} ${size}px ${opts.font || 'Georgia, "Times New Roman", serif'}`;
+  const maxW = c.width * 0.88;
+  const w0 = g.measureText(str).width;
+  if (w0 > maxW) {
+    size = Math.max(34, Math.floor(size * maxW / w0));
+    g.font = `${opts.weight || 700} ${size}px ${opts.font || 'Georgia, "Times New Roman", serif'}`;
+  }
+  g.fillText(str, c.width / 2, c.height / 2 + 6);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.1 });
@@ -350,10 +359,22 @@ export function buildPond(w, d) {
 export function buildTallGrass(pal, w, d) {
   const g = G();
   const H = pal.height || 60;
-  const count = Math.min(2600, Math.max(160, Math.round((w * d) / 240)));
-  const geo = new THREE.ConeGeometry(2.4, 1, 4, 1);
+  const count = Math.min(5200, Math.max(320, Math.round((w * d) / 115)));
+  // A real blade: a thin strip that tapers to a tip and arcs over as it
+  // rises (cones read as spikes). Height is 1 pre-scale; the z-arc is in cm
+  // so per-instance y-scaling stretches the blade without flattening the bend.
+  const geo = new THREE.PlaneGeometry(2.6, 1, 1, 4);
   geo.translate(0, 0.5, 0); // base at y=0 so height scaling grows upward
-  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 });
+  {
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const t = p.getY(i);
+      p.setX(i, p.getX(i) * (1 - t * 0.88));   // taper to a near-point
+      p.setZ(i, p.getZ(i) + t * t * 13);       // arc the tip over ~13 cm
+    }
+    geo.computeVertexNormals();
+  }
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95, side: THREE.DoubleSide });
   mat.userData.owned = true;
   const mesh = new THREE.InstancedMesh(geo, mat, count);
   const dummy = new THREE.Object3D();

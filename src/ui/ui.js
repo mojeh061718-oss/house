@@ -1661,7 +1661,7 @@ export class UI {
           ${isPath ? '<div class="props-section-title">Drag the path on the plan to move it. Duplicate to branch it.</div>' : ''}
           ${surfacePick ? '<div class="props-section-title">Surface texture — any material you like</div><div class="mat-grid" id="matSurface"></div>' : ''}
           ${def?.photo ? `<div class="props-section-title">Photo</div><button class="action" id="pPhoto">${icon('image')} ${it.photo ? 'Change photo' : 'Add a photo from your device'}</button>${it.photo ? '<button class="action" id="pPhotoClear">Remove photo</button>' : ''}` : ''}
-          ${def?.sign ? `<div class="props-section-title">Sign text</div><input class="prop-text" id="pSign" value="${escapeHtml(it.sign ?? def.signDefault ?? '')}" maxlength="14" placeholder="${escapeHtml(def.signDefault || 'Type here')}"/>` : ''}
+          ${def?.sign ? `<div class="props-section-title">Sign text</div><input class="prop-text" id="pSign" value="${escapeHtml(it.sign ?? def.signDefault ?? '')}" maxlength="25" placeholder="${escapeHtml(def.signDefault || 'Type here')}"/>` : ''}
           ${def?.palettes && !surfacePick ? '<div class="props-section-title">Finish</div><div class="chip-row" id="palRow"></div>' : ''}
           <div class="btn-row">
             <button class="action" id="pDup">${icon('copy')} Duplicate</button>
@@ -1710,7 +1710,13 @@ export class UI {
         const si = $('#pSign');
         this.attachKeys(si, 'text'); // house numbers/signs use Studio Keys on touch
         // commit on blur/enter so typing a number is one undo step, not one per key
-        si.onchange = () => commit(() => { it.sign = si.value; });
+        si.onchange = () => commit(() => {
+          it.sign = si.value;
+          // the plaque grows with the name (up to ~2.2x) so long text stays
+          // legible instead of shrinking into a fixed board
+          const len = (si.value || def.signDefault || '').length;
+          if (def.signAdaptive !== false) it.w = Math.round(def.w * Math.min(2.2, Math.max(1, len / 10)));
+        });
         si.onkeydown = (e) => { if (e.key === 'Enter') si.blur(); };
       }
       $('#pDup').onclick = () => this.duplicateSelection();
