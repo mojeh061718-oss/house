@@ -443,14 +443,25 @@ export class Viewer3D {
     // only the nearest MAX cast an actual light pool. Re-picked on each rebuild.
     this._litItems = this.pickLitItems(top);
     for (let li = 0; li <= top; li++) {
-    for (const it of this.store.project.levels[li].items) {
+      for (const it of this.store.project.levels[li].items) {
+        this.buildOneItem(it, li, wallH);
+      }
+    }
+    this.updateSelBox();
+  }
+
+  /** Build a single item's model into the scene. Used by the full rebuild AND
+   *  by incremental placement — rebuilding every item on every tap churned
+   *  the whole scene's geometry per placement, which OOM-killed phone tabs
+   *  once yards filled with the heavier botanical pieces. */
+  buildOneItem(it, li, wallH) {
       const def = ITEM_MAP.get(it.defId);
-      if (!def) continue;
-      if (this.hideRoof && def.plan?.type === 'roof') continue; // peek inside
+      if (!def) return;
+      if (this.hideRoof && def.plan?.type === 'roof') return; // peek inside
       // room-focus: show only the furniture that belongs to the focused room
       if (this.focusRoomKey && this._focusBounds && li === (this.store.project.activeLevel ?? 0)) {
         const b = this._focusBounds;
-        if (it.x < b.minX - 40 || it.x > b.maxX + 40 || it.y < b.minZ - 40 || it.y > b.maxZ + 40) continue;
+        if (it.x < b.minX - 40 || it.x > b.maxX + 40 || it.y < b.minZ - 40 || it.y > b.maxZ + 40) return;
       }
       try {
         const isPath = def.path && it.path?.length >= 2;
@@ -482,7 +493,7 @@ export class Viewer3D {
         outer.userData.sign = it.sign;
         this.poseItem(outer, it, def, wallH, this.levelY(li));
         this.addContactShadow(outer, it, def);
-        if (def.light && this._litItems.has(it.id)) {
+        if (def.light && this._litItems?.has(it.id)) {
           const l = new THREE.PointLight(def.light.color, def.light.intensity, def.light.distance, 1.6);
           l.position.set(0, def.mount === 'ceiling' ? wallH + def.light.y : def.light.y, 0);
           outer.add(l);
@@ -493,9 +504,6 @@ export class Viewer3D {
         // never let one bad item wipe the whole furniture pass
         console.warn('item build failed', it.defId, err);
       }
-    }
-    }
-    this.updateSelBox();
   }
 
   /** Choose which light fixtures get a real PointLight (nearest to the camera
@@ -524,32 +532,46 @@ export class Viewer3D {
     outer.rotation.y = -it.rotation;
   }
 
-  /** Cheap update path for drags: reuse models, only update transforms. */
+  /** Cheap update path for drags AND placement: reuse models and update
+   *  transforms; build only NEW items and dispose only REMOVED ones. A full
+   *  rebuild happens only when an existing item structurally changed
+   *  (palette/size/photo/sign) or a light fixture arrived (the light cap is
+   *  a global decision). Rebuilding everything on every placement churned
+   *  the entire scene per tap — the "crashes non stop when placing" report. */
   syncItems() {
     const wallH = this.store.project.settings.wallHeight;
     const active = this.store.project.activeLevel ?? 0;
     const lvlY = this.levelY(active);
     const alive = new Set();
-    let structuralChange = false;
+    const added = [];
+    let fullRebuild = false;
     for (const it of this.store.project.items) {
       alive.add(it.id);
       const g = this.itemGroups.get(it.id);
-      if (!g) { structuralChange = true; continue; }
+      if (!g) { added.push(it); continue; }
       const def = ITEM_MAP.get(it.defId);
       const model = g.children[0];
       if (g.userData.palette !== it.palette || g.userData.w !== it.w || g.userData.d !== it.d || g.userData.h !== it.h ||
           g.userData.pw !== it.pw || g.userData.mat !== it.mat ||
           g.userData.photo !== it.photo || g.userData.sign !== it.sign) {
-        structuralChange = true;
+        fullRebuild = true;
       }
       this.poseItem(g, it, def, wallH, lvlY);
       if (model && !it.path && !def?.buildSized) model.scale.set(it.w / def.w, it.h / def.h, it.d / def.d);
     }
-    for (const [id, g] of this.itemGroups) {
-      if (g.userData.level === active && !alive.has(id)) structuralChange = true;
+    for (const it of added) {
+      if (ITEM_MAP.get(it.defId)?.light) { fullRebuild = true; break; }
     }
-    if (structuralChange) this.rebuildItems();
-    else this.updateSelBox();
+    if (fullRebuild) { this.rebuildItems(); return; }
+    for (const [id, g] of [...this.itemGroups]) {
+      if (g.userData.level === active && !alive.has(id)) {
+        this.disposeGroup(g);
+        this.itemsGroup.remove(g);
+        this.itemGroups.delete(id);
+      }
+    }
+    for (const it of added) this.buildOneItem(it, active, wallH);
+    this.updateSelBox();
   }
 
   disposeGroup(group) {

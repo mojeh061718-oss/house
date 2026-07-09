@@ -3,6 +3,7 @@ import { detectRooms, roomKey, uid, pointInPolygon, collinearOverlapUnion } from
 import { openingDefaults, isDoorType } from './openings.js';
 import { saveProject, saveDraft, clearDraft } from './projects.js';
 import { surfaceTopAt } from './placement.js';
+import { ITEM_MAP } from '../catalog/items.js';
 
 export const DEFAULTS = {
   wallHeight: 260,      // cm
@@ -417,6 +418,16 @@ export class Store {
     const cut = (arr, pred) => {
       for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) arr.splice(i, 1);
     };
+    // Plain furniture deletions don't touch walls or the ground plane, so
+    // they take the cheap non-structural path (the viewer removes just that
+    // model). Stairs/elevators cut holes in floors — those stay structural.
+    const cutsGround = (id) => {
+      const t = ITEM_MAP.get(this.item(id)?.defId)?.plan?.type;
+      return t === 'stairs' || t === 'elevator';
+    };
+    let structural = true;
+    if (sel.kind === 'item') structural = cutsGround(sel.id);
+    else if (sel.kind === 'multi') structural = sel.ids.some(id => cutsGround(id));
     if (sel.kind === 'dim') {
       cut(p.dims, d => d.id === sel.id);
       this.select(null);
@@ -453,7 +464,7 @@ export class Store {
       delete p.roomStyles[sel.id];
     }
     this.select(null);
-    this.commit(true);
+    this.commit(structural);
     return true;
   }
 
